@@ -25,7 +25,7 @@ export default function LoginScreen() {
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
                 <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
                     <View className="items-center mb-12">
-                        <View className="w-20 h-20 bg-indigo-600 rounded-3xl items-center justifyContent-center mb-4 transform rotate-3 shadow-lg shadow-indigo-500/30">
+                        <View className="w-20 h-20 bg-indigo-600 rounded-3xl items-center justify-center mb-4 transform rotate-3 shadow-lg shadow-indigo-500/30">
                             <Text className="text-4xl text-white">✓</Text>
                         </View>
                         <Text className="text-3xl font-bold text-gray-900 dark:text-white text-center">
@@ -41,7 +41,7 @@ export default function LoginScreen() {
                             <Text className="text-gray-700 font-medium mb-1">Usuario</Text>
                             <TextInput
                                 className="bg-white p-4 rounded-xl border border-gray-200 text-lg"
-                                placeholder="Usuario (ej. papa, hijo)"
+                                placeholder="Usuario (ej. papa, hijo1)"
                                 value={username}
                                 onChangeText={setUsername}
                                 autoCapitalize="none"

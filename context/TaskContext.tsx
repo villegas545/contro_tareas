@@ -10,7 +10,7 @@ interface TaskContextType {
     history: TaskHistory[];
     login: (username: string, password?: string) => boolean;
     logout: () => void;
-    addTask: (task: Omit<Task, 'id' | 'createdAt'>) => void;
+    addTask: (task: Omit<Task, 'id'>) => void;
     updateTask: (taskId: string, updates: Partial<Task>) => void;
     deleteTask: (taskId: string) => void;
     completeTask: (taskId: string) => void;
@@ -20,6 +20,8 @@ interface TaskContextType {
     messages: string[];
     addMessage: (text: string) => void;
     deleteMessage: (index: number) => void;
+    addUser: (user: Omit<User, 'id'>) => void;
+    deleteUser: (userId: string) => void;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -27,7 +29,7 @@ const TaskContext = createContext<TaskContextType | undefined>(undefined);
 export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [tasks, setTasks] = useState<Task[]>(TASKS);
-    const [users] = useState<User[]>(USERS);
+    const [users, setUsers] = useState<User[]>(USERS);
     const [history, setHistory] = useState<TaskHistory[]>(MOCK_HISTORY);
     const [messages, setMessages] = useState<string[]>([
         "¡Tú puedes con todo! 🚀",
@@ -46,6 +48,18 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         setMessages(prev => prev.filter((_, i) => i !== index));
     };
 
+    const addUser = (newUser: Omit<User, 'id'>) => {
+        const user: User = {
+            ...newUser,
+            id: Math.random().toString(36).substr(2, 9),
+        };
+        setUsers(prev => [...prev, user]);
+    };
+
+    const deleteUser = (userId: string) => {
+        setUsers(prev => prev.filter(u => u.id !== userId));
+    };
+
     const login = (username: string, password?: string) => {
         const user = users.find((u) => u.username === username);
         if (user && user.password === password) {
@@ -59,7 +73,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         setCurrentUser(null);
     };
 
-    const addTask = (newTask: Omit<Task, 'id' | 'createdAt'>) => {
+    const addTask = (newTask: Omit<Task, 'id'>) => {
         const task: Task = {
             ...newTask,
             id: Math.random().toString(36).substr(2, 9),
@@ -213,7 +227,9 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 rejectTask,
                 messages,
                 addMessage,
-                deleteMessage
+                deleteMessage,
+                addUser,
+                deleteUser
             }}
         >
             {children}

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, SafeAreaView, TextInput, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, SafeAreaView, TextInput, ScrollView, Alert, TouchableOpacity, Platform } from 'react-native';
 import { useTaskContext } from '../context/TaskContext';
 import { Button } from '../components/ui/Button';
-import { TaskFrequency } from '../types';
+import { Task, TaskFrequency } from '../types';
 
 export default function CreateTaskScreen({ navigation }: any) {
     const { addTask, users, currentUser } = useTaskContext();
@@ -28,41 +28,69 @@ export default function CreateTaskScreen({ navigation }: any) {
             return;
         }
 
-        Alert.alert(
-            "Crear Plantilla",
-            "¿Deseas guardar esta plantilla de tarea?",
-            [
-                { text: "Cancelar", style: "cancel" },
-                {
-                    text: "Guardar",
-                    onPress: () => {
-                        const newTask: any = {
-                            title,
-                            description,
-                            assignedTo: 'pool', // Created as a template in the pool
-                            createdBy: currentUser?.id || '',
-                            status: 'pending',
-                            type,
-                            frequency,
-                            points: points ? parseInt(points) : undefined
-                        };
+        if (Platform.OS === 'web') {
+            if (window.confirm("¿Deseas guardar esta plantilla de tarea?")) {
+                const newTask: Omit<Task, 'id'> = {
+                    title,
+                    description,
+                    assignedTo: 'pool',
+                    createdBy: currentUser?.id || '',
+                    status: 'pending',
+                    type,
+                    frequency,
+                    points: points ? parseInt(points) : undefined
+                };
 
-                        if (timeType === 'specific' && dueTime) {
-                            newTask.dueTime = dueTime;
-                        } else if (timeType === 'window' && windowStart && windowEnd) {
-                            newTask.timeWindow = {
-                                start: windowStart,
-                                end: windowEnd
-                            };
-                        }
-
-                        addTask(newTask);
-                        navigation.goBack();
-                        Alert.alert("Éxito", "Plantilla creada correctamente");
-                    }
+                if (timeType === 'specific' && dueTime) {
+                    newTask.dueTime = dueTime;
+                } else if (timeType === 'window' && windowStart && windowEnd) {
+                    newTask.timeWindow = {
+                        start: windowStart,
+                        end: windowEnd
+                    };
                 }
-            ]
-        );
+
+                addTask(newTask);
+                navigation.goBack();
+                window.alert("Plantilla creada correctamente");
+            }
+        } else {
+            Alert.alert(
+                "Crear Plantilla",
+                "¿Deseas guardar esta plantilla de tarea?",
+                [
+                    { text: "Cancelar", style: "cancel" },
+                    {
+                        text: "Guardar",
+                        onPress: () => {
+                            const newTask: Omit<Task, 'id'> = {
+                                title,
+                                description,
+                                assignedTo: 'pool',
+                                createdBy: currentUser?.id || '',
+                                status: 'pending',
+                                type,
+                                frequency,
+                                points: points ? parseInt(points) : undefined
+                            };
+
+                            if (timeType === 'specific' && dueTime) {
+                                newTask.dueTime = dueTime;
+                            } else if (timeType === 'window' && windowStart && windowEnd) {
+                                newTask.timeWindow = {
+                                    start: windowStart,
+                                    end: windowEnd
+                                };
+                            }
+
+                            addTask(newTask);
+                            navigation.goBack();
+                            Alert.alert("Éxito", "Plantilla creada correctamente");
+                        }
+                    }
+                ]
+            );
+        }
     };
 
     return (

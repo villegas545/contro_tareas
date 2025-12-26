@@ -1,16 +1,22 @@
 import React from 'react';
-import { View, Text, SafeAreaView, ScrollView, FlatList, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, SafeAreaView, ScrollView, FlatList, TouchableOpacity, TextInput, Alert, Platform } from 'react-native';
 import { useTaskContext } from '../context/TaskContext';
 import { Card } from '../components/ui/Card';
 import { Task } from '../types';
 import { Button } from '../components/ui/Button';
+import { ParentTaskCard } from '../components/ParentTaskCard';
 
 export default function ParentDashboard({ navigation }: any) {
-    const { currentUser, tasks, users, verifyTask, rejectTask, logout, addTask, messages, addMessage, deleteMessage } = useTaskContext();
+    const { currentUser, tasks, users, verifyTask, rejectTask, logout, addTask, messages, addMessage, deleteMessage, addUser, deleteUser } = useTaskContext();
     const children = users.filter(u => u.role === 'child');
     const [selectedChildId, setSelectedChildId] = React.useState<string | null>(null);
-    const [currentTab, setCurrentTab] = React.useState<'monitoring' | 'assignment' | 'messages'>('monitoring');
+    const [currentTab, setCurrentTab] = React.useState<'monitoring' | 'assignment' | 'messages' | 'family'>('monitoring');
     const [newMessageText, setNewMessageText] = React.useState('');
+
+    // User Management State
+    const [newChildName, setNewChildName] = React.useState('');
+    const [newChildUsername, setNewChildUsername] = React.useState('');
+    const [newChildPassword, setNewChildPassword] = React.useState('');
 
     // Assignment Mode State
     const [taskLikelyToAssign, setTaskLikelyToAssign] = React.useState<Task | null>(null);
@@ -23,220 +29,205 @@ export default function ParentDashboard({ navigation }: any) {
     // In assignment mode, we only show 'pool' tasks (templates)
     const poolTasks = tasks.filter(t => t.assignedTo === 'pool');
 
-    const handleAddMessage = () => {
-        if (!newMessageText.trim()) {
-            Alert.alert("Error", "El mensaje no puede estar vacío");
+    const handleAddUser = () => {
+        if (!newChildName || !newChildUsername || !newChildPassword) {
+            if (Platform.OS === 'web') window.alert("Todos los campos son obligatorios");
+            else Alert.alert("Error", "Todos los campos son obligatorios");
             return;
         }
-        Alert.alert(
-            "Confirmar",
-            "¿Deseas agregar este mensaje?",
-            [
-                { text: "Cancelar", style: "cancel" },
-                {
-                    text: "Agregar",
-                    onPress: () => {
-                        addMessage(newMessageText);
-                        setNewMessageText('');
-                        Alert.alert("Éxito", "Mensaje agregado");
+
+        const usernameExists = users.some(u => u.username === newChildUsername);
+        if (usernameExists) {
+            if (Platform.OS === 'web') window.alert("Este nombre de usuario ya existe");
+            else Alert.alert("Error", "Este nombre de usuario ya existe");
+            return;
+        }
+
+        addUser({
+            name: newChildName,
+            username: newChildUsername,
+            password: newChildPassword,
+            role: 'child',
+            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + newChildUsername
+        });
+
+        setNewChildName('');
+        setNewChildUsername('');
+        setNewChildPassword('');
+
+        if (Platform.OS === 'web') window.alert("Hijo agregado correctamente");
+        else Alert.alert("Éxito", "Hijo agregado correctamente");
+    };
+
+    const confirmDeleteUser = (userId: string) => {
+        if (Platform.OS === 'web') {
+            if (window.confirm("¿Estás seguro de eliminar a este usuario? Se perderá su historial.")) {
+                deleteUser(userId);
+            }
+        } else {
+            Alert.alert(
+                "Confirmar Eliminación",
+                "¿Estás seguro de eliminar a este usuario? Se perderá su historial.",
+                [
+                    { text: "Cancelar", style: "cancel" },
+                    { text: "Eliminar", style: 'destructive', onPress: () => deleteUser(userId) }
+                ]
+            );
+        }
+    };
+
+    const handleAddMessage = () => {
+        if (!newMessageText.trim()) {
+            if (Platform.OS === 'web') window.alert("El mensaje no puede estar vacío");
+            else Alert.alert("Error", "El mensaje no puede estar vacío");
+            return;
+        }
+
+        if (Platform.OS === 'web') {
+            if (window.confirm("¿Deseas agregar este mensaje?")) {
+                addMessage(newMessageText);
+                setNewMessageText('');
+                window.alert("Mensaje agregado");
+            }
+        } else {
+            Alert.alert(
+                "Confirmar",
+                "¿Deseas agregar este mensaje?",
+                [
+                    { text: "Cancelar", style: "cancel" },
+                    {
+                        text: "Agregar",
+                        onPress: () => {
+                            addMessage(newMessageText);
+                            setNewMessageText('');
+                            Alert.alert("Éxito", "Mensaje agregado");
+                        }
                     }
-                }
-            ]
-        );
+                ]
+            );
+        }
     };
 
     const confirmVerify = (taskId: string) => {
-        Alert.alert(
-            "Confirmar Verificación",
-            "¿Estás seguro de que esta tarea se completó correctamente?",
-            [
-                { text: "Cancelar", style: "cancel" },
-                { text: "Sí, Verificar", onPress: () => verifyTask(taskId) }
-            ]
-        );
+        if (Platform.OS === 'web') {
+            if (window.confirm("¿Estás seguro de que esta tarea se completó correctamente?")) verifyTask(taskId);
+        } else {
+            Alert.alert(
+                "Confirmar Verificación",
+                "¿Estás seguro de que esta tarea se completó correctamente?",
+                [
+                    { text: "Cancelar", style: "cancel" },
+                    { text: "Sí, Verificar", onPress: () => verifyTask(taskId) }
+                ]
+            );
+        }
     };
 
     const confirmReject = (taskId: string) => {
-        Alert.alert(
-            "Confirmar Rechazo",
-            "¿Estás seguro de rechazar esta tarea? Volverá a estar pendiente.",
-            [
-                { text: "Cancelar", style: "cancel" },
-                { text: "Sí, Rechazar", onPress: () => rejectTask(taskId) }
-            ]
-        );
+        if (Platform.OS === 'web') {
+            if (window.confirm("¿Estás seguro de rechazar esta tarea? Volverá a estar pendiente.")) rejectTask(taskId);
+        } else {
+            Alert.alert(
+                "Confirmar Rechazo",
+                "¿Estás seguro de rechazar esta tarea? Volverá a estar pendiente.",
+                [
+                    { text: "Cancelar", style: "cancel" },
+                    { text: "Sí, Rechazar", onPress: () => rejectTask(taskId) }
+                ]
+            );
+        }
     };
 
     const confirmDeleteMessage = (index: number) => {
-        Alert.alert(
-            "Confirmar Eliminación",
-            "¿Estás seguro de eliminar este mensaje?",
-            [
-                { text: "Cancelar", style: "cancel" },
-                { text: "Eliminar", style: 'destructive', onPress: () => deleteMessage(index) }
-            ]
-        );
+        if (Platform.OS === 'web') {
+            if (window.confirm("¿Estás seguro de eliminar este mensaje?")) deleteMessage(index);
+        } else {
+            Alert.alert(
+                "Confirmar Eliminación",
+                "¿Estás seguro de eliminar este mensaje?",
+                [
+                    { text: "Cancelar", style: "cancel" },
+                    { text: "Eliminar", style: 'destructive', onPress: () => deleteMessage(index) }
+                ]
+            );
+        }
     };
 
     const handleAssignTask = () => {
         if (!taskLikelyToAssign || assignmentSelection.length === 0) return;
 
-        Alert.alert(
-            "Confirmar Asignación",
-            `¿Asignar "${taskLikelyToAssign.title}" a los hijos seleccionados?`,
-            [
-                { text: "Cancelar", style: "cancel" },
-                {
-                    text: "Asignar",
-                    onPress: () => {
-                        assignmentSelection.forEach(childId => {
-                            const newTask: any = {
-                                title: taskLikelyToAssign.title,
-                                description: taskLikelyToAssign.description,
-                                assignedTo: childId,
-                                createdBy: currentUser?.id,
-                                status: 'pending',
-                                type: taskLikelyToAssign.type,
-                                frequency: taskLikelyToAssign.frequency,
-                                points: taskLikelyToAssign.points,
-                                timeWindow: taskLikelyToAssign.timeWindow,
-                                dueTime: taskLikelyToAssign.dueTime,
-                            };
-                            addTask(newTask);
-                        });
+        const assignLogic = () => {
+            assignmentSelection.forEach(childId => {
+                const newTask: Omit<Task, 'id' | 'createdAt'> = {
+                    title: taskLikelyToAssign.title,
+                    description: taskLikelyToAssign.description,
+                    assignedTo: childId,
+                    createdBy: currentUser?.id || '',
+                    status: 'pending',
+                    type: taskLikelyToAssign.type,
+                    frequency: taskLikelyToAssign.frequency,
+                    points: taskLikelyToAssign.points,
+                    timeWindow: taskLikelyToAssign.timeWindow,
+                    dueTime: taskLikelyToAssign.dueTime,
+                };
+                addTask(newTask);
+            });
 
-                        setTaskLikelyToAssign(null);
-                        setAssignmentSelection([]);
-                        Alert.alert("Éxito", "Tareas asignadas correctamente");
-                    }
-                }
-            ]
-        );
-    };
-
-    const renderTask = ({ item }: { item: Task }) => {
-        const isVerified = item.status === 'verified';
-        const isCompleted = item.status === 'completed';
-        const awaitingVerification = isCompleted && !isVerified;
-
-        // Different style for Pool Tasks (Templates)
-        if (item.assignedTo === 'pool') {
-            return (
-                <Card className="mb-4 bg-white dark:bg-slate-800 border-l-4 border-gray-400">
-                    <View className="mb-2">
-                        <Text className="text-lg font-bold text-gray-900 dark:text-white">{item.title}</Text>
-                        <Text className="text-gray-500 text-sm mt-1">{item.description}</Text>
-                    </View>
-
-                    <View className="flex-row flex-wrap gap-2 mb-3">
-                        <Text className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded capitalize">
-                            🔄 {item.frequency === 'daily' ? 'Diario' : item.frequency === 'weekly' ? 'Semanal' : 'Una vez'}
-                        </Text>
-                        {item.points && (
-                            <Text className="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded">
-                                ⭐️ {item.points} pts
-                            </Text>
-                        )}
-                        <Text className={`text-xs px-2 py-1 rounded capitalize ${item.type === 'obligatory' ? 'bg-rose-50 text-rose-700' : 'bg-blue-50 text-blue-700'
-                            }`}>
-                            {item.type === 'obligatory' ? '✋ Obligatoria' : '🎁 Adicional'}
-                        </Text>
-                    </View>
-
-                    <Button
-                        title="Asignar"
-                        variant="primary"
-                        size="sm"
-                        onPress={() => {
-                            setTaskLikelyToAssign(item);
-                            setAssignmentSelection(children.length > 0 ? [children[0].id] : []);
-                        }}
-                    />
-                </Card>
-            );
+            setTaskLikelyToAssign(null);
+            setAssignmentSelection([]);
+            if (Platform.OS === 'web') window.alert("Tareas asignadas correctamente");
+            else Alert.alert("Éxito", "Tareas asignadas correctamente");
         }
 
-        // Standard Task Card (Monitoring)
-        return (
-            <Card className="mb-4 bg-white dark:bg-slate-800 border-l-4 border-l-indigo-500">
-                <View className="flex-row justify-between items-start mb-2">
-                    <View className="flex-1">
-                        <Text className="text-lg font-bold text-gray-900 dark:text-white">{item.title}</Text>
-                        <Text className="text-gray-500 text-sm mt-1">{item.description}</Text>
-                    </View>
-                    <View className={`px-2 py-1 rounded text-xs ${item.status === 'verified' ? 'bg-green-100 text-green-700' :
-                        item.status === 'completed' ? 'bg-amber-100 text-amber-700' :
-                            'bg-gray-100 text-gray-600'
-                        }`}>
-                        <Text className="text-xs font-semibold capitalize">{item.status}</Text>
-                    </View>
-                </View>
-
-                {/* Details Section */}
-                <View className="mt-2 flex-row flex-wrap gap-2">
-                    <Text className="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded">
-                        👶 {users.find(u => u.id === item.assignedTo)?.name || 'Sin asignar'}
-                    </Text>
-
-                    {item.timeWindow ? (
-                        <Text className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded">
-                            ⏰ {item.timeWindow.start} - {item.timeWindow.end}
-                        </Text>
-                    ) : item.dueTime ? (
-                        <Text className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded">
-                            ⏰ {item.dueTime}
-                        </Text>
-                    ) : null}
-
-                    <Text className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded capitalize">
-                        {item.frequency === 'daily' ? '📅 Diario' : item.frequency === 'weekly' ? '🗓 Semanal' : '📌 Una vez'}
-                    </Text>
-
-                    {item.points && (
-                        <Text className="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded">
-                            ⭐️ {item.points} pts
-                        </Text>
-                    )}
-
-                    <Text className={`text-xs px-2 py-1 rounded capitalize ${item.type === 'obligatory' ? 'bg-rose-50 text-rose-700' : 'bg-blue-50 text-blue-700'
-                        }`}>
-                        {item.type === 'obligatory' ? '✋ Obligatoria' : '🎁 Adicional'}
-                    </Text>
-                </View>
-
-                <View className="flex-row justify-end items-center mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
-                    {awaitingVerification && (
-                        <View className="flex-row gap-2">
-                            <Button
-                                title="Rechazar"
-                                size="sm"
-                                variant="outline"
-                                onPress={() => confirmReject(item.id)}
-                                className="border-rose-200"
-                                textClassName="text-rose-600"
-                            />
-                            <Button
-                                title="Verificar"
-                                size="sm"
-                                variant="primary"
-                                onPress={() => confirmVerify(item.id)}
-                            />
-                        </View>
-                    )}
-                </View>
-            </Card>
-        );
+        if (Platform.OS === 'web') {
+            if (window.confirm(`¿Asignar "${taskLikelyToAssign.title}" a los hijos seleccionados?`)) {
+                assignLogic();
+            }
+        } else {
+            Alert.alert(
+                "Confirmar Asignación",
+                `¿Asignar "${taskLikelyToAssign.title}" a los hijos seleccionados?`,
+                [
+                    { text: "Cancelar", style: "cancel" },
+                    {
+                        text: "Asignar",
+                        onPress: assignLogic
+                    }
+                ]
+            );
+        }
     };
 
+    const handlePoolAssign = (item: Task) => {
+        setTaskLikelyToAssign(item);
+        setAssignmentSelection(children.length > 0 ? [children[0].id] : []);
+    };
+
+    const renderTask = ({ item }: { item: Task }) => (
+        <ParentTaskCard
+            task={item}
+            users={users}
+            onVerify={confirmVerify}
+            onReject={confirmReject}
+            onAssign={handlePoolAssign}
+        />
+    );
+
     const confirmLogout = () => {
-        Alert.alert(
-            "Cerrar Sesión",
-            "¿Estás seguro de que quieres salir?",
-            [
-                { text: "Cancelar", style: "cancel" },
-                { text: "Salir", onPress: logout }
-            ]
-        );
+        if (Platform.OS === 'web') {
+            if (window.confirm("¿Estás seguro de que quieres salir?")) {
+                logout();
+            }
+        } else {
+            Alert.alert(
+                "Cerrar Sesión",
+                "¿Estás seguro de que quieres salir?",
+                [
+                    { text: "Cancelar", style: "cancel" },
+                    { text: "Salir", onPress: logout }
+                ]
+            );
+        }
     };
 
     return (
@@ -263,6 +254,11 @@ export default function ParentDashboard({ navigation }: any) {
                 <TouchableOpacity onPress={() => setCurrentTab('assignment')}>
                     <Text className={`text-lg font-bold ${currentTab === 'assignment' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400'}`}>
                         Banco
+                    </Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setCurrentTab('family')}>
+                    <Text className={`text-lg font-bold ${currentTab === 'family' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400'}`}>
+                        Familia
                     </Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setCurrentTab('messages')}>
@@ -332,11 +328,62 @@ export default function ParentDashboard({ navigation }: any) {
                         </View>
                     }
                 />
+            ) : currentTab === 'family' ? (
+                // Family Management View
+                <View className="flex-1 p-6">
+                    <View className="bg-white p-4 rounded-xl shadow-sm mb-6">
+                        <Text className="text-lg font-bold mb-4">Agregar Nuevo Hijo</Text>
+                        <TextInput
+                            value={newChildName}
+                            onChangeText={setNewChildName}
+                            placeholder="Nombre del hijo"
+                            className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-3 text-base"
+                        />
+                        <TextInput
+                            value={newChildUsername}
+                            onChangeText={setNewChildUsername}
+                            placeholder="Nombre de usuario (Login)"
+                            autoCapitalize="none"
+                            className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-3 text-base"
+                        />
+                        <TextInput
+                            value={newChildPassword}
+                            onChangeText={setNewChildPassword}
+                            placeholder="Contraseña"
+                            secureTextEntry
+                            className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-3 text-base"
+                        />
+                        <Button title="Agregar Hijo" onPress={handleAddUser} />
+                    </View>
+
+                    <Text className="text-lg font-bold mb-4 text-gray-700">Lista de Hijos</Text>
+                    <FlatList
+                        data={children}
+                        keyExtractor={(item) => item.id}
+                        renderItem={({ item }) => (
+                            <View className="bg-white p-4 rounded-xl mb-3 flex-row justify-between items-center shadow-sm">
+                                <View>
+                                    <Text className="text-lg font-bold text-gray-800">{item.name}</Text>
+                                    <Text className="text-gray-500 text-sm">@{item.username}</Text>
+                                </View>
+                                <Button
+                                    title="Eliminar"
+                                    variant="outline"
+                                    size="sm"
+                                    onPress={() => confirmDeleteUser(item.id)}
+                                    className="border-rose-200"
+                                    textClassName="text-rose-600"
+                                />
+                            </View>
+                        )}
+                        contentContainerStyle={{ paddingBottom: 100 }}
+                    />
+                </View>
             ) : (
                 // Messages View
                 <View className="flex-1 p-6">
                     <View className="bg-white p-4 rounded-xl shadow-sm mb-6">
-                        <Text className="text-lg font-bold mb-2">Nuevo Mensaje Motivacional</Text>
+                        <Text className="text-lg font-bold mb-2">Nuevo Mensaje / Recordatorio</Text>
                         <TextInput
                             value={newMessageText}
                             onChangeText={setNewMessageText}

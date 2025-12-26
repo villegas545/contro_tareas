@@ -42,6 +42,7 @@ export const Button = ({ title, variant = 'primary', size = 'md', className, tex
     return (
         <TouchableOpacity
             className={`${baseStyle} ${variants[variant]} ${sizes[size]} ${className || ''}`}
+            onPress={props.onPress}
             {...props}
         >
             <Text className={`${textColors[variant]} ${textSizes[size]} font-semibold ${textClassName || ''}`}>

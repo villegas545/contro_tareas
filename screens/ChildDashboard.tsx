@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, SafeAreaView, FlatList, Alert, Modal } from 'react-native';
+import { View, Text, SafeAreaView, FlatList, Alert, Modal, TouchableOpacity, Platform } from 'react-native';
 import { useTaskContext } from '../context/TaskContext';
 import { Card } from '../components/ui/Card';
 import { Task } from '../types';
@@ -40,28 +40,45 @@ export default function ChildDashboard({ navigation }: any) {
     }, [messageModalVisible, countdown]);
 
     const handleComplete = (task: Task) => {
+        console.log("Completando tarea:", task.title); // Debug
+
         if (task.dueDate && new Date(task.dueDate) < new Date()) {
-            Alert.alert("Vencida", "Esta tarea ha vencido y no se puede completar.");
+            if (Platform.OS === 'web') {
+                window.alert("Esta tarea ha vencido y no se puede completar.");
+            } else {
+                Alert.alert("Vencida", "Esta tarea ha vencido y no se puede completar.");
+            }
             return;
         }
 
-        Alert.alert(
-            "¿Estás seguro?",
-            "¿Ya terminaste esta tarea?",
-            [
-                { text: "Cancelar", style: "cancel" },
-                {
-                    text: "Sí, ¡ya la hice!",
-                    onPress: () => {
-                        try {
-                            completeTask(task.id);
-                        } catch (e: any) {
-                            Alert.alert("Ops", e.message);
+        if (Platform.OS === 'web') {
+            const confirmed = window.confirm("¿Ya terminaste esta tarea?");
+            if (confirmed) {
+                try {
+                    completeTask(task.id);
+                } catch (e: any) {
+                    window.alert(e.message);
+                }
+            }
+        } else {
+            Alert.alert(
+                "¿Estás seguro?",
+                "¿Ya terminaste esta tarea?",
+                [
+                    { text: "Cancelar", style: "cancel" },
+                    {
+                        text: "Sí, ¡ya la hice!",
+                        onPress: () => {
+                            try {
+                                completeTask(task.id);
+                            } catch (e: any) {
+                                Alert.alert("Ops", e.message);
+                            }
                         }
                     }
-                }
-            ]
-        );
+                ]
+            );
+        }
     };
 
     const renderTask = ({ item }: { item: Task }) => {
@@ -89,11 +106,12 @@ export default function ChildDashboard({ navigation }: any) {
 
                 {isPending && (
                     <View className="mt-4">
-                        <Button
-                            title="¡Ya lo hice!"
+                        <TouchableOpacity
                             onPress={() => handleComplete(item)}
-                            variant="primary"
-                        />
+                            className="bg-indigo-600 px-4 py-3 rounded-xl items-center justify-center shadow-sm active:opacity-80"
+                        >
+                            <Text className="text-white font-bold font-semibold">¡Ya lo hice!</Text>
+                        </TouchableOpacity>
                     </View>
                 )}
 
@@ -113,14 +131,20 @@ export default function ChildDashboard({ navigation }: any) {
     };
 
     const confirmLogout = () => {
-        Alert.alert(
-            "Cerrar Sesión",
-            "¿Estás seguro de que quieres salir?",
-            [
-                { text: "Cancelar", style: "cancel" },
-                { text: "Salir", onPress: logout }
-            ]
-        );
+        if (Platform.OS === 'web') {
+            if (window.confirm("¿Estás seguro de que quieres salir?")) {
+                logout();
+            }
+        } else {
+            Alert.alert(
+                "Cerrar Sesión",
+                "¿Estás seguro de que quieres salir?",
+                [
+                    { text: "Cancelar", style: "cancel" },
+                    { text: "Salir", onPress: logout }
+                ]
+            );
+        }
     };
 
     return (
