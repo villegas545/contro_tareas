@@ -1,15 +1,85 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Platform, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, Platform, Alert, Image, ActivityIndicator } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../firebaseConfig';
 import { Card } from './ui/Card';
 import { Task } from '../types';
 
 interface ChildTaskCardProps {
     item: Task;
-    onComplete: (task: Task) => void;
+    onComplete: (task: Task, evidenceUrl?: string) => void;
 }
 
 export const ChildTaskCard = ({ item, onComplete }: ChildTaskCardProps) => {
+    const [uploading, setUploading] = useState(false);
     const isPending = item.status === 'pending';
+
+    const handleTakehoto = async () => {
+        const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+
+        if (permissionResult.granted === false) {
+            alert("Es necesario dar permiso a la cámara para tomar fotos.");
+            return;
+        }
+
+        const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 0.5,
+        });
+
+        if (!result.canceled) {
+            uploadImage(result.assets[0].uri);
+        }
+    };
+
+    const uploadImage = async (uri: string) => {
+        setUploading(true);
+        try {
+            const response = await fetch(uri);
+            const blob = await response.blob();
+            const filename = `evidence/${item.id}_${new Date().getTime()}.jpg`;
+            const storageRef = ref(storage, filename);
+
+            await uploadBytes(storageRef, blob);
+            const downloadURL = await getDownloadURL(storageRef);
+
+            onComplete(item, downloadURL);
+        } catch (error: any) {
+            console.error(error);
+            Alert.alert("Error", "No se pudo subir la imagen: " + error.message);
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handlePressComplete = () => {
+        if (Platform.OS === 'web') {
+            onComplete(item); // Web simplifies for now, camera complicates things on web without more setup
+            return;
+        }
+
+        Alert.alert(
+            "COMPLETAR TAREA",
+            "¿Quieres agregar una foto como evidencia?",
+            [
+                {
+                    text: "No, solo completar",
+                    onPress: () => onComplete(item)
+                },
+                {
+                    text: "📸 Sí, tomar foto",
+                    onPress: handleTakehoto
+                },
+                {
+                    text: "Cancelar",
+                    style: "cancel"
+                }
+            ]
+        );
+    };
 
     return (
         <Card className={`mb-4 border-l-4 ${item.status === 'verified' ? 'border-green-500 opacity-60' : 'border-indigo-500'}`}>
@@ -29,18 +99,28 @@ export const ChildTaskCard = ({ item, onComplete }: ChildTaskCardProps) => {
 
             {isPending && (
                 <View className="mt-4">
-                    <TouchableOpacity
-                        onPress={() => onComplete(item)}
-                        className="bg-indigo-600 px-4 py-3 rounded-xl items-center justify-center shadow-sm active:opacity-80"
-                    >
-                        <Text className="text-white font-bold font-semibold">¡Ya lo hice!</Text>
-                    </TouchableOpacity>
+                    {uploading ? (
+                        <View className="bg-indigo-100 px-4 py-3 rounded-xl items-center justify-center">
+                            <ActivityIndicator color="#4f46e5" />
+                            <Text className="text-indigo-600 text-xs mt-1">Subiendo foto...</Text>
+                        </View>
+                    ) : (
+                        <TouchableOpacity
+                            onPress={handlePressComplete}
+                            className="bg-indigo-600 px-4 py-3 rounded-xl items-center justify-center shadow-sm active:opacity-80 flex-row gap-2"
+                        >
+                            <Text className="text-white font-bold font-semibold">¡Ya lo hice!</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
             )}
 
             {item.status === 'completed' && (
                 <View className="mt-4 bg-amber-50 p-2 rounded items-center">
                     <Text className="text-amber-600 font-medium">Esperando revisión de papá/mamá ⏳</Text>
+                    {item.evidenceUrl && (
+                        <Text className="text-xs text-amber-500 mt-1">📸 Foto enviada</Text>
+                    )}
                 </View>
             )}
 

@@ -40,10 +40,23 @@ export default function ChildDashboard({ navigation }: any) {
         return () => clearInterval(timer);
     }, [messageModalVisible, countdown]);
 
-    const handleComplete = (task: Task) => {
-        console.log("Completando tarea:", task.title); // Debug
+    const handleComplete = (task: Task, evidenceUrl?: string) => {
+        // Time window check (redundant but safe)
+        if (task.timeWindow) {
+            const now = new Date();
+            const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+            if (currentTime < task.timeWindow.start || currentTime > task.timeWindow.end) {
+                if (Platform.OS === 'web') {
+                    window.alert(`Esta tarea solo está disponible entre ${task.timeWindow.start} y ${task.timeWindow.end}`);
+                } else {
+                    Alert.alert("Aún no es hora", `Esta tarea solo está disponible entre ${task.timeWindow.start} y ${task.timeWindow.end}`);
+                }
+                return;
+            }
+        }
 
-        if (task.dueDate && new Date(task.dueDate) < new Date()) {
+        // Due Date Check
+        if (task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'completed') {
             if (Platform.OS === 'web') {
                 window.alert("Esta tarea ha vencido y no se puede completar.");
             } else {
@@ -52,33 +65,36 @@ export default function ChildDashboard({ navigation }: any) {
             return;
         }
 
+        const proceed = () => {
+            try {
+                completeTask(task.id, evidenceUrl);
+            } catch (e: any) {
+                if (Platform.OS === 'web') window.alert(e.message);
+                else Alert.alert("Ops", e.message);
+            }
+        };
+
         if (Platform.OS === 'web') {
             const confirmed = window.confirm("¿Ya terminaste esta tarea?");
-            if (confirmed) {
-                try {
-                    completeTask(task.id);
-                } catch (e: any) {
-                    window.alert(e.message);
-                }
-            }
+            if (confirmed) proceed();
         } else {
-            Alert.alert(
-                "¿Estás seguro?",
-                "¿Ya terminaste esta tarea?",
-                [
-                    { text: "Cancelar", style: "cancel" },
-                    {
-                        text: "Sí, ¡ya la hice!",
-                        onPress: () => {
-                            try {
-                                completeTask(task.id);
-                            } catch (e: any) {
-                                Alert.alert("Ops", e.message);
-                            }
+            // If evidence (photo) is provided, we skip the second confirmation because 
+            // taking a photo is already a strong intentional action.
+            if (evidenceUrl) {
+                proceed();
+            } else {
+                Alert.alert(
+                    "¿Estás seguro?",
+                    "¿Ya terminaste esta tarea?",
+                    [
+                        { text: "Cancelar", style: "cancel" },
+                        {
+                            text: "Sí, ¡ya la hice!",
+                            onPress: proceed
                         }
-                    }
-                ]
-            );
+                    ]
+                );
+            }
         }
     };
 

@@ -36,4 +36,5 @@ export interface Task {
     start: string; // Format "HH:mm"
     end: string;   // Format "HH:mm"
   };
+  evidenceUrl?: string;
 }

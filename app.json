@@ -24,6 +24,15 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "La app necesita acceso a tus fotos para adjuntar evidencia de tus tareas.",
+          "cameraPermission": "La app necesita acceso a tu cámara para tomar fotos de tus tareas completadas."
+        }
+      ]
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     },

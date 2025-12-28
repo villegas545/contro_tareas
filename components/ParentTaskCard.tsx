@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Image } from 'react-native';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { TaskTags } from './TaskTags';
@@ -90,6 +90,16 @@ export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEd
 
                 <TaskTags task={task} showTime={true} />
             </View>
+
+            {task.evidenceUrl && (
+                <View className="mt-4 mb-2 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                    <Image
+                        source={{ uri: task.evidenceUrl }}
+                        style={{ width: '100%', height: 200, resizeMode: 'cover' }}
+                    />
+                    <Text className="text-xs text-gray-500 dark:text-gray-400 p-2 bg-gray-50 dark:bg-gray-900 text-center font-medium">📸 Evidencia Adjunta</Text>
+                </View>
+            )}
 
             <View className="flex-row justify-end items-center mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
                 {/* Actions for Parents: Verify if pending OR completed (but not verified) */}

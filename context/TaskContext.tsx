@@ -13,7 +13,7 @@ interface TaskContextType {
     addTask: (task: Omit<Task, 'id'>) => void;
     updateTask: (taskId: string, updates: Partial<Task>) => void;
     deleteTask: (taskId: string) => void;
-    completeTask: (taskId: string) => void;
+    completeTask: (taskId: string, evidenceUrl?: string) => void;
     verifyTask: (taskId: string) => void;
     failTask: (taskId: string) => void;
     rejectTask: (taskId: string) => void;
@@ -129,7 +129,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         await deleteDoc(doc(db, "tasks", taskId));
     };
 
-    const completeTask = async (taskId: string) => {
+    const completeTask = async (taskId: string, evidenceUrl?: string) => {
         const task = tasks.find(t => t.id === taskId);
         if (!task) return;
 
@@ -145,6 +145,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         await updateDoc(doc(db, "tasks", taskId), {
             status: 'completed',
             completedAt: new Date().toISOString(),
+            ...(evidenceUrl ? { evidenceUrl } : {})
         });
     };
 
