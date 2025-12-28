@@ -224,6 +224,12 @@ export default function ChildDashboard({ navigation }: any) {
                                     <View className="bg-amber-100 dark:bg-amber-900 self-center px-3 py-1 rounded-full mt-2">
                                         <Text className="text-amber-700 dark:text-amber-300 font-bold text-xs">{reward.cost} Pts</Text>
                                     </View>
+
+                                    {!canAfford && (
+                                        <View className="absolute inset-0 bg-white/60 dark:bg-black/60 justify-center items-center rounded-xl">
+                                            <Text className="text-2xl">🔒</Text>
+                                        </View>
+                                    )}
                                 </TouchableOpacity>
                             )
                         })}
