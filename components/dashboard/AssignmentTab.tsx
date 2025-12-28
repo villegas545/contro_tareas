@@ -9,7 +9,7 @@ import { Task } from '../../types';
 
 export const AssignmentTab = () => {
     const navigation = useNavigation<any>();
-    const { tasks, currentUser, users, verifyTask, rejectTask, addTask } = useTaskContext();
+    const { tasks, currentUser, users, verifyTask, rejectTask, addTask, deleteTask } = useTaskContext();
     const children = users.filter(u => u.role === 'child');
 
     const [assignmentSearch, setAssignmentSearch] = useState('');
@@ -26,7 +26,22 @@ export const AssignmentTab = () => {
         if (!taskLikelyToAssign || assignmentSelection.length === 0) return;
 
         const assignLogic = () => {
+            let assignedCount = 0;
+            let skippedCount = 0;
+
             assignmentSelection.forEach(childId => {
+                // Check for duplicates (same title, assigned to same child, not completed/verified)
+                const isDuplicate = tasks.some(t =>
+                    t.assignedTo === childId &&
+                    t.title === taskLikelyToAssign.title &&
+                    t.status !== 'verified' && t.status !== 'completed'
+                );
+
+                if (isDuplicate) {
+                    skippedCount++;
+                    return;
+                }
+
                 const newTask: Omit<Task, 'id' | 'createdAt'> = {
                     title: taskLikelyToAssign.title,
                     description: taskLikelyToAssign.description,
@@ -40,12 +55,18 @@ export const AssignmentTab = () => {
                     dueTime: taskLikelyToAssign.dueTime,
                 };
                 addTask(newTask);
+                assignedCount++;
             });
 
             setTaskLikelyToAssign(null);
             setAssignmentSelection([]);
-            if (Platform.OS === 'web') window.alert("Tareas asignadas correctamente");
-            else Alert.alert("Éxito", "Tareas asignadas correctamente");
+
+            let message = "";
+            if (assignedCount > 0) message += `Asignada a ${assignedCount} hijo(s). `;
+            if (skippedCount > 0) message += `Omitida para ${skippedCount} hijo(s) porque ya la tienen asignada.`;
+
+            if (Platform.OS === 'web') window.alert(message);
+            else Alert.alert("Resultado", message);
         }
 
         if (Platform.OS === 'web') {
@@ -102,6 +123,21 @@ export const AssignmentTab = () => {
         }
     };
 
+    const confirmDeleteTemplate = (taskId: string) => {
+        if (Platform.OS === 'web') {
+            if (window.confirm("¿Seguro que quieres eliminar esta plantilla?")) deleteTask(taskId);
+        } else {
+            Alert.alert(
+                "Eliminar Plantilla",
+                "¿Seguro que quieres eliminar esta plantilla? No afectará a las tareas ya asignadas.",
+                [
+                    { text: "Cancelar", style: "cancel" },
+                    { text: "Eliminar", style: "destructive", onPress: () => deleteTask(taskId) }
+                ]
+            );
+        }
+    };
+
     const renderTask = ({ item }: { item: Task }) => (
         <ParentTaskCard
             task={item}
@@ -110,13 +146,14 @@ export const AssignmentTab = () => {
             onReject={confirmReject}
             onAssign={handlePoolAssign}
             onEdit={(item) => navigation.navigate('CreateTask', { taskToEdit: item })}
+            onDelete={confirmDeleteTemplate}
         />
     );
 
     return (
         <View className="p-5 pb-24">
             <View className="mb-4 flex-row justify-between items-center">
-                <Text className="text-lg font-bold text-gray-700 dark:text-gray-200">Plantillas Disponibles</Text>
+                <Text className="text-lg font-bold text-gray-700 dark:text-gray-200">Plantillas de Tareas</Text>
                 <Button
                     title="+ Crear Plantilla"
                     size="sm"

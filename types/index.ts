@@ -37,6 +37,7 @@ export interface Task {
     end: string;   // Format "HH:mm"
   };
   evidenceUrl?: string;
+  isBonus?: boolean;
 }
 
 export interface Reward {

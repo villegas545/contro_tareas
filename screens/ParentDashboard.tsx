@@ -59,7 +59,7 @@ export default function ParentDashboard({ navigation }: any) {
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setCurrentTab('assignment')}>
                             <Text className={`text-lg font-bold ${currentTab === 'assignment' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'}`}>
-                                Banco
+                                Plantillas
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setCurrentTab('family')}>

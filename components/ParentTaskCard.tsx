@@ -12,10 +12,11 @@ interface ParentTaskCardProps {
     onReject: (taskId: string) => void;
     onAssign: (task: Task) => void;
     onEdit?: (task: Task) => void;
+    onDelete?: (taskId: string) => void;
     onConfirmDeleteMessage?: (index: number) => void; // Not used here but keeping interface clean
 }
 
-export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEdit }: ParentTaskCardProps) => {
+export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEdit, onDelete }: ParentTaskCardProps) => {
     const isVerified = task.status === 'verified';
     const isCompleted = task.status === 'completed';
     const awaitingVerification = isCompleted && !isVerified;
@@ -31,7 +32,7 @@ export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEd
 
                 <TaskTags task={task} />
 
-                <View className="flex-row gap-2">
+                <View className="flex-row gap-2 mt-3">
                     <Button
                         title="Asignar"
                         variant="primary"
@@ -46,6 +47,16 @@ export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEd
                             size="sm"
                             onPress={() => onEdit(task)}
                             className="flex-1"
+                        />
+                    )}
+                    {onDelete && (
+                        <Button
+                            title="Eliminar"
+                            variant="outline"
+                            size="sm"
+                            onPress={() => onDelete(task.id)}
+                            className="flex-1 border-red-200"
+                            textClassName="text-red-600"
                         />
                     )}
                 </View>
@@ -110,8 +121,19 @@ export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEd
 
                 <View className="flex-row justify-end items-center mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
                     {/* Actions for Parents: Verify if pending OR completed (but not verified) */}
-                    {(task.status === 'pending' || awaitingVerification) && !isVerified && (
-                        <View className="flex-row gap-2">
+                    {(task.status === 'pending' || awaitingVerification || task.status === 'expired') && !isVerified && (
+                        <View className="flex-row gap-2 flex-wrap justify-end">
+                            {onDelete && (
+                                <Button
+                                    title="Desasignar"
+                                    size="sm"
+                                    variant="outline"
+                                    onPress={() => onDelete(task.id)}
+                                    className="border-gray-300 mr-auto" // Push to left
+                                    textClassName="text-gray-500"
+                                />
+                            )}
+
                             {awaitingVerification && (
                                 <Button
                                     title="Rechazar"

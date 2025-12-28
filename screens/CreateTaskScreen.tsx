@@ -26,6 +26,7 @@ export default function CreateTaskScreen({ navigation, route }: any) {
     const [dueTime, setDueTime] = useState(taskToEdit?.dueTime || '');
     const [windowStart, setWindowStart] = useState(taskToEdit?.timeWindow?.start || '');
     const [windowEnd, setWindowEnd] = useState(taskToEdit?.timeWindow?.end || '');
+    const [isBonus, setIsBonus] = useState(taskToEdit?.isBonus || false);
 
     const handleCreate = () => {
         if (!title) {
@@ -42,6 +43,7 @@ export default function CreateTaskScreen({ navigation, route }: any) {
             type,
             frequency,
             points: points ? parseInt(points) : undefined,
+            isBonus,
             timeWindow: undefined,
             dueTime: undefined
         };
@@ -145,6 +147,20 @@ export default function CreateTaskScreen({ navigation, route }: any) {
                                 </Text>
                             </TouchableOpacity>
                         </View>
+                    </View>
+
+                    {/* Bonus Configuration */}
+                    <View className="flex-row items-center justify-between p-4 bg-white rounded-xl border border-gray-200 mb-4">
+                        <View>
+                            <Text className="text-gray-900 font-bold text-lg">🌟 Tarea de Bono</Text>
+                            <Text className="text-gray-500 text-xs">Si se marca, contará para el bono diario/semanal.</Text>
+                        </View>
+                        <TouchableOpacity
+                            onPress={() => setIsBonus(!isBonus)}
+                            className={`w-14 h-8 rounded-full justify-center px-1 ${isBonus ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                        >
+                            <View className={`w-6 h-6 rounded-full bg-white shadow-sm ${isBonus ? 'self-end' : 'self-start'}`} />
+                        </TouchableOpacity>
                     </View>
 
                     <View>

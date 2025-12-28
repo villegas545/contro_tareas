@@ -15,7 +15,7 @@ export const ChildTaskCard = ({ item, onComplete }: ChildTaskCardProps) => {
     const [uploading, setUploading] = useState(false);
     const isPending = item.status === 'pending';
 
-    const handleTakehoto = async () => {
+    const handleTakePhoto = async () => {
         const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
 
         if (permissionResult.granted === false) {
@@ -25,7 +25,7 @@ export const ChildTaskCard = ({ item, onComplete }: ChildTaskCardProps) => {
 
         const result = await ImagePicker.launchCameraAsync({
             mediaTypes: ['images'],
-            allowsEditing: true,
+            allowsEditing: false, // Changed to false as requested
             aspect: [4, 3],
             quality: 0.5,
         });
@@ -38,8 +38,21 @@ export const ChildTaskCard = ({ item, onComplete }: ChildTaskCardProps) => {
     const uploadImage = async (uri: string) => {
         setUploading(true);
         try {
-            const response = await fetch(uri);
-            const blob = await response.blob();
+            // Use XMLHttpRequest for better Android compatibility
+            const blob: Blob = await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.onload = function () {
+                    resolve(xhr.response);
+                };
+                xhr.onerror = function (e) {
+                    console.log(e);
+                    reject(new TypeError("Network request failed"));
+                };
+                xhr.responseType = "blob";
+                xhr.open("GET", uri, true);
+                xhr.send(null);
+            });
+
             const filename = `evidence/${item.id}_${new Date().getTime()}.jpg`;
             const storageRef = ref(storage, filename);
 
@@ -71,7 +84,7 @@ export const ChildTaskCard = ({ item, onComplete }: ChildTaskCardProps) => {
                 },
                 {
                     text: "📸 Sí, tomar foto",
-                    onPress: handleTakehoto
+                    onPress: handleTakePhoto
                 },
                 {
                     text: "Cancelar",

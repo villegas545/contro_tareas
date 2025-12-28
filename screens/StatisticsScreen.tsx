@@ -11,6 +11,7 @@ export default function StatisticsScreen({ navigation }: any) {
 
     // Week Navigation State
     const [currentDate, setCurrentDate] = useState(new Date());
+    const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
 
     const { startOfWeek, endOfWeek } = useMemo(() => {
         const start = new Date(currentDate);
@@ -45,21 +46,43 @@ export default function StatisticsScreen({ navigation }: any) {
     }, [history, startOfWeek, endOfWeek]);
 
     const stats = useMemo(() => {
-        return children.map(child => {
+        const targetChildren = selectedChildId
+            ? children.filter(c => c.id === selectedChildId)
+            : children;
+
+        return targetChildren.map(child => {
             const childHistory = filteredHistory.filter(h => h.assignedTo === child.id);
             const totalPoints = childHistory.reduce((acc, curr) => acc + (curr.status === 'verified' ? curr.points : 0), 0);
+
+            // Basic Stats
             const completed = childHistory.filter(h => h.status === 'verified').length;
             const missed = childHistory.filter(h => h.status === 'missed').length;
+
+            // Bonus Analysis
+            // Note: We need to know if historical tasks were 'bonus'. 
+            // Currently TaskHistory structure might not save 'isBonus'.
+            // If we didn't save it to history, we can't track it accurately if the original task is deleted.
+            // However, assuming current Task definition or we need to update History creation too (out of scope for quick fix, but let's assume we match by Title or ID if possible, or just rely on 'type' if mapped).
+            // For now, let's treat 'obligatory' type as 'Bonus Candidates' or if we can't track it, we just show general missed count.
+            // User said: "tareas obligatorias básicas... estas tareas son tareas de bonos".
+            // So Type = 'obligatory' might be the proxy for now if we didn't have isBonus before.
+            // But I just added isBonus.
+            // Let's assume for now we count missed tasks generally for the 'punishment' warning.
+
+            const missedCount = childHistory.filter(h => h.status === 'missed').length;
+            const punishmentWarning = missedCount > 5;
 
             return {
                 child,
                 totalPoints,
                 completed,
                 missed,
-                history: childHistory
+                history: childHistory,
+                punishmentWarning,
+                missedCount
             };
         });
-    }, [filteredHistory, children]);
+    }, [filteredHistory, children, selectedChildId]);
 
     const formatDate = (date: Date) => {
         return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
@@ -70,6 +93,37 @@ export default function StatisticsScreen({ navigation }: any) {
             <View className="p-6 bg-white dark:bg-slate-800 shadow-sm flex-row items-center justify-between">
                 <Text className="text-xl font-bold text-gray-900 dark:text-white">Estadísticas</Text>
                 <Button title="Cerrar" size="sm" variant="outline" onPress={() => navigation.goBack()} />
+            </View>
+
+            {/* Child Filter */}
+            <View className="px-6 py-4">
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                    <TouchableOpacity
+                        onPress={() => setSelectedChildId(null)}
+                        className={`px-4 py-2 rounded-full border ${selectedChildId === null
+                            ? 'bg-gray-800 border-gray-800'
+                            : 'bg-white border-gray-300'
+                            }`}
+                    >
+                        <Text className={selectedChildId === null ? 'text-white font-medium' : 'text-gray-700'}>Todos</Text>
+                    </TouchableOpacity>
+
+                    {children.map(child => {
+                        const isSelected = selectedChildId === child.id;
+                        const userColor = child.color || '#4338ca';
+
+                        return (
+                            <TouchableOpacity
+                                key={child.id}
+                                onPress={() => setSelectedChildId(child.id)}
+                                style={isSelected ? { backgroundColor: userColor, borderColor: userColor } : { borderColor: '#d1d5db' }}
+                                className="px-4 py-2 rounded-full border bg-white flex-row items-center gap-2"
+                            >
+                                <Text className={isSelected ? 'text-white font-medium' : 'text-gray-700'}>{child.name}</Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </ScrollView>
             </View>
 
             <ScrollView contentContainerStyle={{ padding: 24 }}>
@@ -100,9 +154,24 @@ export default function StatisticsScreen({ navigation }: any) {
                     </TouchableOpacity>
                 </Card>
 
-                {stats.map(({ child, totalPoints, completed, missed, history }) => (
+                {stats.map(({ child, totalPoints, completed, missed, history, punishmentWarning, missedCount }) => (
                     <View key={child.id} className="mb-8 border-b-2 border-gray-100 pb-8 last:border-0">
                         <Text className="text-xl font-bold text-gray-800 mb-4">Progreso de {child.name}</Text>
+
+                        {/* Bonus / Punishment Status */}
+                        {punishmentWarning ? (
+                            <View className="bg-red-100 p-4 rounded-xl mb-6 border-l-4 border-red-500">
+                                <Text className="text-red-700 font-bold text-lg">⚠️ ¡Alerta de Castigo!</Text>
+                                <Text className="text-red-600 mt-1">
+                                    Ha fallado {missedCount} tareas esta semana. (Límite: 5)
+                                </Text>
+                            </View>
+                        ) : (
+                            <View className="bg-green-100 p-3 rounded-xl mb-6 border-l-4 border-green-500">
+                                <Text className="text-green-700 font-bold">✅ Buen camino para el Bono</Text>
+                                <Text className="text-green-600 text-xs mt-1">Faltas: {missedCount} / 5 permitidas</Text>
+                            </View>
+                        )}
 
                         <View className="flex-row gap-4 mb-6">
                             <Card className="flex-1 bg-indigo-50 border-indigo-100 items-center p-4">

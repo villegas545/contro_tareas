@@ -7,7 +7,7 @@ import { Task } from '../../types';
 
 export const MonitoringTab = () => {
     const navigation = useNavigation<any>();
-    const { tasks, users, verifyTask, rejectTask } = useTaskContext();
+    const { tasks, users, verifyTask, rejectTask, deleteTask } = useTaskContext();
     const children = users.filter(u => u.role === 'child');
     const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
 
@@ -45,13 +45,30 @@ export const MonitoringTab = () => {
         }
     };
 
+    const confirmUnassign = (taskId: string) => {
+        if (Platform.OS === 'web') {
+            if (window.confirm("¿Quieres desasignar (eliminar) esta tarea?")) deleteTask(taskId);
+        } else {
+            Alert.alert(
+                "Desasignar Tarea",
+                "¿Quieres desasignar (eliminar) esta tarea del hijo?",
+                [
+                    { text: "Cancelar", style: "cancel" },
+                    { text: "Sí, Eliminar", style: "destructive", onPress: () => deleteTask(taskId) }
+                ]
+            );
+        }
+    };
+
     const renderTask = ({ item }: { item: Task }) => (
         <ParentTaskCard
             task={item}
             users={users}
             onVerify={confirmVerify}
             onReject={confirmReject}
+            onAssign={() => { }}
             onEdit={(item) => navigation.navigate('CreateTask', { taskToEdit: item })}
+            onDelete={confirmUnassign}
         />
     );
 
