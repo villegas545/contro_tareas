@@ -10,6 +10,8 @@ import LoginScreen from './screens/LoginScreen';
 import ParentDashboard from './screens/ParentDashboard';
 import ChildDashboard from './screens/ChildDashboard';
 import CreateTaskScreen from './screens/CreateTaskScreen';
+import StatisticsScreen from './screens/StatisticsScreen';
+import HistoryScreen from './screens/HistoryScreen';
 import { StatusBar } from 'expo-status-bar';
 
 const Stack = createStackNavigator();
@@ -25,12 +27,12 @@ const MainNavigator = () => {
         <>
           <Stack.Screen name="ParentDashboard" component={ParentDashboard} />
           <Stack.Screen name="CreateTask" component={CreateTaskScreen} options={{ presentation: 'modal' }} />
-          <Stack.Screen name="Statistics" component={require('./screens/StatisticsScreen').default} options={{ presentation: 'modal' }} />
+          <Stack.Screen name="Statistics" component={StatisticsScreen} options={{ presentation: 'modal' }} />
         </>
       ) : (
         <>
           <Stack.Screen name="ChildDashboard" component={ChildDashboard} />
-          <Stack.Screen name="History" component={require('./screens/HistoryScreen').default} options={{ presentation: 'modal' }} />
+          <Stack.Screen name="History" component={HistoryScreen} options={{ presentation: 'modal' }} />
         </>
       )}
     </Stack.Navigator>
