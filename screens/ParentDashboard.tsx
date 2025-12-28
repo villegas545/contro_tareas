@@ -4,10 +4,11 @@ import { useTaskContext } from '../context/TaskContext';
 import { Card } from '../components/ui/Card';
 import { Task } from '../types';
 import { Button } from '../components/ui/Button';
+import { SearchInput } from '../components/ui/SearchInput';
 import { ParentTaskCard } from '../components/ParentTaskCard';
 
 export default function ParentDashboard({ navigation }: any) {
-    const { currentUser, tasks, users, verifyTask, rejectTask, logout, addTask, messages, addMessage, deleteMessage, addUser, deleteUser } = useTaskContext();
+    const { currentUser, tasks, users, verifyTask, rejectTask, logout, addTask, updateTask, messages, addMessage, updateMessage, deleteMessage, addUser, updateUser, deleteUser } = useTaskContext();
     const children = users.filter(u => u.role === 'child');
     const [selectedChildId, setSelectedChildId] = React.useState<string | null>(null);
     const [currentTab, setCurrentTab] = React.useState<'monitoring' | 'assignment' | 'messages' | 'family'>('monitoring');
@@ -17,10 +18,18 @@ export default function ParentDashboard({ navigation }: any) {
     const [newChildName, setNewChildName] = React.useState('');
     const [newChildUsername, setNewChildUsername] = React.useState('');
     const [newChildPassword, setNewChildPassword] = React.useState('');
+    const [editingChildId, setEditingChildId] = React.useState<string | null>(null);
+
+    // Message Editing State
+    const [editingMessageIndex, setEditingMessageIndex] = React.useState<number | null>(null);
 
     // Assignment Mode State
     const [taskLikelyToAssign, setTaskLikelyToAssign] = React.useState<Task | null>(null);
     const [assignmentSelection, setAssignmentSelection] = React.useState<string[]>([]);
+
+    // Search Filters
+    const [assignmentSearch, setAssignmentSearch] = React.useState('');
+    const [messagesSearch, setMessagesSearch] = React.useState('');
 
     const activeTasks = selectedChildId
         ? tasks.filter(t => t.assignedTo === selectedChildId && t.assignedTo !== 'pool')
@@ -28,35 +37,54 @@ export default function ParentDashboard({ navigation }: any) {
 
     // In assignment mode, we only show 'pool' tasks (templates)
     const poolTasks = tasks.filter(t => t.assignedTo === 'pool');
+    const filteredPoolTasks = poolTasks.filter(t =>
+        t.title.toLowerCase().includes(assignmentSearch.toLowerCase()) ||
+        (t.description?.toLowerCase() || '').includes(assignmentSearch.toLowerCase())
+    );
+
+    const filteredMessages = messages.filter(m =>
+        m.toLowerCase().includes(messagesSearch.toLowerCase())
+    );
 
     const handleAddUser = () => {
-        if (!newChildName || !newChildUsername || !newChildPassword) {
-            if (Platform.OS === 'web') window.alert("Todos los campos son obligatorios");
-            else Alert.alert("Error", "Todos los campos son obligatorios");
+        if (!newChildName || !newChildUsername || (!newChildPassword && !editingChildId)) {
+            if (Platform.OS === 'web') window.alert("Todos los campos obligatorios (contraseña opcional solo al editar)");
+            else Alert.alert("Error", "Todos los campos obligatorios");
             return;
         }
 
-        const usernameExists = users.some(u => u.username === newChildUsername);
-        if (usernameExists) {
-            if (Platform.OS === 'web') window.alert("Este nombre de usuario ya existe");
-            else Alert.alert("Error", "Este nombre de usuario ya existe");
-            return;
-        }
+        if (!editingChildId) {
+            const usernameExists = users.some(u => u.username === newChildUsername && u.id !== editingChildId);
+            if (usernameExists) {
+                if (Platform.OS === 'web') window.alert("Este nombre de usuario ya existe");
+                else Alert.alert("Error", "Este nombre de usuario ya existe");
+                return;
+            }
 
-        addUser({
-            name: newChildName,
-            username: newChildUsername,
-            password: newChildPassword,
-            role: 'child',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + newChildUsername
-        });
+            addUser({
+                name: newChildName,
+                username: newChildUsername,
+                password: newChildPassword,
+                role: 'child',
+                avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + newChildUsername
+            });
+            if (Platform.OS === 'web') window.alert("Hijo agregado correctamente");
+            else Alert.alert("Éxito", "Hijo agregado correctamente");
+        } else {
+            // Update
+            updateUser(editingChildId, {
+                name: newChildName,
+                username: newChildUsername,
+                ...(newChildPassword ? { password: newChildPassword } : {})
+            });
+            setEditingChildId(null);
+            if (Platform.OS === 'web') window.alert("Información actualizada");
+            else Alert.alert("Éxito", "Información actualizada");
+        }
 
         setNewChildName('');
         setNewChildUsername('');
         setNewChildPassword('');
-
-        if (Platform.OS === 'web') window.alert("Hijo agregado correctamente");
-        else Alert.alert("Éxito", "Hijo agregado correctamente");
     };
 
     const confirmDeleteUser = (userId: string) => {
@@ -83,29 +111,62 @@ export default function ParentDashboard({ navigation }: any) {
             return;
         }
 
-        if (Platform.OS === 'web') {
-            if (window.confirm("¿Deseas agregar este mensaje?")) {
-                addMessage(newMessageText);
-                setNewMessageText('');
-                window.alert("Mensaje agregado");
-            }
+        if (editingMessageIndex !== null) {
+            updateMessage(editingMessageIndex, newMessageText);
+            setEditingMessageIndex(null);
+            setNewMessageText('');
+            if (Platform.OS === 'web') window.alert("Mensaje actualizado");
+            else Alert.alert("Éxito", "Mensaje actualizado");
         } else {
-            Alert.alert(
-                "Confirmar",
-                "¿Deseas agregar este mensaje?",
-                [
-                    { text: "Cancelar", style: "cancel" },
-                    {
-                        text: "Agregar",
-                        onPress: () => {
-                            addMessage(newMessageText);
-                            setNewMessageText('');
-                            Alert.alert("Éxito", "Mensaje agregado");
+            // New Message
+            if (Platform.OS === 'web') {
+                if (window.confirm("¿Deseas agregar este mensaje?")) {
+                    addMessage(newMessageText);
+                    setNewMessageText('');
+                    window.alert("Mensaje agregado");
+                }
+            } else {
+                Alert.alert(
+                    "Confirmar",
+                    "¿Deseas agregar este mensaje?",
+                    [
+                        { text: "Cancelar", style: "cancel" },
+                        {
+                            text: "Agregar",
+                            onPress: () => {
+                                addMessage(newMessageText);
+                                setNewMessageText('');
+                                Alert.alert("Éxito", "Mensaje agregado");
+                            }
                         }
-                    }
-                ]
-            );
+                    ]
+                );
+            }
         }
+    };
+
+    const startEditingUser = (user: any) => {
+        setEditingChildId(user.id);
+        setNewChildName(user.name);
+        setNewChildUsername(user.username);
+        setNewChildPassword(''); // Keep blank to imply no change
+    };
+
+    const cancelEditingUser = () => {
+        setEditingChildId(null);
+        setNewChildName('');
+        setNewChildUsername('');
+        setNewChildPassword('');
+    };
+
+    const startEditingMessage = (index: number, text: string) => {
+        setEditingMessageIndex(index);
+        setNewMessageText(text);
+    };
+
+    const cancelEditingMessage = () => {
+        setEditingMessageIndex(null);
+        setNewMessageText('');
     };
 
     const confirmVerify = (taskId: string) => {
@@ -203,6 +264,10 @@ export default function ParentDashboard({ navigation }: any) {
         setAssignmentSelection(children.length > 0 ? [children[0].id] : []);
     };
 
+    const handleEditTemplate = (item: Task) => {
+        navigation.navigate('CreateTask', { taskToEdit: item });
+    };
+
     const renderTask = ({ item }: { item: Task }) => (
         <ParentTaskCard
             task={item}
@@ -210,6 +275,7 @@ export default function ParentDashboard({ navigation }: any) {
             onVerify={confirmVerify}
             onReject={confirmReject}
             onAssign={handlePoolAssign}
+            onEdit={handleEditTemplate}
         />
     );
 
@@ -230,10 +296,10 @@ export default function ParentDashboard({ navigation }: any) {
         }
     };
 
-    return (
-        <View className="flex-1 bg-gray-50 dark:bg-slate-900">
+    const renderContent = () => (
+        <>
             {/* Header */}
-            <View className="p-6 flex-row justify-between items-center bg-white dark:bg-slate-800 shadow-sm z-10 pt-12">
+            <View className="p-6 flex-row justify-between items-center bg-white dark:bg-slate-800 shadow-sm pt-12">
                 <View>
                     <Text className="text-sm text-gray-500 font-medium">Hola,</Text>
                     <Text className="text-2xl font-bold text-gray-900 dark:text-white">{currentUser?.name}</Text>
@@ -284,55 +350,67 @@ export default function ParentDashboard({ navigation }: any) {
                                 <Text className={selectedChildId === null ? 'text-white font-medium' : 'text-gray-700'}>Todos</Text>
                             </TouchableOpacity>
 
-                            {children.map(child => (
-                                <TouchableOpacity
-                                    key={child.id}
-                                    onPress={() => setSelectedChildId(child.id)}
-                                    className={`px-4 py-2 rounded-full border ${selectedChildId === child.id
-                                        ? 'bg-indigo-600 border-indigo-600'
-                                        : 'bg-white border-gray-300'
-                                        }`}
-                                >
-                                    <Text className={selectedChildId === child.id ? 'text-white font-medium' : 'text-gray-700'}>{child.name}</Text>
-                                </TouchableOpacity>
-                            ))}
+                            {children.map(child => {
+                                const isSelected = selectedChildId === child.id;
+                                const userColor = child.color || '#4338ca';
+
+                                return (
+                                    <TouchableOpacity
+                                        key={child.id}
+                                        onPress={() => setSelectedChildId(child.id)}
+                                        style={isSelected ? { backgroundColor: userColor, borderColor: userColor } : { borderColor: '#d1d5db' }}
+                                        className="px-4 py-2 rounded-full border bg-white flex-row items-center gap-2"
+                                    >
+                                        {!isSelected && (
+                                            <View style={{ backgroundColor: userColor }} className="w-2 h-2 rounded-full" />
+                                        )}
+                                        <Text className={isSelected ? 'text-white font-medium' : 'text-gray-700'}>{child.name}</Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
                         </ScrollView>
                     </View>
 
-                    <FlatList
-                        className="flex-1"
-                        data={activeTasks}
-                        keyExtractor={(item) => item.id}
-                        renderItem={renderTask}
-                        contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
-                        ListHeaderComponent={
-                            <Text className="text-lg font-bold text-gray-700 dark:text-gray-200 mb-4">Tareas Activas</Text>
-                        }
-                    />
+                    <View className="p-5 pb-24">
+                        <Text className="text-lg font-bold text-gray-700 dark:text-gray-200 mb-4">Tareas Activas</Text>
+                        {activeTasks.map(item => (
+                            <View key={item.id}>
+                                {renderTask({ item })}
+                            </View>
+                        ))}
+                    </View>
                 </>
             ) : currentTab === 'assignment' ? (
-                <FlatList
-                    className="flex-1"
-                    data={poolTasks}
-                    keyExtractor={(item) => item.id}
-                    renderItem={renderTask}
-                    contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
-                    ListHeaderComponent={
-                        <View className="mb-4 flex-row justify-between items-center">
-                            <Text className="text-lg font-bold text-gray-700 dark:text-gray-200">Plantillas Disponibles</Text>
-                            <Button
-                                title="+ Crear Plantilla"
-                                size="sm"
-                                onPress={() => navigation.navigate('CreateTask')}
-                            />
-                        </View>
-                    }
-                />
+                <View className="p-5 pb-24">
+                    <View className="mb-4 flex-row justify-between items-center">
+                        <Text className="text-lg font-bold text-gray-700 dark:text-gray-200">Plantillas Disponibles</Text>
+                        <Button
+                            title="+ Crear Plantilla"
+                            size="sm"
+                            onPress={() => navigation.navigate('CreateTask')}
+                        />
+                    </View>
+
+                    <SearchInput
+                        placeholder="Buscar plantilla..."
+                        value={assignmentSearch}
+                        onChangeText={setAssignmentSearch}
+                    />
+
+                    {filteredPoolTasks.length === 0 ? (
+                        <Text className="text-gray-400 text-center py-8">No se encontraron plantillas</Text>
+                    ) : (
+                        filteredPoolTasks.map(item => (
+                            <View key={item.id}>
+                                {renderTask({ item })}
+                            </View>
+                        ))
+                    )}
+                </View>
             ) : currentTab === 'family' ? (
-                // Family Management View
-                <View className="flex-1 p-6">
-                    <View className="bg-white p-4 rounded-xl shadow-sm mb-6">
-                        <Text className="text-lg font-bold mb-4">Agregar Nuevo Hijo</Text>
+                <View className="flex-1 p-6 pb-24">
+                    <View className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm mb-6">
+                        <Text className="text-lg font-bold mb-4 text-brand-text-primary dark:text-brand-text-light">{editingChildId ? "Editar Información del Hijo" : "Agregar Nuevo Hijo"}</Text>
                         <TextInput
                             value={newChildName}
                             onChangeText={setNewChildName}
@@ -349,23 +427,32 @@ export default function ParentDashboard({ navigation }: any) {
                         <TextInput
                             value={newChildPassword}
                             onChangeText={setNewChildPassword}
-                            placeholder="Contraseña"
+                            placeholder={editingChildId ? "Nueva Contraseña (opcional)" : "Contraseña"}
                             secureTextEntry
                             className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-3 text-base"
                         />
-                        <Button title="Agregar Hijo" onPress={handleAddUser} />
+                        <View className="flex-row gap-2">
+                            <Button title={editingChildId ? "Actualizar Hijo" : "Agregar Hijo"} onPress={handleAddUser} className="flex-1" />
+                            {editingChildId && (
+                                <Button title="Cancelar" variant="outline" onPress={cancelEditingUser} className="flex-1" />
+                            )}
+                        </View>
                     </View>
 
-                    <Text className="text-lg font-bold mb-4 text-gray-700">Lista de Hijos</Text>
-                    <FlatList
-                        data={children}
-                        keyExtractor={(item) => item.id}
-                        renderItem={({ item }) => (
-                            <View className="bg-white p-4 rounded-xl mb-3 flex-row justify-between items-center shadow-sm">
-                                <View>
-                                    <Text className="text-lg font-bold text-gray-800">{item.name}</Text>
-                                    <Text className="text-gray-500 text-sm">@{item.username}</Text>
-                                </View>
+                    <Text className="text-lg font-bold mb-4 text-brand-text-primary dark:text-brand-text-light">Lista de Hijos</Text>
+                    {children.map(item => (
+                        <View key={item.id} className="bg-white dark:bg-gray-800 p-4 rounded-xl mb-3 flex-row justify-between items-center shadow-sm">
+                            <View>
+                                <Text className="text-lg font-bold text-gray-800 dark:text-gray-100">{item.name}</Text>
+                                <Text className="text-gray-500 dark:text-gray-400 text-sm">@{item.username}</Text>
+                            </View>
+                            <View className="flex-row gap-2">
+                                <Button
+                                    title="Editar"
+                                    variant="outline"
+                                    size="sm"
+                                    onPress={() => startEditingUser(item)}
+                                />
                                 <Button
                                     title="Eliminar"
                                     variant="outline"
@@ -375,15 +462,13 @@ export default function ParentDashboard({ navigation }: any) {
                                     textClassName="text-rose-600"
                                 />
                             </View>
-                        )}
-                        contentContainerStyle={{ paddingBottom: 100 }}
-                    />
+                        </View>
+                    ))}
                 </View>
             ) : (
-                // Messages View
-                <View className="flex-1 p-6">
-                    <View className="bg-white p-4 rounded-xl shadow-sm mb-6">
-                        <Text className="text-lg font-bold mb-2">Nuevo Mensaje / Recordatorio</Text>
+                <View className="flex-1 p-6 pb-24">
+                    <View className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm mb-6">
+                        <Text className="text-lg font-bold mb-2 text-brand-text-primary dark:text-brand-text-light">{editingMessageIndex !== null ? "Editar Mensaje" : "Nuevo Mensaje / Recordatorio"}</Text>
                         <TextInput
                             value={newMessageText}
                             onChangeText={setNewMessageText}
@@ -391,30 +476,57 @@ export default function ParentDashboard({ navigation }: any) {
                             className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-3 text-base"
                             multiline
                         />
-                        <Button title="Agregar Mensaje" onPress={handleAddMessage} />
+                        <View className="flex-row gap-2">
+                            <Button title={editingMessageIndex !== null ? "Actualizar Mensaje" : "Agregar Mensaje"} onPress={handleAddMessage} className="flex-1" />
+                            {editingMessageIndex !== null && (
+                                <Button title="Cancelar" variant="outline" onPress={cancelEditingMessage} className="flex-1" />
+                            )}
+                        </View>
                     </View>
 
-                    <Text className="text-lg font-bold mb-4 text-gray-700">Mensajes Actuales</Text>
-                    <FlatList
-                        data={messages}
-                        keyExtractor={(_, index) => index.toString()}
-                        renderItem={({ item, index }) => (
-                            <View className="bg-white p-4 rounded-xl mb-3 flex-row justify-between items-center shadow-sm">
-                                <Text className="flex-1 text-gray-800 text-base mr-2">"{item}"</Text>
-                                <Button
-                                    title="Eliminar"
-                                    variant="outline"
-                                    size="sm"
-                                    onPress={() => confirmDeleteMessage(index)}
-                                    className="border-rose-200"
-                                    textClassName="text-rose-600"
-                                />
-                            </View>
-                        )}
-                        contentContainerStyle={{ paddingBottom: 100 }}
+                    <Text className="text-lg font-bold mb-4 text-brand-text-primary dark:text-brand-text-light">Mensajes Actuales</Text>
+
+                    <SearchInput
+                        placeholder="Buscar mensajes..."
+                        value={messagesSearch}
+                        onChangeText={setMessagesSearch}
                     />
+
+                    {filteredMessages.length === 0 ? (
+                        <Text className="text-gray-400 text-center py-4">No se encontraron mensajes</Text>
+                    ) : (
+                        filteredMessages.map((item, index) => (
+                            <View key={index} className="bg-white dark:bg-gray-800 p-4 rounded-xl mb-3 flex-row justify-between items-center shadow-sm">
+                                <Text className="flex-1 text-gray-800 dark:text-gray-100 text-base mr-2">"{item}"</Text>
+                                <View className="flex-row gap-2">
+                                    <Button
+                                        title="Editar"
+                                        variant="outline"
+                                        size="sm"
+                                        onPress={() => startEditingMessage(index, item)}
+                                    />
+                                    <Button
+                                        title="Eliminar"
+                                        variant="outline"
+                                        size="sm"
+                                        onPress={() => confirmDeleteMessage(index)}
+                                        className="border-rose-200"
+                                        textClassName="text-rose-600"
+                                    />
+                                </View>
+                            </View>
+                        ))
+                    )}
                 </View>
             )}
+        </>
+    );
+
+    return (
+        <SafeAreaView className="flex-1 bg-brand-cream dark:bg-brand-dark">
+            <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1 }}>
+                {renderContent()}
+            </ScrollView>
 
             {/* Assignment Modal (Overlay) */}
             {taskLikelyToAssign && (
@@ -425,6 +537,8 @@ export default function ParentDashboard({ navigation }: any) {
                         <View className="flex-row flex-wrap gap-2 mb-6">
                             {children.map(child => {
                                 const isSelected = assignmentSelection.includes(child.id);
+                                const userColor = child.color || '#4338ca'; // Default
+
                                 return (
                                     <TouchableOpacity
                                         key={child.id}
@@ -435,10 +549,8 @@ export default function ParentDashboard({ navigation }: any) {
                                                 setAssignmentSelection(prev => [...prev, child.id]);
                                             }
                                         }}
-                                        className={`px-4 py-2 rounded-full border ${isSelected
-                                            ? 'bg-indigo-600 border-indigo-600'
-                                            : 'bg-gray-100 border-gray-200'
-                                            }`}
+                                        style={isSelected ? { backgroundColor: userColor, borderColor: userColor } : { borderColor: '#e5e7eb' }}
+                                        className={`px-4 py-2 rounded-full border ${isSelected ? '' : 'bg-gray-100'}`}
                                     >
                                         <Text className={isSelected ? 'text-white font-medium' : 'text-gray-700'}>
                                             {child.name}
@@ -455,6 +567,6 @@ export default function ParentDashboard({ navigation }: any) {
                     </View>
                 </View>
             )}
-        </View>
+        </SafeAreaView>
     );
 }

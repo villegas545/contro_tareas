@@ -4,23 +4,28 @@ import { useTaskContext } from '../context/TaskContext';
 import { Button } from '../components/ui/Button';
 import { Task, TaskFrequency } from '../types';
 
-export default function CreateTaskScreen({ navigation }: any) {
-    const { addTask, users, currentUser } = useTaskContext();
+export default function CreateTaskScreen({ navigation, route }: any) {
+    const { addTask, updateTask, currentUser } = useTaskContext();
+    const taskToEdit = route.params?.taskToEdit;
 
     // Form State
-    const [title, setTitle] = useState('');
-    const [description, setDescription] = useState('');
+    const [title, setTitle] = useState(taskToEdit?.title || '');
+    const [description, setDescription] = useState(taskToEdit?.description || '');
 
     // Task Configuration State
-    const [frequency, setFrequency] = useState<TaskFrequency>('daily');
-    const [type, setType] = useState<'obligatory' | 'additional'>('obligatory');
-    const [points, setPoints] = useState('');
+    const [frequency, setFrequency] = useState<TaskFrequency>(taskToEdit?.frequency || 'daily');
+    const [type, setType] = useState<'obligatory' | 'additional'>(taskToEdit?.type || 'obligatory');
+    const [points, setPoints] = useState(taskToEdit?.points ? taskToEdit.points.toString() : '');
 
     // Time Window State
-    const [timeType, setTimeType] = useState<'specific' | 'window' | 'none'>('specific');
-    const [dueTime, setDueTime] = useState('');
-    const [windowStart, setWindowStart] = useState('');
-    const [windowEnd, setWindowEnd] = useState('');
+    const [timeType, setTimeType] = useState<'specific' | 'window' | 'none'>(() => {
+        if (taskToEdit?.timeWindow) return 'window';
+        if (taskToEdit?.dueTime) return 'specific';
+        return 'specific'; // Default
+    });
+    const [dueTime, setDueTime] = useState(taskToEdit?.dueTime || '');
+    const [windowStart, setWindowStart] = useState(taskToEdit?.timeWindow?.start || '');
+    const [windowEnd, setWindowEnd] = useState(taskToEdit?.timeWindow?.end || '');
 
     const handleCreate = () => {
         if (!title) {
@@ -28,65 +33,56 @@ export default function CreateTaskScreen({ navigation }: any) {
             return;
         }
 
+        const taskData: any = {
+            title,
+            description,
+            assignedTo: 'pool',
+            createdBy: currentUser?.id || '',
+            status: 'pending',
+            type,
+            frequency,
+            points: points ? parseInt(points) : undefined,
+            timeWindow: undefined,
+            dueTime: undefined
+        };
+
+        if (timeType === 'specific' && dueTime) {
+            taskData.dueTime = dueTime;
+        } else if (timeType === 'window' && windowStart && windowEnd) {
+            taskData.timeWindow = {
+                start: windowStart,
+                end: windowEnd
+            };
+        }
+
+        const saveLogic = () => {
+            if (taskToEdit) {
+                // Update
+                updateTask(taskToEdit.id, taskData);
+                if (Platform.OS === 'web') window.alert("Plantilla actualizada");
+                else Alert.alert("Éxito", "Plantilla actualizada");
+            } else {
+                // Create
+                addTask(taskData);
+                if (Platform.OS === 'web') window.alert("Plantilla creada correctamente");
+                else Alert.alert("Éxito", "Plantilla creada correctamente");
+            }
+            navigation.goBack();
+        };
+
         if (Platform.OS === 'web') {
-            if (window.confirm("¿Deseas guardar esta plantilla de tarea?")) {
-                const newTask: Omit<Task, 'id'> = {
-                    title,
-                    description,
-                    assignedTo: 'pool',
-                    createdBy: currentUser?.id || '',
-                    status: 'pending',
-                    type,
-                    frequency,
-                    points: points ? parseInt(points) : undefined
-                };
-
-                if (timeType === 'specific' && dueTime) {
-                    newTask.dueTime = dueTime;
-                } else if (timeType === 'window' && windowStart && windowEnd) {
-                    newTask.timeWindow = {
-                        start: windowStart,
-                        end: windowEnd
-                    };
-                }
-
-                addTask(newTask);
-                navigation.goBack();
-                window.alert("Plantilla creada correctamente");
+            if (window.confirm(taskToEdit ? "¿Guardar cambios en la plantilla?" : "¿Deseas guardar esta plantilla de tarea?")) {
+                saveLogic();
             }
         } else {
             Alert.alert(
-                "Crear Plantilla",
-                "¿Deseas guardar esta plantilla de tarea?",
+                taskToEdit ? "Actualizar Plantilla" : "Crear Plantilla",
+                taskToEdit ? "¿Guardar cambios?" : "¿Deseas guardar esta plantilla de tarea?",
                 [
                     { text: "Cancelar", style: "cancel" },
                     {
                         text: "Guardar",
-                        onPress: () => {
-                            const newTask: Omit<Task, 'id'> = {
-                                title,
-                                description,
-                                assignedTo: 'pool',
-                                createdBy: currentUser?.id || '',
-                                status: 'pending',
-                                type,
-                                frequency,
-                                points: points ? parseInt(points) : undefined
-                            };
-
-                            if (timeType === 'specific' && dueTime) {
-                                newTask.dueTime = dueTime;
-                            } else if (timeType === 'window' && windowStart && windowEnd) {
-                                newTask.timeWindow = {
-                                    start: windowStart,
-                                    end: windowEnd
-                                };
-                            }
-
-                            addTask(newTask);
-                            navigation.goBack();
-                            Alert.alert("Éxito", "Plantilla creada correctamente");
-                        }
+                        onPress: saveLogic
                     }
                 ]
             );
@@ -96,7 +92,7 @@ export default function CreateTaskScreen({ navigation }: any) {
     return (
         <SafeAreaView className="flex-1 bg-gray-50 dark:bg-slate-900">
             <ScrollView contentContainerStyle={{ padding: 24 }}>
-                <Text className="text-2xl font-bold text-gray-900 mb-6">Nueva Tarea (Plantilla)</Text>
+                <Text className="text-2xl font-bold text-gray-900 mb-6">{taskToEdit ? "Editar Plantilla" : "Nueva Tarea (Plantilla)"}</Text>
 
                 <View className="gap-4">
                     <View>
@@ -257,7 +253,7 @@ export default function CreateTaskScreen({ navigation }: any) {
                     </View>
 
                     <View className="mt-8 gap-3">
-                        <Button title="Guardar Tarea" onPress={handleCreate} />
+                        <Button title={taskToEdit ? "Actualizar Tarea" : "Guardar Tarea"} onPress={handleCreate} />
                         <Button title="Cancelar" variant="outline" onPress={() => navigation.goBack()} />
                     </View>
                 </View>

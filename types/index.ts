@@ -14,6 +14,7 @@ export interface User {
   username: string;
   password?: string; // In a real app this would be hashed, or handled by Firebase Auth
   avatar?: string;
+  color?: string; // Hex color code for identifying the user
 }
 
 export interface Task {

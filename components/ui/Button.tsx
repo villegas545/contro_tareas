@@ -14,9 +14,9 @@ export const Button = ({ title, variant = 'primary', size = 'md', className, tex
     const baseStyle = "rounded-xl items-center justify-center flex-row shadow-sm active:opacity-80";
 
     const variants = {
-        primary: "bg-indigo-600 border border-transparent",
-        secondary: "bg-teal-500 border border-transparent",
-        danger: "bg-rose-500 border border-transparent",
+        primary: "bg-brand-primary border border-transparent",
+        secondary: "bg-brand-secondary border border-transparent",
+        danger: "bg-brand-accent border border-transparent",
         outline: "bg-transparent border border-gray-300 dark:border-gray-600",
     };
 

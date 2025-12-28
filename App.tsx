@@ -1,5 +1,8 @@
+
 import './global.css';
 import React from 'react';
+import { View, Platform } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { TaskProvider, useTaskContext } from './context/TaskContext';
@@ -37,10 +40,21 @@ const MainNavigator = () => {
 export default function App() {
   return (
     <TaskProvider>
-      <NavigationContainer>
-        <MainNavigator />
-        <StatusBar style="auto" />
-      </NavigationContainer>
+      <View className="flex-1 bg-[#333] items-center justify-center">
+        <View
+          className="flex-1 w-full h-full bg-white overflow-hidden shadow-xl"
+          style={Platform.OS === 'web' ? { maxWidth: 480, maxHeight: 900 } : {}}
+        >
+          <SafeAreaProvider>
+            <SafeAreaView className="flex-1 bg-white" edges={['top', 'left', 'right']}>
+              <NavigationContainer>
+                <MainNavigator />
+                <StatusBar style="auto" />
+              </NavigationContainer>
+            </SafeAreaView>
+          </SafeAreaProvider>
+        </View>
+      </View>
     </TaskProvider>
   );
 }

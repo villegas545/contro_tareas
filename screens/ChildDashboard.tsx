@@ -4,6 +4,7 @@ import { useTaskContext } from '../context/TaskContext';
 import { Card } from '../components/ui/Card';
 import { Task } from '../types';
 import { Button } from '../components/ui/Button';
+import { ChildTaskCard } from '../components/ChildTaskCard';
 
 export default function ChildDashboard({ navigation }: any) {
     const { currentUser, tasks, history, completeTask, logout, messages } = useTaskContext();
@@ -81,54 +82,9 @@ export default function ChildDashboard({ navigation }: any) {
         }
     };
 
-    const renderTask = ({ item }: { item: Task }) => {
-        const isPending = item.status === 'pending';
-        return (
-            <Card className={`mb-4 border-l-4 ${item.status === 'verified' ? 'border-green-500 opacity-60' : 'border-indigo-500'}`}>
-                <View className="flex-row items-center">
-                    <View className={`w-12 h-12 rounded-full items-center justify-center mr-4 ${item.status === 'verified' ? 'bg-green-100' : 'bg-indigo-50'}`}>
-                        <Text className="text-2xl">
-                            {item.title.toLowerCase().includes('dientes') ? '🦷' :
-                                item.title.toLowerCase().includes('platos') ? '🍽️' :
-                                    item.title.toLowerCase().includes('barrer') ? '🧹' : '📝'}
-                        </Text>
-                    </View>
-
-                    <View className="flex-1">
-                        <Text className={`text-lg font-bold ${item.status === 'verified' ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
-                            {item.title}
-                        </Text>
-                        {item.points && (
-                            <Text className="text-amber-500 font-bold text-sm">+{item.points} Pts ⭐️</Text>
-                        )}
-                    </View>
-                </View>
-
-                {isPending && (
-                    <View className="mt-4">
-                        <TouchableOpacity
-                            onPress={() => handleComplete(item)}
-                            className="bg-indigo-600 px-4 py-3 rounded-xl items-center justify-center shadow-sm active:opacity-80"
-                        >
-                            <Text className="text-white font-bold font-semibold">¡Ya lo hice!</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
-
-                {item.status === 'completed' && (
-                    <View className="mt-4 bg-amber-50 p-2 rounded items-center">
-                        <Text className="text-amber-600 font-medium">Esperando revisión de papá/mamá ⏳</Text>
-                    </View>
-                )}
-
-                {item.status === 'verified' && (
-                    <View className="mt-4 bg-green-50 p-2 rounded items-center">
-                        <Text className="text-green-600 font-bold">¡Bien hecho! ✅</Text>
-                    </View>
-                )}
-            </Card>
-        );
-    };
+    const renderTask = ({ item }: { item: Task }) => (
+        <ChildTaskCard item={item} onComplete={handleComplete} />
+    );
 
     const confirmLogout = () => {
         if (Platform.OS === 'web') {
@@ -148,15 +104,18 @@ export default function ChildDashboard({ navigation }: any) {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-gray-50 dark:bg-slate-900">
-            <View className="p-6 flex-row justify-between items-center bg-indigo-600 rounded-b-3xl shadow-lg mb-4">
+        <SafeAreaView className="flex-1 bg-sky-50 dark:bg-brand-dark">
+            <View
+                style={{ backgroundColor: currentUser?.color || '#4f46e5' }}
+                className="p-6 flex-row justify-between items-center rounded-b-3xl shadow-lg mb-4"
+            >
                 <View>
-                    <Text className="text-indigo-100 font-medium text-lg">Hola,</Text>
+                    <Text className="text-white/80 font-medium text-lg">Hola,</Text>
                     <Text className="text-3xl font-bold text-white tracking-tight">{currentUser?.name}</Text>
                 </View>
                 <View className="flex-row gap-2">
-                    <Button title="📜 Historial" size="sm" variant="secondary" onPress={() => navigation.navigate('History')} className="bg-indigo-500" />
-                    <Button title="Salir" size="sm" variant="secondary" onPress={confirmLogout} className="bg-indigo-500" />
+                    <Button title="📜 Historial" size="sm" variant="secondary" onPress={() => navigation.navigate('History')} className="bg-white/20" />
+                    <Button title="Salir" size="sm" variant="secondary" onPress={confirmLogout} className="bg-white/20" />
                 </View>
             </View>
 

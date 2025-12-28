@@ -1,8 +1,8 @@
 {
   "expo": {
     "name": "Control de Tareas",
-    "slug": "control-de-tareas",
-    "version": "1.0.0",
+    "slug": "control-de-tareas-v2-fixed",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -29,7 +29,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "c58cedf1-8bc3-4d69-b644-5d02ac0a4bfb"
+        "projectId": "6bd2a0e3-4145-44a1-925f-034a318a65ac"
       }
     }
   }
