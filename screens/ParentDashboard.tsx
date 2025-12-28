@@ -45,42 +45,44 @@ export default function ParentDashboard({ navigation }: any) {
                 </View>
 
                 {/* Tab Switcher */}
-                <View className="px-6 py-4 flex-row gap-4 border-b border-gray-200">
-                    <TouchableOpacity onPress={() => setCurrentTab('monitoring')} className="relative">
-                        <Text className={`text-lg font-bold ${currentTab === 'monitoring' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'}`}>
-                            Seguimiento
-                        </Text>
-                        {tasks.filter(t => t.status === 'completed').length > 0 && (
-                            <View className="absolute -top-2 -right-3 bg-red-500 rounded-full w-5 h-5 justify-center items-center">
-                                <Text className="text-white text-xs font-bold">{tasks.filter(t => t.status === 'completed').length}</Text>
-                            </View>
-                        )}
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setCurrentTab('assignment')}>
-                        <Text className={`text-lg font-bold ${currentTab === 'assignment' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'}`}>
-                            Banco
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setCurrentTab('family')}>
-                        <Text className={`text-lg font-bold ${currentTab === 'family' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'}`}>
-                            Familia
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setCurrentTab('messages')}>
-                        <Text className={`text-lg font-bold ${currentTab === 'messages' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'}`}>
-                            Mensajes
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setCurrentTab('rewards')} className="relative">
-                        <Text className={`text-lg font-bold ${currentTab === 'rewards' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'}`}>
-                            Premios
-                        </Text>
-                        {redemptions.filter(r => r.status === 'pending').length > 0 && (
-                            <View className="absolute -top-2 -right-3 bg-red-500 rounded-full w-5 h-5 justify-center items-center">
-                                <Text className="text-white text-xs font-bold">{redemptions.filter(r => r.status === 'pending').length}</Text>
-                            </View>
-                        )}
-                    </TouchableOpacity>
+                <View className="border-b border-gray-200">
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingVertical: 16, gap: 16 }}>
+                        <TouchableOpacity onPress={() => setCurrentTab('monitoring')} className="relative">
+                            <Text className={`text-lg font-bold ${currentTab === 'monitoring' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'}`}>
+                                Seguimiento
+                            </Text>
+                            {tasks.filter(t => t.status === 'completed').length > 0 && (
+                                <View className="absolute -top-2 -right-3 bg-red-500 rounded-full w-5 h-5 justify-center items-center">
+                                    <Text className="text-white text-xs font-bold">{tasks.filter(t => t.status === 'completed').length}</Text>
+                                </View>
+                            )}
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setCurrentTab('assignment')}>
+                            <Text className={`text-lg font-bold ${currentTab === 'assignment' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'}`}>
+                                Banco
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setCurrentTab('family')}>
+                            <Text className={`text-lg font-bold ${currentTab === 'family' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'}`}>
+                                Familia
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setCurrentTab('messages')}>
+                            <Text className={`text-lg font-bold ${currentTab === 'messages' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'}`}>
+                                Mensajes
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setCurrentTab('rewards')} className="relative">
+                            <Text className={`text-lg font-bold ${currentTab === 'rewards' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'}`}>
+                                Premios
+                            </Text>
+                            {redemptions.filter(r => r.status === 'pending').length > 0 && (
+                                <View className="absolute -top-2 -right-3 bg-red-500 rounded-full w-5 h-5 justify-center items-center">
+                                    <Text className="text-white text-xs font-bold">{redemptions.filter(r => r.status === 'pending').length}</Text>
+                                </View>
+                            )}
+                        </TouchableOpacity>
+                    </ScrollView>
                 </View>
 
                 {/* Content Area */}

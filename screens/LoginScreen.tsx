@@ -3,6 +3,9 @@ import { View, Text, SafeAreaView, TextInput, ScrollView, Alert, KeyboardAvoidin
 import { useTaskContext } from '../context/TaskContext';
 import { Button } from '../components/ui/Button';
 
+// Static asset import for better web compatibility
+const taskLogo = require('../assets/task_logo.jpg');
+
 export default function LoginScreen() {
     const { login } = useTaskContext();
     const [username, setUsername] = useState('');
@@ -34,10 +37,9 @@ export default function LoginScreen() {
                 <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
                     <View className="items-center mb-12">
                         <Image
-                            source={require('../assets/task_logo.png')}
-                            className="w-32 h-32 mb-6 rounded-full"
-                            style={{ width: 128, height: 128 }}
-                            resizeMode="cover"
+                            source={taskLogo}
+                            style={{ width: 150, height: 150, marginBottom: 24 }}
+                            resizeMode="contain"
                         />
                         <Text className="text-3xl font-bold text-brand-text-primary dark:text-brand-text-light text-center">
                             Control de Tareas
