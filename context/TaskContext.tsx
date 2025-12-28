@@ -267,17 +267,44 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     // Recurring tasks check logic - Adapted for centralized execution?
     // In a real app, this should be a backend function. 
     // Here, we can let ONLY the logged-in parent run this check to avoid conflicts, or just run it locally.
-    const checkRecurringTasks = () => {
-        if (!currentUser || currentUser.role !== 'parent') return;
+    const checkRecurringTasks = async () => {
+        // Only run if we have tasks and mostly safe to do so
+        const now = new Date();
+        const today = now.toISOString().split('T')[0];
 
-        // ... logic to reset tasks ...
-        // This requires batch updates or individual updates.
-        // Since it's complex to migrate to purely frontend logic without causing write storms,
-        // we'll defer mostly. Or implement a simple check.
+        tasks.forEach(async (task) => {
+            if (task.status === 'verified' && task.frequency !== 'one-time') {
+                // Check if it should be reset
+                if (!task.verifiedAt) return;
 
-        // Simpler: Just rely on manual resets for now or simple "if verified yesterday, reset to pending today" logic
-        // But iterating all tasks and updating them is heavy. 
-        // Let's keep the logic simple: When loading tasks, if we see a verified recurring task from >1 day ago, reset it.
+                const verifiedDate = task.verifiedAt.split('T')[0];
+                let shouldReset = false;
+
+                if (task.frequency === 'daily') {
+                    // Reset if verified before today
+                    if (verifiedDate < today) {
+                        shouldReset = true;
+                    }
+                } else if (task.frequency === 'weekly') {
+                    // Reset if verified more than 7 days ago (simple logic) or different week
+                    // For simplicity: if verifiedDate is < 7 days ago
+                    const diffTime = Math.abs(now.getTime() - new Date(task.verifiedAt).getTime());
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    if (diffDays >= 7) {
+                        shouldReset = true;
+                    }
+                }
+
+                if (shouldReset) {
+                    await updateDoc(doc(db, "tasks", task.id), {
+                        status: 'pending',
+                        completedAt: deleteField(),
+                        verifiedAt: deleteField(),
+                        evidenceUrl: deleteField(),
+                    });
+                }
+            }
+        });
     };
 
     return (
