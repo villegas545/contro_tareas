@@ -1,21 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, SafeAreaView, FlatList, Alert, Modal, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, SafeAreaView, FlatList, Alert, Modal, TouchableOpacity, Platform, ScrollView } from 'react-native';
 import { useTaskContext } from '../context/TaskContext';
 import { Card } from '../components/ui/Card';
-import { Task } from '../types';
+import { Task, Reward } from '../types';
 import { Button } from '../components/ui/Button';
 import { ChildTaskCard } from '../components/ChildTaskCard';
 
 export default function ChildDashboard({ navigation }: any) {
-    const { currentUser, tasks, history, completeTask, logout, messages } = useTaskContext();
+    const { currentUser, tasks, history, completeTask, logout, messages, rewards, redeemReward, redemptions } = useTaskContext();
     const [messageModalVisible, setMessageModalVisible] = useState(false);
     const [currentMessage, setCurrentMessage] = useState('');
     const [canClose, setCanClose] = useState(false);
     const [countdown, setCountdown] = useState(5);
+    const [currentTab, setCurrentTab] = useState<'tasks' | 'store'>('tasks');
 
     const myTasks = tasks.filter(t => t.assignedTo === currentUser?.id);
     const myHistory = history.filter(h => h.assignedTo === currentUser?.id && h.status === 'verified');
     const myPoints = myHistory.reduce((acc, curr) => acc + curr.points, 0);
+
+    const myRedemptionRequests = redemptions.filter(r => r.childId === currentUser?.id && r.status === 'pending');
 
     useEffect(() => {
         // Show random message on mount
@@ -26,18 +29,16 @@ export default function ChildDashboard({ navigation }: any) {
             setCanClose(false);
             setCountdown(5);
         }
-    }, [messages]);
+    }, []);
 
     useEffect(() => {
-        let timer: NodeJS.Timeout;
-        if (messageModalVisible && countdown > 0) {
-            timer = setInterval(() => {
-                setCountdown(prev => prev - 1);
-            }, 1000);
-        } else if (countdown === 0) {
+        if (!messageModalVisible) return;
+        if (countdown > 0) {
+            const timer = setInterval(() => setCountdown(c => c - 1), 1000);
+            return () => clearInterval(timer);
+        } else {
             setCanClose(true);
         }
-        return () => clearInterval(timer);
     }, [messageModalVisible, countdown]);
 
     const handleComplete = (task: Task, evidenceUrl?: string) => {
@@ -98,6 +99,36 @@ export default function ChildDashboard({ navigation }: any) {
         }
     };
 
+    const handleRedeem = (reward: Reward) => {
+        if (myPoints < reward.cost) {
+            Alert.alert("Insuficiente", "No tienes suficientes puntos para este premio.");
+            return;
+        }
+
+        const proceed = () => {
+            redeemReward({
+                rewardId: reward.id,
+                rewardTitle: reward.title,
+                childId: currentUser?.id || '',
+                cost: reward.cost
+            });
+            Alert.alert("¡Solicitud Enviada!", "Dile a tus papás que aprueben tu premio.");
+        };
+
+        if (Platform.OS === 'web') {
+            if (window.confirm(`¿Quieres canjear "${reward.title}" por ${reward.cost} puntos?`)) proceed();
+        } else {
+            Alert.alert(
+                "Canjear Premio",
+                `¿Quieres canjear "${reward.title}" por ${reward.cost} puntos?`,
+                [
+                    { text: "Cancelar", style: "cancel" },
+                    { text: "¡SÍ, CANJEAR!", onPress: proceed }
+                ]
+            );
+        }
+    };
+
     const renderTask = ({ item }: { item: Task }) => (
         <ChildTaskCard item={item} onComplete={handleComplete} />
     );
@@ -126,31 +157,82 @@ export default function ChildDashboard({ navigation }: any) {
                 className="p-6 flex-row justify-between items-center rounded-b-3xl shadow-lg mb-4"
             >
                 <View>
-                    <Text className="text-white/80 font-medium text-lg">Hola,</Text>
-                    <Text className="text-3xl font-bold text-white tracking-tight">{currentUser?.name}</Text>
+                    <Text className="text-white text-lg font-medium opacity-90">Hola, {currentUser?.name} 👋</Text>
+                    <Text className="text-white text-3xl font-bold mt-1">{myPoints} Puntos ⭐️</Text>
                 </View>
-                <View className="flex-row gap-2">
-                    <Button title="📜 Historial" size="sm" variant="secondary" onPress={() => navigation.navigate('History')} className="bg-white/20" />
-                    <Button title="Salir" size="sm" variant="secondary" onPress={confirmLogout} className="bg-white/20" />
-                </View>
+                <Button title="Salir" variant="secondary" size="sm" onPress={confirmLogout} className="bg-white/20" />
             </View>
 
-            <View className="px-6 mb-4">
-                <Card className="bg-amber-100 border-amber-200 flex-row items-center justify-between p-3">
-                    <Text className="text-amber-800 font-bold">Mis Puntos:</Text>
-                    <Text className="text-2xl font-black text-amber-600">{myPoints} ⭐️</Text>
-                </Card>
+            {/* Tab Switcher */}
+            <View className="flex-row mx-6 mb-4 bg-white dark:bg-gray-800 p-1 rounded-xl shadow-sm">
+                <TouchableOpacity
+                    className={`flex-1 py-3 rounded-lg items-center ${currentTab === 'tasks' ? 'bg-indigo-100 dark:bg-indigo-900' : ''}`}
+                    onPress={() => setCurrentTab('tasks')}
+                >
+                    <Text className={`font-bold ${currentTab === 'tasks' ? 'text-indigo-600 dark:text-indigo-300' : 'text-gray-500'}`}>📝 Mis Tareas</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    className={`flex-1 py-3 rounded-lg items-center ${currentTab === 'store' ? 'bg-amber-100 dark:bg-amber-900' : ''}`}
+                    onPress={() => setCurrentTab('store')}
+                >
+                    <Text className={`font-bold ${currentTab === 'store' ? 'text-amber-600 dark:text-amber-300' : 'text-gray-500'}`}>🛍️ Tienda de Premios</Text>
+                </TouchableOpacity>
             </View>
 
-            <FlatList
-                data={myTasks}
-                keyExtractor={(item) => item.id}
-                renderItem={renderTask}
-                contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
-                ListEmptyComponent={
-                    <Text className="text-center text-gray-400 mt-10">¡No tienes tareas pendientes! 🎉</Text>
-                }
-            />
+            {currentTab === 'tasks' ? (
+                <FlatList
+                    data={myTasks}
+                    renderItem={renderTask}
+                    keyExtractor={item => item.id}
+                    contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
+                    ListEmptyComponent={
+                        <View className="items-center justify-center py-10">
+                            <Text className="text-6xl mb-4">🎉</Text>
+                            <Text className="text-gray-500 text-lg text-center dark:text-gray-400">¡No tienes tareas pendientes!</Text>
+                            <Text className="text-gray-400 text-center mt-2 dark:text-gray-500">Disfruta tu tiempo libre.</Text>
+                        </View>
+                    }
+                />
+            ) : (
+                <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
+                    {myRedemptionRequests.length > 0 && (
+                        <View className="mb-6">
+                            <Text className="text-lg font-bold mb-3 text-gray-700 dark:text-gray-200">⏳ Solicitudes Pendientes</Text>
+                            {myRedemptionRequests.map(req => (
+                                <View key={req.id} className="bg-amber-50 dark:bg-gray-800 border border-amber-200 dark:border-amber-900 p-4 rounded-xl mb-2 flex-row justify-between items-center">
+                                    <Text className="font-medium text-gray-800 dark:text-gray-200">{req.rewardTitle}</Text>
+                                    <Text className="text-amber-600 font-bold">-{req.cost} pts</Text>
+                                </View>
+                            ))}
+                        </View>
+                    )}
+
+                    <Text className="text-lg font-bold mb-3 text-gray-700 dark:text-gray-200">💎 Premios Disponibles</Text>
+                    <View className="flex-row flex-wrap gap-4">
+                        {rewards.map(reward => {
+                            const canAfford = myPoints >= reward.cost;
+                            return (
+                                <TouchableOpacity
+                                    key={reward.id}
+                                    onPress={() => handleRedeem(reward)}
+                                    disabled={!canAfford}
+                                    style={{ width: '47%' }}
+                                    className={`bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border-2 ${canAfford ? 'border-indigo-100 dark:border-gray-700' : 'border-gray-100 dark:border-gray-800 opacity-50'}`}
+                                >
+                                    <Text className="text-3xl mb-2 text-center">{reward.icon || '🎁'}</Text>
+                                    <Text className="font-bold text-center text-gray-800 dark:text-white mb-1">{reward.title}</Text>
+                                    <View className="bg-amber-100 dark:bg-amber-900 self-center px-3 py-1 rounded-full mt-2">
+                                        <Text className="text-amber-700 dark:text-amber-300 font-bold text-xs">{reward.cost} Pts</Text>
+                                    </View>
+                                </TouchableOpacity>
+                            )
+                        })}
+                    </View>
+                    {rewards.length === 0 && (
+                        <Text className="text-gray-400 text-center py-10">Dile a tus papás que agreguen premios a la tienda.</Text>
+                    )}
+                </ScrollView>
+            )}
 
             {/* Motivational Message Modal */}
             <Modal

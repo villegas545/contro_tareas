@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Task, User, TaskHistory } from '../types';
+import { Task, User, TaskHistory, Reward, Redemption } from '../types';
 import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, Timestamp, deleteField } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 
@@ -24,6 +24,15 @@ interface TaskContextType {
     addUser: (user: Omit<User, 'id'>) => void;
     updateUser: (userId: string, updates: Partial<User>) => void;
     deleteUser: (userId: string) => void;
+
+    // Rewards System
+    rewards: Reward[];
+    redemptions: Redemption[];
+    addReward: (reward: Omit<Reward, 'id'>) => void;
+    deleteReward: (rewardId: string) => void;
+    redeemReward: (redemption: Omit<Redemption, 'id' | 'requestDate' | 'status'>) => void;
+    approveRedemption: (redemptionId: string) => void;
+    rejectRedemption: (redemptionId: string) => void;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -35,6 +44,9 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     const [history, setHistory] = useState<TaskHistory[]>([]);
     const [messages, setMessages] = useState<string[]>([]);
     const [messageIds, setMessageIds] = useState<string[]>([]); // To track IDs for deletion
+
+    const [rewards, setRewards] = useState<Reward[]>([]);
+    const [redemptions, setRedemptions] = useState<Redemption[]>([]);
 
     // Subscribe to Firestore collections
     useEffect(() => {
@@ -70,11 +82,25 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             setMessages(texts);
         });
 
+        // Rewards
+        const rewardsUnsub = onSnapshot(collection(db, "rewards"), (snapshot) => {
+            const rewardsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reward));
+            setRewards(rewardsList);
+        });
+
+        // Redemptions
+        const redemptionsUnsub = onSnapshot(collection(db, "redemptions"), (snapshot) => {
+            const redemptionsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Redemption));
+            setRedemptions(redemptionsList);
+        });
+
         return () => {
             usersUnsub();
             tasksUnsub();
             historyUnsub();
             messagesUnsub();
+            rewardsUnsub();
+            redemptionsUnsub();
         };
     }, []); // Run once on mount
 
@@ -191,6 +217,53 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         });
     };
 
+    // Rewards & Redemptions Logic
+    const addReward = async (reward: Omit<Reward, 'id'>) => {
+        await addDoc(collection(db, "rewards"), reward);
+    };
+
+    const deleteReward = async (rewardId: string) => {
+        await deleteDoc(doc(db, "rewards", rewardId));
+    };
+
+    const redeemReward = async (redemption: Omit<Redemption, 'id' | 'requestDate' | 'status'>) => {
+        // We do NOT deduct points yet. Only when approved.
+        await addDoc(collection(db, "redemptions"), {
+            ...redemption,
+            status: 'pending',
+            requestDate: new Date().toISOString()
+        });
+    };
+
+    const approveRedemption = async (redemptionId: string) => {
+        const redemption = redemptions.find(r => r.id === redemptionId);
+        if (!redemption || redemption.status !== 'pending') return;
+
+        // Deduct points from history?
+        // Actually, we calculate points dynamically from history. 
+        // So we need to add a NEGATIVE entry to history to represent "Usage" or "Redemption".
+        // Let's create a special history type entry for this.
+
+        await addDoc(collection(db, "history"), {
+            taskId: 'redemption-' + redemptionId, // Fake ID
+            taskTitle: `Canje: ${redemption.rewardTitle}`,
+            assignedTo: redemption.childId,
+            points: -Math.abs(redemption.cost), // Negative points
+            status: 'verified', // Automatically verified
+            date: new Date().toISOString().split('T')[0],
+            completedAt: new Date().toISOString()
+        });
+
+        await updateDoc(doc(db, "redemptions", redemptionId), {
+            status: 'approved',
+            redeemedDate: new Date().toISOString()
+        });
+    };
+
+    const rejectRedemption = async (redemptionId: string) => {
+        await updateDoc(doc(db, "redemptions", redemptionId), { status: 'rejected' });
+    };
+
     // Recurring tasks check logic - Adapted for centralized execution?
     // In a real app, this should be a backend function. 
     // Here, we can let ONLY the logged-in parent run this check to avoid conflicts, or just run it locally.
@@ -229,7 +302,14 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 deleteMessage,
                 addUser,
                 updateUser,
-                deleteUser
+                deleteUser,
+                rewards,
+                redemptions,
+                addReward,
+                deleteReward,
+                redeemReward,
+                approveRedemption,
+                rejectRedemption
             }}
         >
             {children}

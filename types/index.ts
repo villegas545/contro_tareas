@@ -38,3 +38,23 @@ export interface Task {
   };
   evidenceUrl?: string;
 }
+
+export interface Reward {
+  id: string;
+  title: string;
+  description?: string; // e.g. "Vale por 30 min de videojuego"
+  cost: number; // Points required
+  createdBy: string; // Parent ID
+  icon?: string; // Emoji char
+}
+
+export interface Redemption {
+  id: string;
+  rewardId: string;
+  rewardTitle: string;
+  childId: string;
+  cost: number;
+  status: 'pending' | 'approved' | 'rejected'; // 'approved' means points are deducted and reward given
+  requestDate: string; // ISO
+  redeemedDate?: string; // ISO
+}

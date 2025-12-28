@@ -6,10 +6,11 @@ import { MonitoringTab } from '../components/dashboard/MonitoringTab';
 import { AssignmentTab } from '../components/dashboard/AssignmentTab';
 import { FamilyTab } from '../components/dashboard/FamilyTab';
 import { MessagesTab } from '../components/dashboard/MessagesTab';
+import { RewardsTab } from '../components/dashboard/RewardsTab';
 
 export default function ParentDashboard({ navigation }: any) {
     const { currentUser, logout } = useTaskContext();
-    const [currentTab, setCurrentTab] = useState<'monitoring' | 'assignment' | 'messages' | 'family'>('monitoring');
+    const [currentTab, setCurrentTab] = useState<'monitoring' | 'assignment' | 'messages' | 'family' | 'rewards'>('monitoring');
 
     const confirmLogout = () => {
         if (Platform.OS === 'web') {
@@ -65,6 +66,11 @@ export default function ParentDashboard({ navigation }: any) {
                             Mensajes
                         </Text>
                     </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setCurrentTab('rewards')}>
+                        <Text className={`text-lg font-bold ${currentTab === 'rewards' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'}`}>
+                            Premios
+                        </Text>
+                    </TouchableOpacity>
                 </View>
 
                 {/* Content Area */}
@@ -73,6 +79,7 @@ export default function ParentDashboard({ navigation }: any) {
                     {currentTab === 'assignment' && <AssignmentTab />}
                     {currentTab === 'family' && <FamilyTab />}
                     {currentTab === 'messages' && <MessagesTab />}
+                    {currentTab === 'rewards' && <RewardsTab />}
                 </ScrollView>
             </View>
         </SafeAreaView>
