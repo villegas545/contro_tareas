@@ -8,17 +8,26 @@ interface TaskTagsProps {
 }
 
 export const TaskTags = ({ task, showTime = false }: TaskTagsProps) => {
+    const formatTime = (time: string) => {
+        if (!time) return '';
+        const [hours, minutes] = time.split(':');
+        const h = parseInt(hours, 10);
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const h12 = h % 12 || 12;
+        return `${h12}:${minutes} ${ampm}`;
+    };
+
     return (
         <View className="flex-row flex-wrap gap-2 mb-3">
             {showTime && (
                 <>
                     {task.timeWindow ? (
                         <Text className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded">
-                            ⏰ {task.timeWindow.start} - {task.timeWindow.end}
+                            ⏰ Rango: {formatTime(task.timeWindow.start)} - {formatTime(task.timeWindow.end)}
                         </Text>
                     ) : task.dueTime ? (
                         <Text className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded">
-                            ⏰ {task.dueTime}
+                            ⏰ Límite: {formatTime(task.dueTime)}
                         </Text>
                     ) : null}
                 </>
@@ -28,15 +37,21 @@ export const TaskTags = ({ task, showTime = false }: TaskTagsProps) => {
                 {task.frequency === 'daily' ? '🔄 Diario' : task.frequency === 'weekly' ? '🔄 Semanal' : '📌 Una vez'}
             </Text>
 
-            {task.points && (
+            {(task.points || 0) > 0 && (
                 <Text className="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded">
                     ⭐️ {task.points} pts
                 </Text>
             )}
 
+            {task.isSchool && (
+                <Text className="text-xs bg-sky-50 text-sky-700 px-2 py-1 rounded">
+                    🎓 Escolar
+                </Text>
+            )}
+
             <Text className={`text-xs px-2 py-1 rounded capitalize ${task.type === 'obligatory' ? 'bg-rose-50 text-rose-700' : 'bg-blue-50 text-blue-700'
                 }`}>
-                {task.type === 'obligatory' ? '✋ Obligatoria' : '🎁 Adicional'}
+                {task.type === 'obligatory' ? '🎁 Bono' : '💵 Extra'}
             </Text>
         </View>
     );

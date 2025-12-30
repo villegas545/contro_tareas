@@ -7,14 +7,27 @@ import { Button } from '../components/ui/Button';
 import { ChildTaskCard } from '../components/ChildTaskCard';
 
 export default function ChildDashboard({ navigation }: any) {
-    const { currentUser, tasks, history, completeTask, logout, messages, rewards, redeemReward, redemptions } = useTaskContext();
+    const { currentUser, tasks, history, completeTask, logout, messages, rewards, redeemReward, redemptions, isTaskActiveToday } = useTaskContext();
     const [messageModalVisible, setMessageModalVisible] = useState(false);
     const [currentMessage, setCurrentMessage] = useState('');
     const [canClose, setCanClose] = useState(false);
     const [countdown, setCountdown] = useState(5);
     const [currentTab, setCurrentTab] = useState<'tasks' | 'store'>('tasks');
 
-    const myTasks = tasks.filter(t => t.assignedTo === currentUser?.id);
+    const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed' | 'verified'>('all');
+    const [typeFilter, setTypeFilter] = useState<'all' | 'responsibility' | 'extra' | 'school'>('all');
+    const [showFilters, setShowFilters] = useState(false);
+
+    const myTasks = tasks
+        .filter(t => t.assignedTo === currentUser?.id && (isTaskActiveToday ? isTaskActiveToday(t) : true))
+        .filter(t => {
+            if (statusFilter !== 'all' && t.status !== statusFilter) return false;
+            if (typeFilter === 'responsibility') return t.type === 'obligatory';
+            if (typeFilter === 'extra') return t.type === 'additional';
+            if (typeFilter === 'school') return t.isSchool;
+            return true;
+        })
+        .sort((a, b) => a.title.localeCompare(b.title));
     const myHistory = history.filter(h => h.assignedTo === currentUser?.id && h.status === 'verified');
     const myPoints = myHistory.reduce((acc, curr) => acc + curr.points, 0);
 
@@ -180,19 +193,81 @@ export default function ChildDashboard({ navigation }: any) {
             </View>
 
             {currentTab === 'tasks' ? (
-                <FlatList
-                    data={myTasks}
-                    renderItem={renderTask}
-                    keyExtractor={item => item.id}
-                    contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
-                    ListEmptyComponent={
-                        <View className="items-center justify-center py-10">
-                            <Text className="text-6xl mb-4">🎉</Text>
-                            <Text className="text-gray-500 text-lg text-center dark:text-gray-400">¡No tienes tareas pendientes!</Text>
-                            <Text className="text-gray-400 text-center mt-2 dark:text-gray-500">Disfruta tu tiempo libre.</Text>
-                        </View>
-                    }
-                />
+                <>
+                    <View className="px-6 pb-2">
+                        <TouchableOpacity
+                            onPress={() => setShowFilters(!showFilters)}
+                            className="flex-row justify-between items-center mb-2"
+                        >
+                            <Text className="text-gray-500 text-xs font-bold uppercase">Filtros Avanzados</Text>
+                            <Text className="text-gray-500 text-lg">{showFilters ? '🔼' : '🔽'}</Text>
+                        </TouchableOpacity>
+
+                        {showFilters && (
+                            <View className="mt-2">
+                                <Text className="text-gray-500 text-xs font-bold uppercase mb-2">Estado:</Text>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} className="mb-4">
+                                    {[
+                                        { id: 'all', label: 'Todos' },
+                                        { id: 'pending', label: '⏳ Por hacer' },
+                                        { id: 'completed', label: '✅ Hechos' },
+                                        { id: 'verified', label: '⭐️ Listos' },
+                                    ].map(f => (
+                                        <TouchableOpacity
+                                            key={f.id}
+                                            onPress={() => setStatusFilter(f.id as any)}
+                                            className={`px-3 py-1.5 rounded-full border ${statusFilter === f.id
+                                                ? 'bg-indigo-600 border-indigo-600'
+                                                : 'bg-white border-gray-300'
+                                                }`}
+                                        >
+                                            <Text className={`text-xs font-semibold ${statusFilter === f.id ? 'text-white' : 'text-gray-600'}`}>
+                                                {f.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+
+                                <Text className="text-gray-500 text-xs font-bold uppercase mb-2">Tipo:</Text>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                                    {[
+                                        { id: 'all', label: 'Todos' },
+                                        { id: 'responsibility', label: '🎁 Bonos' },
+                                        { id: 'extra', label: '💵 Extras' },
+                                        { id: 'school', label: '🎓 Escolar' },
+                                    ].map(f => (
+                                        <TouchableOpacity
+                                            key={f.id}
+                                            onPress={() => setTypeFilter(f.id as any)}
+                                            className={`px-3 py-1.5 rounded-full border ${typeFilter === f.id
+                                                ? 'bg-indigo-600 border-indigo-600'
+                                                : 'bg-white border-gray-300'
+                                                }`}
+                                        >
+                                            <Text className={`text-xs font-semibold ${typeFilter === f.id ? 'text-white' : 'text-gray-600'}`}>
+                                                {f.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        )}
+                    </View>
+
+                    <FlatList
+                        data={myTasks}
+                        renderItem={renderTask}
+                        keyExtractor={item => item.id}
+                        contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
+                        ListEmptyComponent={
+                            <View className="items-center justify-center py-10">
+                                <Text className="text-6xl mb-4">🎉</Text>
+                                <Text className="text-gray-500 text-lg text-center dark:text-gray-400">¡No hay tareas!</Text>
+                                <Text className="text-gray-400 text-center mt-2 dark:text-gray-500">Intenta cambiar los filtros.</Text>
+                            </View>
+                        }
+                    />
+                </>
             ) : (
                 <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
                     {myRedemptionRequests.length > 0 && (

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Alert, Platform, Switch } from 'react-native';
 import { useTaskContext } from '../context/TaskContext';
 import { Button } from '../components/ui/Button';
 import { MonitoringTab } from '../components/dashboard/MonitoringTab';
@@ -9,7 +9,7 @@ import { MessagesTab } from '../components/dashboard/MessagesTab';
 import { RewardsTab } from '../components/dashboard/RewardsTab';
 
 export default function ParentDashboard({ navigation }: any) {
-    const { currentUser, logout, tasks, redemptions } = useTaskContext();
+    const { currentUser, logout, tasks, updateUser, redemptions, users } = useTaskContext();
     const [currentTab, setCurrentTab] = useState<'monitoring' | 'assignment' | 'messages' | 'family' | 'rewards'>('monitoring');
 
     const confirmLogout = () => {
@@ -38,7 +38,21 @@ export default function ParentDashboard({ navigation }: any) {
                         <Text className="text-sm text-gray-500 font-medium">Hola,</Text>
                         <Text className="text-2xl font-bold text-brand-text-primary dark:text-brand-text-light">{currentUser?.name}</Text>
                     </View>
-                    <View className="flex-row gap-2">
+                    <View className="flex-row gap-2 items-center">
+                        <View className="items-center mr-2">
+                            <Text className="text-[10px] text-gray-500 font-bold uppercase mb-1">Vacaciones</Text>
+                            <Switch
+                                value={currentUser?.isVacationMode || false}
+                                onValueChange={(val) => {
+                                    users.filter(u => u.role === 'parent').forEach(p => {
+                                        updateUser(p.id, { isVacationMode: val });
+                                    });
+                                }}
+                                trackColor={{ false: "#767577", true: "#f97316" }}
+                                thumbColor={currentUser?.isVacationMode ? "#fff" : "#f4f3f4"}
+                                style={{ transform: [{ scaleX: .8 }, { scaleY: .8 }] }}
+                            />
+                        </View>
                         <Button title="📊 Stats" variant="secondary" size="sm" onPress={() => navigation.navigate('Statistics')} />
                         <Button title="Salir" variant="outline" size="sm" onPress={confirmLogout} />
                     </View>
@@ -48,7 +62,7 @@ export default function ParentDashboard({ navigation }: any) {
                 <View className="border-b border-gray-200">
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingVertical: 16, gap: 16 }}>
                         <TouchableOpacity onPress={() => setCurrentTab('monitoring')} className="relative">
-                            <Text className={`text-lg font-bold ${currentTab === 'monitoring' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'}`}>
+                            <Text className={`text - lg font - bold ${currentTab === 'monitoring' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
                                 Seguimiento
                             </Text>
                             {tasks.filter(t => t.status === 'completed').length > 0 && (
@@ -58,22 +72,22 @@ export default function ParentDashboard({ navigation }: any) {
                             )}
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setCurrentTab('assignment')}>
-                            <Text className={`text-lg font-bold ${currentTab === 'assignment' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'}`}>
+                            <Text className={`text - lg font - bold ${currentTab === 'assignment' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
                                 Plantillas
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setCurrentTab('family')}>
-                            <Text className={`text-lg font-bold ${currentTab === 'family' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'}`}>
+                            <Text className={`text - lg font - bold ${currentTab === 'family' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
                                 Familia
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setCurrentTab('messages')}>
-                            <Text className={`text-lg font-bold ${currentTab === 'messages' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'}`}>
+                            <Text className={`text - lg font - bold ${currentTab === 'messages' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
                                 Mensajes
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setCurrentTab('rewards')} className="relative">
-                            <Text className={`text-lg font-bold ${currentTab === 'rewards' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'}`}>
+                            <Text className={`text - lg font - bold ${currentTab === 'rewards' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
                                 Premios
                             </Text>
                             {redemptions.filter(r => r.status === 'pending').length > 0 && (

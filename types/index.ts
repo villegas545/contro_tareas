@@ -15,6 +15,7 @@ export interface User {
   password?: string; // In a real app this would be hashed, or handled by Firebase Auth
   avatar?: string;
   color?: string; // Hex color code for identifying the user
+  isVacationMode?: boolean;
 }
 
 export interface Task {
@@ -37,7 +38,9 @@ export interface Task {
     end: string;   // Format "HH:mm"
   };
   evidenceUrl?: string;
-  isBonus?: boolean;
+  isResponsibility?: boolean; // Counts for Bonus/Punishment
+  isSchool?: boolean; // Only active on School Days
+  recurrenceDays?: number[]; // 0=Sun, 1=Mon, ..., 6=Sat. If empty/undefined, assumes daily/frequency standard.
 }
 
 export interface Reward {

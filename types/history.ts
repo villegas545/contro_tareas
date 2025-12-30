@@ -8,4 +8,5 @@ export interface TaskHistory {
     status: 'completed' | 'missed' | 'verified';
     date: string; // ISO Date (YYYY-MM-DD)
     completedAt?: string;
+    isResponsibility?: boolean;
 }

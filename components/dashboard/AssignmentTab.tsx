@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Platform, Alert, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, Platform, Alert, Modal, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTaskContext } from '../../context/TaskContext';
 import { Button } from '../ui/Button';
 import { SearchInput } from '../ui/SearchInput';
+import { DatePicker } from '../ui/DatePicker';
 import { ParentTaskCard } from '../ParentTaskCard';
 import { Task } from '../../types';
 
@@ -16,11 +17,28 @@ export const AssignmentTab = () => {
     const [taskLikelyToAssign, setTaskLikelyToAssign] = useState<Task | null>(null);
     const [assignmentSelection, setAssignmentSelection] = useState<string[]>([]);
 
+    // Assignment Override State
+    const [assignRecurrenceDays, setAssignRecurrenceDays] = useState<number[]>([]);
+    const [assignDueDate, setAssignDueDate] = useState<string>('');
+
+    const [activeFilter, setActiveFilter] = useState<'all' | 'responsibility' | 'extra' | 'school' | 'daily' | 'weekly'>('all');
+
     const poolTasks = tasks.filter(t => t.assignedTo === 'pool');
-    const filteredPoolTasks = poolTasks.filter(t =>
-        t.title.toLowerCase().includes(assignmentSearch.toLowerCase()) ||
-        (t.description?.toLowerCase() || '').includes(assignmentSearch.toLowerCase())
-    );
+
+    // Derived state
+    const displayTasks = poolTasks.filter(t => {
+        const matchesSearch = t.title.toLowerCase().includes(assignmentSearch.toLowerCase()) ||
+            (t.description?.toLowerCase() || '').includes(assignmentSearch.toLowerCase());
+
+        let matchesFilter = true;
+        if (activeFilter === 'responsibility') matchesFilter = t.type === 'obligatory';
+        else if (activeFilter === 'extra') matchesFilter = t.type === 'additional';
+        else if (activeFilter === 'school') matchesFilter = (t.isSchool || false);
+        else if (activeFilter === 'daily') matchesFilter = t.frequency === 'daily';
+        else if (activeFilter === 'weekly') matchesFilter = t.frequency === 'weekly';
+
+        return matchesSearch && matchesFilter;
+    }).sort((a, b) => a.title.localeCompare(b.title));
 
     const handleAssignTask = () => {
         if (!taskLikelyToAssign || assignmentSelection.length === 0) return;
@@ -42,7 +60,7 @@ export const AssignmentTab = () => {
                     return;
                 }
 
-                const newTask: Omit<Task, 'id' | 'createdAt'> = {
+                const newTask: any = {
                     title: taskLikelyToAssign.title,
                     description: taskLikelyToAssign.description,
                     assignedTo: childId,
@@ -50,10 +68,16 @@ export const AssignmentTab = () => {
                     status: 'pending',
                     type: taskLikelyToAssign.type,
                     frequency: taskLikelyToAssign.frequency,
-                    points: taskLikelyToAssign.points,
-                    timeWindow: taskLikelyToAssign.timeWindow,
-                    dueTime: taskLikelyToAssign.dueTime,
+                    isResponsibility: taskLikelyToAssign.isResponsibility,
+                    isSchool: taskLikelyToAssign.isSchool,
                 };
+
+                if (taskLikelyToAssign.points) newTask.points = taskLikelyToAssign.points;
+
+                if (taskLikelyToAssign.timeWindow) newTask.timeWindow = taskLikelyToAssign.timeWindow;
+                if (taskLikelyToAssign.dueTime) newTask.dueTime = taskLikelyToAssign.dueTime;
+                if (assignRecurrenceDays && assignRecurrenceDays.length > 0) newTask.recurrenceDays = assignRecurrenceDays;
+                if (assignDueDate) newTask.dueDate = assignDueDate;
                 addTask(newTask);
                 assignedCount++;
             });
@@ -91,6 +115,9 @@ export const AssignmentTab = () => {
     const handlePoolAssign = (item: Task) => {
         setTaskLikelyToAssign(item);
         setAssignmentSelection(children.length > 0 ? [children[0].id] : []);
+        // Initialize overrides
+        setAssignRecurrenceDays(item.recurrenceDays || []);
+        setAssignDueDate(item.dueDate || '');
     };
 
     const confirmVerify = (taskId: string) => {
@@ -167,10 +194,36 @@ export const AssignmentTab = () => {
                 onChangeText={setAssignmentSearch}
             />
 
-            {filteredPoolTasks.length === 0 ? (
+            <View className="mb-4 mt-2">
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                    {[
+                        { id: 'all', label: 'Todas' },
+                        { id: 'responsibility', label: '🎁 Bonos' },
+                        { id: 'extra', label: '💵 Extras' },
+                        { id: 'school', label: '🎓 Escolares' },
+                        { id: 'daily', label: '📅 Diarias' },
+                        { id: 'weekly', label: '📅 Semanales' },
+                    ].map(filter => (
+                        <TouchableOpacity
+                            key={filter.id}
+                            onPress={() => setActiveFilter(filter.id as any)}
+                            className={`px-3 py-1.5 rounded-full border ${activeFilter === filter.id
+                                ? 'bg-indigo-600 border-indigo-600'
+                                : 'bg-white border-gray-300'
+                                }`}
+                        >
+                            <Text className={`text-xs font-semibold ${activeFilter === filter.id ? 'text-white' : 'text-gray-600'}`}>
+                                {filter.label}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+            </View>
+
+            {displayTasks.length === 0 ? (
                 <Text className="text-gray-400 text-center py-8">No se encontraron plantillas</Text>
             ) : (
-                filteredPoolTasks.map(item => (
+                displayTasks.map(item => (
                     <View key={item.id}>
                         {renderTask({ item })}
                     </View>
@@ -209,6 +262,46 @@ export const AssignmentTab = () => {
                                     );
                                 })}
                             </View>
+
+                            {/* Schedule Override - Only for Weekly or One-Time */}
+                            {(taskLikelyToAssign.frequency === 'weekly' || taskLikelyToAssign.frequency === 'one-time') && (
+                                <View className="mb-6">
+                                    <Text className="text-gray-700 font-bold mb-2">Programación (Opcional):</Text>
+
+                                    {(taskLikelyToAssign.frequency === 'weekly') && (
+                                        <View>
+                                            <Text className="text-xs text-gray-500 mb-2">Selecciona días específicos para esta asignación:</Text>
+                                            <View className="flex-row justify-between">
+                                                {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((day, index) => {
+                                                    const isSelected = assignRecurrenceDays.includes(index);
+                                                    return (
+                                                        <TouchableOpacity
+                                                            key={index}
+                                                            onPress={() => {
+                                                                if (isSelected) setAssignRecurrenceDays(prev => prev.filter(d => d !== index));
+                                                                else setAssignRecurrenceDays(prev => [...prev, index]);
+                                                            }}
+                                                            className={`w-9 h-9 rounded-full justify-center items-center border ${isSelected
+                                                                ? 'bg-indigo-600 border-indigo-600'
+                                                                : 'bg-white border-gray-300'}`}
+                                                        >
+                                                            <Text className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-gray-600'}`}>{day}</Text>
+                                                        </TouchableOpacity>
+                                                    );
+                                                })}
+                                            </View>
+                                        </View>
+                                    )}
+
+                                    {taskLikelyToAssign.frequency === 'one-time' && (
+                                        <DatePicker
+                                            value={assignDueDate}
+                                            onChange={setAssignDueDate}
+                                            label="Fecha Específica"
+                                        />
+                                    )}
+                                </View>
+                            )}
 
                             <View className="gap-3">
                                 <Button title="Confirmar Asignación" onPress={handleAssignTask} />

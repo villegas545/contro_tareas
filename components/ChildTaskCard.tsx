@@ -104,9 +104,20 @@ export const ChildTaskCard = ({ item, onComplete }: ChildTaskCardProps) => {
                     {item.description && (
                         <Text className="text-gray-500 text-sm mt-1">{item.description}</Text>
                     )}
-                    {item.points && (
-                        <Text className="text-amber-500 font-bold text-sm mt-1">+{item.points} Pts ⭐️</Text>
-                    )}
+                    <View className="flex-row gap-2 mt-2 items-center flex-wrap">
+                        {item.isSchool && (
+                            <Text className="self-start text-xs bg-sky-100 text-sky-700 px-2 py-1 rounded font-bold overflow-hidden">
+                                🎓 Escolar
+                            </Text>
+                        )}
+                        <Text className={`self-start text-xs px-2 py-1 rounded font-bold overflow-hidden ${item.type === 'obligatory' ? 'bg-rose-100 text-rose-700' : 'bg-blue-100 text-blue-700'
+                            }`}>
+                            {item.type === 'obligatory' ? '🎁 Bono' : '💵 Extra'}
+                        </Text>
+                        {(item.points || 0) > 0 && (
+                            <Text className="text-amber-500 font-bold text-sm">+{item.points} Pts ⭐️</Text>
+                        )}
+                    </View>
                 </View>
             </View>
 

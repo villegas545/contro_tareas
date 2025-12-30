@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, SafeAreaView, TextInput, ScrollView, Alert, TouchableOpacity, Platform } from 'react-native';
 import { useTaskContext } from '../context/TaskContext';
 import { Button } from '../components/ui/Button';
+import { DatePicker } from '../components/ui/DatePicker';
 import { Task, TaskFrequency } from '../types';
 
 export default function CreateTaskScreen({ navigation, route }: any) {
@@ -14,8 +15,11 @@ export default function CreateTaskScreen({ navigation, route }: any) {
 
     // Task Configuration State
     const [frequency, setFrequency] = useState<TaskFrequency>(taskToEdit?.frequency || 'daily');
-    const [type, setType] = useState<'obligatory' | 'additional'>(taskToEdit?.type || 'obligatory');
+    const [isResponsibility, setIsResponsibility] = useState(taskToEdit?.isResponsibility || false);
+    const [isSchool, setIsSchool] = useState(taskToEdit?.isSchool || false);
+    const [recurrenceDays, setRecurrenceDays] = useState<number[]>(taskToEdit?.recurrenceDays || []);
     const [points, setPoints] = useState(taskToEdit?.points ? taskToEdit.points.toString() : '');
+    const [dueDate, setDueDate] = useState<string>(taskToEdit?.dueDate || '');
 
     // Time Window State
     const [timeType, setTimeType] = useState<'specific' | 'window' | 'none'>(() => {
@@ -26,7 +30,12 @@ export default function CreateTaskScreen({ navigation, route }: any) {
     const [dueTime, setDueTime] = useState(taskToEdit?.dueTime || '');
     const [windowStart, setWindowStart] = useState(taskToEdit?.timeWindow?.start || '');
     const [windowEnd, setWindowEnd] = useState(taskToEdit?.timeWindow?.end || '');
-    const [isBonus, setIsBonus] = useState(taskToEdit?.isBonus || false);
+
+    useEffect(() => {
+        if (isResponsibility) {
+            setPoints('');
+        }
+    }, [isResponsibility]);
 
     const handleCreate = () => {
         if (!title) {
@@ -40,13 +49,15 @@ export default function CreateTaskScreen({ navigation, route }: any) {
             assignedTo: 'pool',
             createdBy: currentUser?.id || '',
             status: 'pending',
-            type,
+            type: 'obligatory',
             frequency,
-            points: points ? parseInt(points) : undefined,
-            isBonus,
-            timeWindow: undefined,
-            dueTime: undefined
+            isResponsibility,
+            isSchool,
+            recurrenceDays,
         };
+
+        if (points) taskData.points = parseInt(points);
+        if (dueDate) taskData.dueDate = dueDate;
 
         if (timeType === 'specific' && dueTime) {
             taskData.dueTime = dueTime;
@@ -58,13 +69,13 @@ export default function CreateTaskScreen({ navigation, route }: any) {
         }
 
         const saveLogic = () => {
+            // ... existing saveLogic implementation (I can reuse the existing block by not replacing it, but I am replacing the whole handleCreate usually if I use large chunks)
+            // Wait, I should try to keep the diff small.
             if (taskToEdit) {
-                // Update
                 updateTask(taskToEdit.id, taskData);
                 if (Platform.OS === 'web') window.alert("Plantilla actualizada");
                 else Alert.alert("Éxito", "Plantilla actualizada");
             } else {
-                // Create
                 addTask(taskData);
                 if (Platform.OS === 'web') window.alert("Plantilla creada correctamente");
                 else Alert.alert("Éxito", "Plantilla creada correctamente");
@@ -72,6 +83,7 @@ export default function CreateTaskScreen({ navigation, route }: any) {
             navigation.goBack();
         };
 
+        // ... existing legacy confirmation block
         if (Platform.OS === 'web') {
             if (window.confirm(taskToEdit ? "¿Guardar cambios en la plantilla?" : "¿Deseas guardar esta plantilla de tarea?")) {
                 saveLogic();
@@ -82,12 +94,17 @@ export default function CreateTaskScreen({ navigation, route }: any) {
                 taskToEdit ? "¿Guardar cambios?" : "¿Deseas guardar esta plantilla de tarea?",
                 [
                     { text: "Cancelar", style: "cancel" },
-                    {
-                        text: "Guardar",
-                        onPress: saveLogic
-                    }
+                    { text: "Guardar", onPress: saveLogic }
                 ]
             );
+        }
+    };
+
+    const toggleDay = (dayIndex: number) => {
+        if (recurrenceDays.includes(dayIndex)) {
+            setRecurrenceDays(recurrenceDays.filter(d => d !== dayIndex));
+        } else {
+            setRecurrenceDays([...recurrenceDays, dayIndex]);
         }
     };
 
@@ -102,6 +119,7 @@ export default function CreateTaskScreen({ navigation, route }: any) {
                         <TextInput
                             className="bg-white p-4 rounded-xl border border-gray-200 text-lg"
                             placeholder="Ej. Lavar los platos"
+                            placeholderTextColor="#9ca3af"
                             value={title}
                             onChangeText={setTitle}
                         />
@@ -112,6 +130,7 @@ export default function CreateTaskScreen({ navigation, route }: any) {
                         <TextInput
                             className="bg-white p-4 rounded-xl border border-gray-200 text-base h-24"
                             placeholder="Detalles adicionales..."
+                            placeholderTextColor="#9ca3af"
                             multiline
                             value={description}
                             onChangeText={setDescription}
@@ -119,69 +138,59 @@ export default function CreateTaskScreen({ navigation, route }: any) {
                         />
                     </View>
 
-                    {/* Assignment section removed - tasks are now created as templates */}
-
-                    <View>
-                        <Text className="text-gray-700 font-medium mb-1">Tipo de Tarea:</Text>
-                        <View className="flex-row gap-2">
-                            <TouchableOpacity
-                                onPress={() => setType('obligatory')}
-                                className={`px-4 py-2 rounded-full border ${type === 'obligatory'
-                                    ? 'bg-rose-500 border-rose-500'
-                                    : 'bg-white border-gray-300'
-                                    }`}
-                            >
-                                <Text className={type === 'obligatory' ? 'text-white font-medium' : 'text-gray-700'}>
-                                    ✋ Obligatoria
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                onPress={() => setType('additional')}
-                                className={`px-4 py-2 rounded-full border ${type === 'additional'
-                                    ? 'bg-blue-500 border-blue-500'
-                                    : 'bg-white border-gray-300'
-                                    }`}
-                            >
-                                <Text className={type === 'additional' ? 'text-white font-medium' : 'text-gray-700'}>
-                                    🎁 Adicional
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    {/* Bonus Configuration */}
-                    <View className="flex-row items-center justify-between p-4 bg-white rounded-xl border border-gray-200 mb-4">
-                        <View>
-                            <Text className="text-gray-900 font-bold text-lg">🌟 Tarea de Bono</Text>
-                            <Text className="text-gray-500 text-xs">Si se marca, contará para el bono diario/semanal.</Text>
-                        </View>
+                    {/* New Categorization Section */}
+                    <View className="flex-row gap-4">
                         <TouchableOpacity
-                            onPress={() => setIsBonus(!isBonus)}
-                            className={`w-14 h-8 rounded-full justify-center px-1 ${isBonus ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                            onPress={() => setIsResponsibility(!isResponsibility)}
+                            className={`flex-1 p-4 rounded-xl border ${isResponsibility ? 'bg-indigo-50 border-indigo-600' : 'bg-white border-gray-200'}`}
                         >
-                            <View className={`w-6 h-6 rounded-full bg-white shadow-sm ${isBonus ? 'self-end' : 'self-start'}`} />
+                            <Text className={`font-bold text-base mb-1 ${isResponsibility ? 'text-indigo-700' : 'text-gray-700'}`}>🏆 De Responsabilidad</Text>
+                            <Text className="text-gray-500 text-xs">Cuenta para bonos y castigos.</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={() => setIsSchool(!isSchool)}
+                            className={`flex-1 p-4 rounded-xl border ${isSchool ? 'bg-orange-50 border-orange-600' : 'bg-white border-gray-200'}`}
+                        >
+                            <Text className={`font-bold text-base mb-1 ${isSchool ? 'text-orange-700' : 'text-gray-700'}`}>📚 Escolar</Text>
+                            <Text className="text-gray-500 text-xs">Solo en días de escuela.</Text>
                         </TouchableOpacity>
                     </View>
 
                     <View>
-                        <Text className="text-gray-700 font-medium mb-1">Frecuencia Predeterminada:</Text>
-                        <View className="flex-row gap-2">
-                            {(['daily', 'weekly', 'one-time'] as const).map(freq => (
-                                <TouchableOpacity
-                                    key={freq}
-                                    onPress={() => setFrequency(freq)}
-                                    className={`px-4 py-2 rounded-full border ${frequency === freq
-                                        ? 'bg-indigo-600 border-indigo-600'
-                                        : 'bg-white border-gray-300'
-                                        }`}
-                                >
-                                    <Text className={frequency === freq ? 'text-white font-medium' : 'text-gray-700 capitalize'}>
-                                        {freq === 'one-time' ? 'Una vez' : freq === 'daily' ? 'Diario' : 'Semanal'}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
+                        <Text className="text-gray-700 font-medium mb-2">Frecuencia:</Text>
+                        <View className="flex-row flex-wrap gap-2 mb-2">
+                            {(['Diario', 'Semanal', 'Una Vez'] as const).map((opt) => {
+                                const val = opt === 'Diario' ? 'daily' : opt === 'Una Vez' ? 'one-time' : 'weekly';
+                                return (
+                                    <TouchableOpacity
+                                        key={val}
+                                        onPress={() => setFrequency(val as TaskFrequency)}
+                                        className={`px-4 py-2 rounded-full border ${frequency === val
+                                            ? 'bg-indigo-600 border-indigo-600'
+                                            : 'bg-white border-gray-300'
+                                            }`}
+                                    >
+                                        <Text className={frequency === val ? 'text-white font-medium' : 'text-gray-700'}>
+                                            {opt}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
                         </View>
+
+                        {/* Date Picker for One-Time */}
+                        {frequency === 'one-time' && (
+                            <View className="mt-2">
+                                <Text className="text-gray-700 font-medium mb-1">Fecha Programada:</Text>
+                                <DatePicker
+                                    value={dueDate}
+                                    onChange={(d) => setDueDate(d)}
+                                />
+                            </View>
+                        )}
                     </View>
+
 
                     <View>
                         <Text className="text-gray-700 font-medium mb-1">Tipo de Horario:</Text>
@@ -260,11 +269,13 @@ export default function CreateTaskScreen({ navigation, route }: any) {
                     <View>
                         <Text className="text-gray-700 font-medium mb-1">Puntos:</Text>
                         <TextInput
-                            className="bg-white p-4 rounded-xl border border-gray-200 text-lg"
-                            placeholder="Ej. 10"
+                            className={`bg-white p-4 rounded-xl border border-gray-200 text-lg ${isResponsibility ? 'bg-gray-100 text-gray-400' : ''}`}
+                            placeholder={isResponsibility ? "Sin puntos (Responsabilidad)" : "Ej. 10"}
+                            placeholderTextColor="#9ca3af"
                             value={points}
                             onChangeText={setPoints}
                             keyboardType="numeric"
+                            editable={!isResponsibility}
                         />
                     </View>
 

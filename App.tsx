@@ -3,7 +3,7 @@ import './global.css';
 import React from 'react';
 import { View, Platform } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { TaskProvider, useTaskContext } from './context/TaskContext';
 import LoginScreen from './screens/LoginScreen';
@@ -37,19 +37,27 @@ const MainNavigator = () => {
   );
 };
 
+import { useColorScheme } from 'nativewind';
+
 export default function App() {
+  const { setColorScheme } = useColorScheme();
+
+  React.useEffect(() => {
+    setColorScheme('light');
+  }, []);
+
   return (
     <TaskProvider>
-      <View className="flex-1 bg-[#333] items-center justify-center">
+      <View className={`flex-1 items-center justify-center ${Platform.OS === 'web' ? 'bg-[#333]' : 'bg-white'}`}>
         <View
           className="flex-1 w-full h-full bg-white overflow-hidden shadow-xl"
           style={Platform.OS === 'web' ? { maxWidth: 480, maxHeight: 900 } : {}}
         >
           <SafeAreaProvider>
             <SafeAreaView className="flex-1 bg-white" edges={['top', 'left', 'right']}>
-              <NavigationContainer>
+              <NavigationContainer theme={DefaultTheme}>
                 <MainNavigator />
-                <StatusBar style="auto" />
+                <StatusBar style="dark" />
               </NavigationContainer>
             </SafeAreaView>
           </SafeAreaProvider>

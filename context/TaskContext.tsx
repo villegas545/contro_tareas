@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Task, User, TaskHistory, Reward, Redemption } from '../types';
 import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, Timestamp, deleteField } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
@@ -33,6 +34,7 @@ interface TaskContextType {
     redeemReward: (redemption: Omit<Redemption, 'id' | 'requestDate' | 'status'>) => void;
     approveRedemption: (redemptionId: string) => void;
     rejectRedemption: (redemptionId: string) => void;
+    isTaskActiveToday: (task: Task) => boolean;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -47,6 +49,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
 
     const [rewards, setRewards] = useState<Reward[]>([]);
     const [redemptions, setRedemptions] = useState<Redemption[]>([]);
+    const sessionChecked = React.useRef(false);
 
     // Subscribe to Firestore collections
     useEffect(() => {
@@ -56,10 +59,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             setUsers(usersList);
 
             // Auto-update current user if properties change
-            if (currentUser) {
-                const updatedUser = usersList.find(u => u.id === currentUser.id);
-                if (updatedUser) setCurrentUser(updatedUser);
-            }
+
         });
 
         // Tasks
@@ -130,10 +130,42 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         await deleteDoc(doc(db, "users", userId));
     };
 
+    // Sync currentUser with real-time updates from users collection
+    useEffect(() => {
+        if (currentUser) {
+            const updatedUser = users.find(u => u.id === currentUser.id);
+            // Update only if data changed to avoid infinite loops
+            if (updatedUser && JSON.stringify(updatedUser) !== JSON.stringify(currentUser)) {
+                setCurrentUser(updatedUser);
+            }
+        }
+    }, [users]);
+
+    // Restore Session on Mount
+    useEffect(() => {
+        if (!sessionChecked.current && users.length > 0) {
+            const restore = async () => {
+                try {
+                    const savedId = await AsyncStorage.getItem('loggedInUserId');
+                    if (savedId) {
+                        const user = users.find(u => u.id === savedId);
+                        if (user) setCurrentUser(user);
+                    }
+                } catch (e) {
+                    console.error("Failed to restore session", e);
+                } finally {
+                    sessionChecked.current = true;
+                }
+            };
+            restore();
+        }
+    }, [users]);
+
     const login = (username: string, password?: string) => {
         const user = users.find((u) => u.username === username);
         if (user && user.password === password) {
             setCurrentUser(user);
+            AsyncStorage.setItem('loggedInUserId', user.id);
             return true;
         }
         return false;
@@ -141,6 +173,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
 
     const logout = () => {
         setCurrentUser(null);
+        AsyncStorage.removeItem('loggedInUserId');
     };
 
     const addTask = async (newTask: Omit<Task, 'id'>) => {
@@ -184,6 +217,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 assignedTo: task.assignedTo,
                 points: task.points || 0,
                 status: 'verified',
+                isResponsibility: task.isResponsibility || false,
                 date: new Date().toISOString().split('T')[0],
                 completedAt: task.completedAt || new Date().toISOString(),
             });
@@ -204,6 +238,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 assignedTo: task.assignedTo,
                 points: 0,
                 status: 'missed',
+                isResponsibility: task.isResponsibility || false,
                 date: new Date().toISOString().split('T')[0],
             });
         }
@@ -307,6 +342,44 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         });
     };
 
+    // Checking logic
+    useEffect(() => {
+        if (tasks.length > 0) {
+            checkRecurringTasks();
+        }
+    }, [tasks.length]); // Simple trigger, or interval
+
+    const isTaskActiveToday = (task: Task) => {
+        const today = new Date();
+        const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ...
+
+        // Simple School Day Logic (Mon-Fri) - Holidays to be added later
+        const isSchoolDay = dayOfWeek >= 1 && dayOfWeek <= 5;
+
+        // 1. One Time: Always visible (filtering happens by status)
+        if (task.frequency === 'one-time') return true;
+
+        // Check Vacation Mode (Parent Setting)
+        // Check Vacation Mode (Any Parent)
+        const isVacationMode = users.some(u => u.role === 'parent' && u.isVacationMode);
+
+        // 2. School Check
+        // If Vacation Mode is ON, school tasks are hidden regardless of day
+        if (task.isSchool && isVacationMode) return false;
+        // Regular School Day Check (only if not already hidden by vacation)
+        if (task.isSchool && !isSchoolDay) return false;
+
+        // 3. Responsibility Check - Does not restrict visibility, only counts for stats
+        // if (task.isResponsibility && !isSchoolDay) return false; // REMOVED per user request
+
+        // 4. Specific Recurrence Check
+        if (task.recurrenceDays && task.recurrenceDays.length > 0) {
+            if (!task.recurrenceDays.includes(dayOfWeek)) return false;
+        }
+
+        return true;
+    };
+
     return (
         <TaskContext.Provider
             value={{
@@ -336,7 +409,9 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 deleteReward,
                 redeemReward,
                 approveRedemption,
-                rejectRedemption
+                rejectRedemption,
+                // @ts-ignore
+                isTaskActiveToday
             }}
         >
             {children}

@@ -30,7 +30,7 @@ export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEd
                     <Text className="text-gray-500 text-sm mt-1">{task.description}</Text>
                 </View>
 
-                <TaskTags task={task} />
+                <TaskTags task={task} showTime={true} />
 
                 <View className="flex-row gap-2 mt-3">
                     <Button

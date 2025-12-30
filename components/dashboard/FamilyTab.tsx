@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Platform, Alert } from 'react-native';
+import { View, Text, TextInput, Platform, Alert, TouchableOpacity } from 'react-native';
 import { useTaskContext } from '../../context/TaskContext';
 import { Button } from '../ui/Button';
 
@@ -10,7 +10,13 @@ export const FamilyTab = () => {
     const [newChildName, setNewChildName] = useState('');
     const [newChildUsername, setNewChildUsername] = useState('');
     const [newChildPassword, setNewChildPassword] = useState('');
+    const [newChildColor, setNewChildColor] = useState('#ef4444');
     const [editingChildId, setEditingChildId] = useState<string | null>(null);
+
+    const COLORS = [
+        '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981',
+        '#06b6d4', '#3b82f6', '#6366f1', '#a855f7', '#ec4899'
+    ];
 
     const handleAddUser = () => {
         if (!newChildName || !newChildUsername || (!newChildPassword && !editingChildId)) {
@@ -82,6 +88,7 @@ export const FamilyTab = () => {
         setNewChildName('');
         setNewChildUsername('');
         setNewChildPassword('');
+        setNewChildColor(COLORS[0]);
     };
 
     return (
@@ -108,6 +115,31 @@ export const FamilyTab = () => {
                     secureTextEntry
                     className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-3 text-base"
                 />
+
+                <View className="mb-4">
+                    <Text className="text-gray-700 font-medium mb-2">Color Identificador:</Text>
+                    <View className="flex-row flex-wrap gap-2">
+                        {COLORS.map(color => (
+                            <TouchableOpacity
+                                key={color}
+                                onPress={() => setNewChildColor(color)}
+                                style={{ backgroundColor: color }}
+                                className={`w-8 h-8 rounded-full ${newChildColor === color ? 'border-2 border-gray-800 dark:border-white' : ''}`}
+                            />
+                        ))}
+                    </View>
+                    <View className="mt-2 flex-row items-center gap-2">
+                        <Text className="text-gray-500 text-sm">Hex:</Text>
+                        <TextInput
+                            value={newChildColor}
+                            onChangeText={setNewChildColor}
+                            placeholder="#000000"
+                            className="bg-gray-50 p-2 rounded-lg border border-gray-200 w-24 text-center"
+                            maxLength={7}
+                        />
+                        <View style={{ backgroundColor: newChildColor }} className="w-8 h-8 rounded-full border border-gray-200" />
+                    </View>
+                </View>
                 <View className="flex-row gap-2">
                     <Button title={editingChildId ? "Actualizar Hijo" : "Agregar Hijo"} onPress={handleAddUser} className="flex-1" />
                     {editingChildId && (

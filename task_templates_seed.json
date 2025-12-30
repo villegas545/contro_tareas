@@ -1,0 +1,354 @@
+[
+    {
+        "title": "Lavarse los dientes desayuno",
+        "description": "No durar unos cuantos segundos, lavarse bien incluyendo lengua",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "dueTime": "08:00",
+        "isSchool": false,
+        "points": 0
+    },
+    {
+        "title": "Lavarse los dientes comida",
+        "description": "No durar unos cuantos segundos, lavarse bien incluyendo lengua",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "timeWindow": {
+            "start": "13:00",
+            "end": "18:00"
+        },
+        "isSchool": false,
+        "points": 0
+    },
+    {
+        "title": "Lavarse dientes cena",
+        "description": "No durar unos cuantos segundos, lavarse bien incluyendo lengua",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "timeWindow": {
+            "start": "19:00",
+            "end": "23:00"
+        },
+        "isSchool": false,
+        "points": 0
+    },
+    {
+        "title": "Bañarse",
+        "description": "Colgar toalla despues de bañarse",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "dueTime": "22:00",
+        "isSchool": false,
+        "points": 0
+    },
+    {
+        "title": "Alzar cama",
+        "description": "Alzarla bien no a lo pendejo",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "isSchool": false,
+        "points": 0
+    },
+    {
+        "title": "Recoger su plato al comer",
+        "description": "",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "isSchool": false,
+        "points": 0
+    },
+    {
+        "title": "Recoger platos limpios",
+        "description": "Los platos del Dishwasher y escurridor",
+        "isResponsibility": false,
+        "frequency": "weekly",
+        "isSchool": false,
+        "points": 10
+    },
+    {
+        "title": "Alistar su ropa para escuela",
+        "description": "En la noche, limpiar tenis de ser necesrio",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "dueTime": "23:00",
+        "isSchool": true,
+        "points": 0
+    },
+    {
+        "title": "Levantarse",
+        "description": "Poner su propio despertador para ir a la school",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "dueTime": "20:00",
+        "isSchool": true,
+        "points": 0
+    },
+    {
+        "title": "Peinarse",
+        "description": "No kikiriki",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "dueTime": "20:00",
+        "isSchool": true,
+        "points": 0
+    },
+    {
+        "title": "Tomarse vitaminas",
+        "description": "",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "dueTime": "20:00",
+        "isSchool": true,
+        "points": 0
+    },
+    {
+        "title": "Recoger ropa despues de cambiarse",
+        "description": "Ponerla debajo de tu almohada",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "dueTime": "20:00",
+        "isSchool": true,
+        "points": 0
+    },
+    {
+        "title": "Guardar mochila en armario",
+        "description": "Ponerla arriba de la zapatera no en el piso",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "dueTime": "17:00",
+        "isSchool": true,
+        "points": 0
+    },
+    {
+        "title": "Sacar lonchera y poner en trastes sucios",
+        "description": "",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "dueTime": "17:00",
+        "isSchool": true,
+        "points": 0
+    },
+    {
+        "title": "Colgar chamarras al llegar",
+        "description": "",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "dueTime": "17:00",
+        "isSchool": true,
+        "points": 0
+    },
+    {
+        "title": "Guardar tenis",
+        "description": "Guardarlos en un espacio",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "dueTime": "17:00",
+        "isSchool": true,
+        "points": 0
+    },
+    {
+        "title": "Cerrar puerta de armario",
+        "description": "",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "dueTime": "17:00",
+        "isSchool": true,
+        "points": 0
+    },
+    {
+        "title": "Hacer tareas escolares",
+        "description": "Revisar todos los días las materias",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "dueTime": "20:00",
+        "isSchool": true,
+        "points": 0
+    },
+    {
+        "title": "Poner uniforme en ropa sucia",
+        "description": "Asegurarse de tener disponibles si no, poner a lavar",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "dueTime": "17:00",
+        "isSchool": true,
+        "points": 0
+    },
+    {
+        "title": "Lavar platos",
+        "description": "Si quedan platos sucios lavarlos a mano, quitar comjida pegada antes de meterlos al dishwasher",
+        "isResponsibility": false,
+        "frequency": "weekly",
+        "isSchool": false,
+        "points": 10
+    },
+    {
+        "title": "Poner mesa para comer",
+        "description": "Preguntar a papi y mami enque ayudo en la cocina antes de comer",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "isSchool": false,
+        "points": 0
+    },
+    {
+        "title": "Leer 40 min",
+        "description": "Todos los días",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "dueTime": "20:00",
+        "isSchool": false,
+        "points": 0
+    },
+    {
+        "title": "Cargar VR",
+        "description": "",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "isSchool": false,
+        "points": 0
+    },
+    {
+        "title": "Cargar controles",
+        "description": "",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "isSchool": false,
+        "points": 0
+    },
+    {
+        "title": "Cargar pilas",
+        "description": "",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "isSchool": false,
+        "points": 0
+    },
+    {
+        "title": "Cargar tablet",
+        "description": "",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "isSchool": false,
+        "points": 0
+    },
+    {
+        "title": "Dejar lentes en su lugar",
+        "description": "",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "isSchool": false,
+        "points": 0
+    },
+    {
+        "title": "Usar lentes para ir a la escuela",
+        "description": "",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "dueTime": "08:00",
+        "isSchool": true,
+        "points": 0
+    },
+    {
+        "title": "Limpiar garage",
+        "description": "Barrer, trapear, tirar basuras, cajas, acomjodar sodas, jugos, etc..",
+        "isResponsibility": false,
+        "frequency": "one-time",
+        "isSchool": false,
+        "points": 10
+    },
+    {
+        "title": "Limpiar patio",
+        "description": "",
+        "isResponsibility": false,
+        "frequency": "one-time",
+        "isSchool": false,
+        "points": 10
+    },
+    {
+        "title": "Lavar baño",
+        "description": "Lavar taza con liquido, recoger ropa sucia, lavar lavamanos, limpiar espejo, poner bolsa de basura nueva, lavar bote",
+        "isResponsibility": false,
+        "frequency": "weekly",
+        "isSchool": false,
+        "points": 10
+    },
+    {
+        "title": "Lavar baño y regadera",
+        "description": "Lavar taza con liquido, recoger ropa sucia, lavar lavamanos, limpiar espejo, poner bolsa de basura nueva, lavar bote, lavar cortina y tina",
+        "isResponsibility": false,
+        "frequency": "weekly",
+        "isSchool": false,
+        "points": 10
+    },
+    {
+        "title": "Tirar basura de cocina",
+        "description": "Poner bolsa nueva",
+        "isResponsibility": false,
+        "frequency": "weekly",
+        "isSchool": false,
+        "points": 10
+    },
+    {
+        "title": "Limpiar escritorio blanco",
+        "description": "Tirar basura, limpiar con trapo, acomodar vr, pilas y no trastes",
+        "isResponsibility": false,
+        "frequency": "one-time",
+        "isSchool": false,
+        "points": 10
+    },
+    {
+        "title": "Tirar basura de escritorio",
+        "description": "Poner bolsa nueva",
+        "isResponsibility": false,
+        "frequency": "weekly",
+        "isSchool": false,
+        "points": 10
+    },
+    {
+        "title": "Poner ropa en cesto al bañarse",
+        "description": "",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "isSchool": false,
+        "points": 0
+    },
+    {
+        "title": "Limpieza general cuarto",
+        "description": "Pasar trapo por escritorios, barrer y trfapear debajo de camas, recoger juguetes, escritorio, ropa tirada",
+        "isResponsibility": false,
+        "frequency": "weekly",
+        "isSchool": false,
+        "points": 10
+    },
+    {
+        "title": "Recoger ropa",
+        "description": "Ropa limpia que deje mami en su cuarto en canastas o doblada",
+        "isResponsibility": true,
+        "frequency": "weekly",
+        "isSchool": false,
+        "points": 0
+    },
+    {
+        "title": "Usar lentes en la casa despues de comer",
+        "description": "",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "timeWindow": {
+            "start": "15:00",
+            "end": "17:00"
+        },
+        "isSchool": false,
+        "points": 0
+    },
+    {
+        "title": "Usar lentes despues de bañarse",
+        "description": "",
+        "isResponsibility": true,
+        "frequency": "daily",
+        "timeWindow": {
+            "start": "19:00",
+            "end": "21:00"
+        },
+        "isSchool": false,
+        "points": 0
+    }
+]

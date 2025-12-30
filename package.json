@@ -9,6 +9,7 @@
     "web": "expo start --web",
     "seed:products": "node seed_products.js",
     "reset:inventory": "node reset_inventory.js",
+    "seed:templates": "node seed_templates.js",
     "build:apk": "eas build -p android --profile preview"
   },
   "dependencies": {
