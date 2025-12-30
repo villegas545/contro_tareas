@@ -14,9 +14,10 @@ interface ParentTaskCardProps {
     onEdit?: (task: Task) => void;
     onDelete?: (taskId: string) => void;
     onConfirmDeleteMessage?: (index: number) => void; // Not used here but keeping interface clean
+    showAssignAction?: boolean;
 }
 
-export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEdit, onDelete }: ParentTaskCardProps) => {
+export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEdit, onDelete, showAssignAction = true }: ParentTaskCardProps) => {
     const isVerified = task.status === 'verified';
     const isCompleted = task.status === 'completed';
     const awaitingVerification = isCompleted && !isVerified;
@@ -33,13 +34,15 @@ export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEd
                 <TaskTags task={task} showTime={true} />
 
                 <View className="flex-row gap-2 mt-3">
-                    <Button
-                        title="Asignar"
-                        variant="primary"
-                        size="sm"
-                        onPress={() => onAssign(task)}
-                        className="flex-1"
-                    />
+                    {showAssignAction && (
+                        <Button
+                            title="Asignar"
+                            variant="primary"
+                            size="sm"
+                            onPress={() => onAssign(task)}
+                            className="flex-1"
+                        />
+                    )}
                     {onEdit && (
                         <Button
                             title="Editar"

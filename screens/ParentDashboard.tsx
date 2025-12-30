@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Alert, Platform, Switch } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Alert, Platform, Switch, Image, Animated, Easing } from 'react-native';
 import { useTaskContext } from '../context/TaskContext';
 import { Button } from '../components/ui/Button';
 import { MonitoringTab } from '../components/dashboard/MonitoringTab';
@@ -33,14 +33,22 @@ export default function ParentDashboard({ navigation }: any) {
         <SafeAreaView className="flex-1 bg-brand-cream dark:bg-brand-dark">
             <View className="flex-1">
                 {/* Header */}
-                <View className="p-6 flex-row justify-between items-center bg-white dark:bg-brand-dark shadow-sm pt-12">
+                <View className="p-6 flex-row justify-between items-center bg-brand-primary dark:bg-brand-dark shadow-sm pt-12">
                     <View>
-                        <Text className="text-sm text-gray-500 font-medium">Hola,</Text>
-                        <Text className="text-2xl font-bold text-brand-text-primary dark:text-brand-text-light">{currentUser?.name}</Text>
+                        <View className="flex-row items-center gap-2">
+                            <Text className="text-sm text-orange-50 font-medium">Hola,</Text>
+                            <Image
+                                source={require('../assets/task_logo_final.png')}
+                                className="w-10 h-10 rounded-full border-2 border-white/30"
+                                style={{ width: 40, height: 40 }}
+                                resizeMode="cover"
+                            />
+                        </View>
+                        <Text className="text-2xl font-bold text-white dark:text-brand-text-light">{currentUser?.name}</Text>
                     </View>
                     <View className="flex-row gap-2 items-center">
                         <View className="items-center mr-2">
-                            <Text className="text-[10px] text-gray-500 font-bold uppercase mb-1">Vacaciones</Text>
+                            <Text className="text-[10px] text-orange-50 font-bold uppercase mb-1">Vacaciones</Text>
                             <Switch
                                 value={currentUser?.isVacationMode || false}
                                 onValueChange={(val) => {
@@ -48,13 +56,27 @@ export default function ParentDashboard({ navigation }: any) {
                                         updateUser(p.id, { isVacationMode: val });
                                     });
                                 }}
-                                trackColor={{ false: "#767577", true: "#f97316" }}
-                                thumbColor={currentUser?.isVacationMode ? "#fff" : "#f4f3f4"}
+                                trackColor={{ false: "rgba(255,255,255,0.3)", true: "#fff" }}
+                                thumbColor={currentUser?.isVacationMode ? "#f97316" : "#f4f3f4"}
                                 style={{ transform: [{ scaleX: .8 }, { scaleY: .8 }] }}
                             />
                         </View>
-                        <Button title="📊 Stats" variant="secondary" size="sm" onPress={() => navigation.navigate('Statistics')} />
-                        <Button title="Salir" variant="outline" size="sm" onPress={confirmLogout} />
+                        <Button
+                            title="📊 Stats"
+                            variant="secondary"
+                            size="sm"
+                            onPress={() => navigation.navigate('Statistics')}
+                            className="bg-white/20 shadow-none"
+                            textClassName="text-white"
+                        />
+                        <Button
+                            title="Salir"
+                            variant="outline"
+                            size="sm"
+                            onPress={confirmLogout}
+                            className="border-white/40"
+                            textClassName="text-white"
+                        />
                     </View>
                 </View>
 
@@ -100,13 +122,13 @@ export default function ParentDashboard({ navigation }: any) {
                 </View>
 
                 {/* Content Area */}
-                <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+                <View className="flex-1">
                     {currentTab === 'monitoring' && <MonitoringTab />}
                     {currentTab === 'assignment' && <AssignmentTab />}
                     {currentTab === 'family' && <FamilyTab />}
                     {currentTab === 'messages' && <MessagesTab />}
                     {currentTab === 'rewards' && <RewardsTab />}
-                </ScrollView>
+                </View>
             </View>
         </SafeAreaView>
     );

@@ -4,7 +4,7 @@ import { useTaskContext } from '../context/TaskContext';
 import { Button } from '../components/ui/Button';
 
 // Static asset import for better web compatibility
-const taskLogo = require('../assets/task_logo.jpg');
+const taskLogo = require('../assets/task_logo_final.png');
 
 export default function LoginScreen() {
     const { login } = useTaskContext();
@@ -38,7 +38,7 @@ export default function LoginScreen() {
                     <View className="items-center mb-12">
                         <Image
                             source={taskLogo}
-                            style={{ width: 150, height: 150, marginBottom: 24 }}
+                            style={{ width: 180, height: 180, marginBottom: 24 }}
                             resizeMode="contain"
                         />
                         <Text className="text-3xl font-bold text-brand-text-primary dark:text-brand-text-light text-center">

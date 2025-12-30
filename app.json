@@ -4,7 +4,7 @@
     "slug": "control-de-tareas-v2-fixed",
     "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "./assets/icon.jpg",
+    "icon": "./assets/task_logo_final.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -18,7 +18,7 @@
     "android": {
       "package": "com.ville.controldetareas",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.jpg",
+        "foregroundImage": "./assets/task_logo_final.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,

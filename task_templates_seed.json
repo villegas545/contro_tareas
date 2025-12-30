@@ -185,7 +185,7 @@
         "title": "Poner mesa para comer",
         "description": "Preguntar a papi y mami enque ayudo en la cocina antes de comer",
         "isResponsibility": true,
-        "frequency": "daily",
+        "frequency": "weekly",
         "isSchool": false,
         "points": 0
     },

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, SafeAreaView, FlatList, Alert, Modal, TouchableOpacity, Platform, ScrollView } from 'react-native';
+import { View, Text, SafeAreaView, FlatList, Alert, Modal, TouchableOpacity, Platform, ScrollView, Image } from 'react-native';
 import { useTaskContext } from '../context/TaskContext';
 import { Card } from '../components/ui/Card';
 import { Task, Reward } from '../types';
@@ -169,9 +169,17 @@ export default function ChildDashboard({ navigation }: any) {
                 style={{ backgroundColor: currentUser?.color || '#4f46e5' }}
                 className="p-6 flex-row justify-between items-center rounded-b-3xl shadow-lg mb-4"
             >
-                <View>
-                    <Text className="text-white text-lg font-medium opacity-90">Hola, {currentUser?.name} 👋</Text>
-                    <Text className="text-white text-3xl font-bold mt-1">{myPoints} Puntos ⭐️</Text>
+                <View className="flex-row items-center gap-3">
+                    <Image
+                        source={require('../assets/task_logo_final.png')}
+                        className="w-14 h-14 rounded-full border-2 border-white/20"
+                        style={{ width: 56, height: 56 }}
+                        resizeMode="cover"
+                    />
+                    <View>
+                        <Text className="text-white text-lg font-medium opacity-90">Hola, {currentUser?.name} 👋</Text>
+                        <Text className="text-white text-3xl font-bold mt-1">{myPoints} Puntos ⭐️</Text>
+                    </View>
                 </View>
                 <Button title="Salir" variant="secondary" size="sm" onPress={confirmLogout} className="bg-white/20" />
             </View>
