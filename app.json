@@ -22,7 +22,10 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       [
@@ -38,8 +41,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "6bd2a0e3-4145-44a1-925f-034a318a65ac"
+        "projectId": "b13f414c-340a-4f37-81a2-25f32c77d98c"
       }
-    }
+    },
+    "owner": "ville545"
   }
 }
