@@ -5,6 +5,7 @@ import { Card } from '../components/ui/Card';
 import { Task, Reward } from '../types';
 import { Button } from '../components/ui/Button';
 import { ChildTaskCard } from '../components/ChildTaskCard';
+import StatisticsScreen from './StatisticsScreen';
 
 export default function ChildDashboard({ navigation }: any) {
     const { currentUser, tasks, history, completeTask, logout, messages, rewards, redeemReward, redemptions, isTaskActiveToday } = useTaskContext();
@@ -12,7 +13,7 @@ export default function ChildDashboard({ navigation }: any) {
     const [currentMessage, setCurrentMessage] = useState('');
     const [canClose, setCanClose] = useState(false);
     const [countdown, setCountdown] = useState(5);
-    const [currentTab, setCurrentTab] = useState<'tasks' | 'store'>('tasks');
+    const [currentTab, setCurrentTab] = useState<'tasks' | 'store' | 'history'>('tasks');
 
     const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed' | 'verified'>('all');
     const [typeFilter, setTypeFilter] = useState<'all' | 'responsibility' | 'extra' | 'school'>('all');
@@ -60,10 +61,24 @@ export default function ChildDashboard({ navigation }: any) {
             const now = new Date();
             const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
             if (currentTime < task.timeWindow.start || currentTime > task.timeWindow.end) {
+
+                // Helper to format 12h
+                const to12h = (time24: string) => {
+                    const [h, m] = time24.split(':');
+                    let hours = parseInt(h);
+                    const ampm = hours >= 12 ? 'PM' : 'AM';
+                    hours = hours % 12;
+                    hours = hours ? hours : 12;
+                    return `${hours}:${m} ${ampm}`;
+                };
+
+                const start12 = to12h(task.timeWindow.start);
+                const end12 = to12h(task.timeWindow.end);
+
                 if (Platform.OS === 'web') {
-                    window.alert(`Esta tarea solo está disponible entre ${task.timeWindow.start} y ${task.timeWindow.end}`);
+                    window.alert(`Esta tarea solo está disponible entre ${start12} y ${end12}`);
                 } else {
-                    Alert.alert("Aún no es hora", `Esta tarea solo está disponible entre ${task.timeWindow.start} y ${task.timeWindow.end}`);
+                    Alert.alert("Aún no es hora", `Esta tarea solo está disponible entre ${start12} y ${end12}`);
                 }
                 return;
             }
@@ -196,7 +211,13 @@ export default function ChildDashboard({ navigation }: any) {
                     className={`flex-1 py-3 rounded-lg items-center ${currentTab === 'store' ? 'bg-amber-100 dark:bg-amber-900' : ''}`}
                     onPress={() => setCurrentTab('store')}
                 >
-                    <Text className={`font-bold ${currentTab === 'store' ? 'text-amber-600 dark:text-amber-300' : 'text-gray-500'}`}>🛍️ Tienda de Premios</Text>
+                    <Text className={`font-bold ${currentTab === 'store' ? 'text-amber-600 dark:text-amber-300' : 'text-gray-500'}`}>🛍️ Tienda</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    className={`flex-1 py-3 rounded-lg items-center ${currentTab === 'history' ? 'bg-blue-100 dark:bg-blue-900' : ''}`}
+                    onPress={() => setCurrentTab('history')}
+                >
+                    <Text className={`font-bold ${currentTab === 'history' ? 'text-blue-600 dark:text-blue-300' : 'text-gray-500'}`}>📊 Historial</Text>
                 </TouchableOpacity>
             </View>
 
@@ -276,6 +297,10 @@ export default function ChildDashboard({ navigation }: any) {
                         }
                     />
                 </>
+            ) : currentTab === 'history' ? (
+                <View className="flex-1">
+                    <StatisticsScreen embedded={true} navigation={navigation} />
+                </View>
             ) : (
                 <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
                     {myRedemptionRequests.length > 0 && (

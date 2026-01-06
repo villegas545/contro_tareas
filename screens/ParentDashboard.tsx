@@ -76,6 +76,7 @@ export default function ParentDashboard({ navigation }: any) {
                             onPress={confirmLogout}
                             className="border-white/40"
                             textClassName="text-white"
+                            style={{ backgroundColor: 'transparent' }}
                         />
                     </View>
                 </View>

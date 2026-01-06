@@ -104,6 +104,38 @@ export const ChildTaskCard = ({ item, onComplete }: ChildTaskCardProps) => {
                     {item.description && (
                         <Text className="text-gray-500 text-sm mt-1">{item.description}</Text>
                     )}
+
+                    {/* Time Window and Limits */}
+                    {(item.timeWindow || item.timeLimit) && (
+                        <View className="flex-row gap-3 mt-1.5 flex-wrap">
+                            {item.timeWindow && (() => {
+                                const to12h = (time24: string) => {
+                                    if (!time24) return '';
+                                    const [h, m] = time24.split(':');
+                                    let hours = parseInt(h);
+                                    const ampm = hours >= 12 ? 'PM' : 'AM';
+                                    hours = hours % 12;
+                                    hours = hours ? hours : 12;
+                                    return `${hours}:${m} ${ampm}`;
+                                };
+                                return (
+                                    <View className="flex-row items-center bg-gray-100 px-2 py-0.5 rounded-full">
+                                        <Text className="text-xs text-gray-600 font-medium">
+                                            🕒 {to12h(item.timeWindow.start)} - {to12h(item.timeWindow.end)}
+                                        </Text>
+                                    </View>
+                                );
+                            })()}
+                            {item.timeLimit && (
+                                <View className="flex-row items-center bg-amber-100 px-2 py-0.5 rounded-full">
+                                    <Text className="text-xs text-amber-700 font-medium">
+                                        ⏳ Límite: {item.timeLimit} min
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
+                    )}
+
                     <View className="flex-row gap-2 mt-2 items-center flex-wrap">
                         {item.isSchool && (
                             <Text className="self-start text-xs bg-sky-100 text-sky-700 px-2 py-1 rounded font-bold overflow-hidden">

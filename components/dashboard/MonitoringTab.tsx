@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Platform, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -5,13 +6,15 @@ import { useTaskContext } from '../../context/TaskContext';
 import { ParentTaskCard } from '../ParentTaskCard';
 import { Task } from '../../types';
 import { Button } from '../ui/Button';
-
-// ... (other imports)
+import { DatePicker } from '../ui/DatePicker';
 
 export const MonitoringTab = () => {
     const navigation = useNavigation<any>();
     const { tasks, users, verifyTask, rejectTask, deleteTask, isTaskActiveToday } = useTaskContext();
     const children = users.filter(u => u.role === 'child');
+
+    // Add date filter state - defaults to Current Date (Today)
+    const [filterDate, setFilterDate] = useState<Date>(new Date());
 
     const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed' | 'verified'>('all');
@@ -19,17 +22,40 @@ export const MonitoringTab = () => {
     const [showFilters, setShowFilters] = useState(false);
     const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
 
+    // Helper to format date for DatePicker "YYYY-MM-DD"
+    const toDateString = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
     const activeTasks = (selectedChildId
         ? tasks.filter(t => t.assignedTo === selectedChildId && t.assignedTo !== 'pool')
         : tasks.filter(t => t.assignedTo !== 'pool')
-    ).filter(t => isTaskActiveToday ? isTaskActiveToday(t) : true)
+    ).filter(t => {
+        // Custom Date Filtering Logic
+        const isToday = filterDate.toDateString() === new Date().toDateString();
+
+        if (isToday) {
+            return isTaskActiveToday ? isTaskActiveToday(t) : true;
+        } else {
+            // Basic support for other days: 
+            if (t.dueDate) return new Date(t.dueDate).toDateString() === filterDate.toDateString();
+            if (t.frequency === 'daily') return true;
+            // For simplicity, recurrence logic for past dates might need more complex calculation, 
+            // but checking recurrenceDays matches the day of the week is a good proxy.
+            if (t.frequency === 'weekly' && t.recurrenceDays) {
+                return t.recurrenceDays.includes(filterDate.getDay());
+            }
+            return false;
+        }
+    })
         .filter(t => {
             if (statusFilter !== 'all' && t.status !== statusFilter) return false;
-
             if (typeFilter === 'responsibility') return t.type === 'obligatory';
             if (typeFilter === 'extra') return t.type === 'additional';
             if (typeFilter === 'school') return t.isSchool;
-
             return true;
         })
         .sort((a, b) => a.title.localeCompare(b.title));
@@ -138,6 +164,22 @@ export const MonitoringTab = () => {
 
                     {showFilters && (
                         <View className="mt-4">
+                            {/* Date Selector Moved Here */}
+                            <View className="flex-row items-center justify-between mb-4 bg-gray-50 dark:bg-gray-800 p-2 rounded-lg">
+                                <Text className="text-gray-500 text-xs font-bold uppercase">Fecha de Visualización</Text>
+                                <DatePicker
+                                    value={toDateString(filterDate)}
+                                    onChange={(d) => {
+                                        if (d) {
+                                            const [y, m, day] = d.split('-').map(Number);
+                                            setFilterDate(new Date(y, m - 1, day));
+                                        } else {
+                                            setFilterDate(new Date());
+                                        }
+                                    }}
+                                />
+                            </View>
+
                             <Text className="text-gray-500 text-xs font-bold uppercase mb-2">Filtrar por hijo:</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} className="mb-4">
                                 <TouchableOpacity

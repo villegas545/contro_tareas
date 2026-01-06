@@ -2,6 +2,7 @@
 import './global.css';
 import React from 'react';
 import { View, Platform } from 'react-native';
+import * as NavigationBar from 'expo-navigation-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -26,11 +27,14 @@ const MainNavigator = () => {
           <Stack.Screen name="ParentDashboard" component={ParentDashboard} />
           <Stack.Screen name="CreateTask" component={CreateTaskScreen} options={{ presentation: 'modal' }} />
           <Stack.Screen name="Statistics" component={require('./screens/StatisticsScreen').default} options={{ presentation: 'modal' }} />
+          <Stack.Screen name="AddFamilyMember" component={require('./screens/AddFamilyMemberScreen').default} options={{ presentation: 'modal' }} />
+          <Stack.Screen name="AddMessage" component={require('./screens/AddMessageScreen').default} options={{ presentation: 'modal' }} />
         </>
       ) : (
         <>
           <Stack.Screen name="ChildDashboard" component={ChildDashboard} />
           <Stack.Screen name="History" component={require('./screens/HistoryScreen').default} options={{ presentation: 'modal' }} />
+          <Stack.Screen name="Statistics" component={require('./screens/StatisticsScreen').default} options={{ presentation: 'modal' }} />
         </>
       )}
     </Stack.Navigator>
@@ -44,6 +48,11 @@ export default function App() {
 
   React.useEffect(() => {
     setColorScheme('light');
+
+    if (Platform.OS === 'android') {
+      NavigationBar.setVisibilityAsync("hidden");
+      NavigationBar.setBehaviorAsync("overlay-swipe");
+    }
   }, []);
 
   return (

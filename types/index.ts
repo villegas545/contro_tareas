@@ -37,6 +37,7 @@ export interface Task {
     start: string; // Format "HH:mm"
     end: string;   // Format "HH:mm"
   };
+  timeLimit?: number; // Minutes allowed to complete task
   evidenceUrl?: string;
   isResponsibility?: boolean; // Counts for Bonus/Punishment
   isSchool?: boolean; // Only active on School Days
