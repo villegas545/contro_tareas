@@ -4,6 +4,7 @@ import { useTaskContext } from '../context/TaskContext';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { DatePicker } from '../components/ui/DatePicker';
+import { SearchInput } from '../components/ui/SearchInput';
 
 export default function StatisticsScreen({ navigation, route, embedded }: any) {
     const { history, users, tasks, currentUser } = useTaskContext();
@@ -16,6 +17,12 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedChildId, setSelectedChildId] = useState<string | null>(isChildView ? currentUser?.id : null);
     const [viewMode, setViewMode] = useState<'week' | 'day'>('week');
+
+    // Advanced Filters State
+    const [showFilters, setShowFilters] = useState(false);
+    const [searchText, setSearchText] = useState('');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed' | 'verified' | 'expired'>('all');
+    const [typeFilter, setTypeFilter] = useState<'all' | 'responsibility' | 'extra' | 'school'>('all');
 
     useEffect(() => {
         if (isChildView && currentUser) {
@@ -66,11 +73,18 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
 
     const filteredHistory = useMemo(() => {
         return history.filter((item: any) => {
-            const itemDate = new Date(item.date);
-            // Ensure we handle 'Hoy' if present (though 'Hoy' usually means today's date in history creation)
-            // But usually history stores ISO date string. Assuming item.date is YYYY-MM-DD or ISO.
-            // If item.date is 'Hoy', we map it to today.
-            const dateToCheck = item.date === 'Hoy' ? new Date() : itemDate;
+            let dateToCheck;
+            if (item.date === 'Hoy') {
+                dateToCheck = new Date();
+            } else if (typeof item.date === 'string' && item.date.includes('-')) {
+                const [y, m, d] = item.date.split('-').map(Number);
+                dateToCheck = new Date(y, m - 1, d);
+                // Set to mid-day to avoid boundary issues with simple comparisons? 
+                // Actually startOfWeek is 00:00:00 and endOfWeek is 23:59:59.
+                // new Date(y, m-1, d) is 00:00:00. This is fine.
+            } else {
+                dateToCheck = new Date(item.date); // Fallback
+            }
 
             return dateToCheck >= startOfWeek && dateToCheck <= endOfWeek;
         });
@@ -82,10 +96,53 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
             : children;
 
         return targetChildren.map((child: any) => {
-            const childHistory = filteredHistory.filter((h: any) => h.assignedTo === child.id);
-            const totalPoints = childHistory.reduce((acc: any, curr: any) => acc + (curr.status === 'verified' ? curr.points : 0), 0);
+            // Helper to check filters against an item (History or Task-like)
+            const matchesFilters = (item: any) => {
+                // Text Search
+                if (searchText) {
+                    if (!item.taskTitle.toLowerCase().includes(searchText.toLowerCase())) return false;
+                }
 
-            // Active Tasks (Only relevant for "Today" view effectively, or generally pending)
+                // Status Filter
+                if (statusFilter !== 'all') {
+                    // Normalize item status to filter keys
+                    // History: verified, missed
+                    // Active: pending, completed(waiting), expired
+                    // Filter keys: pending, completed, verified, expired
+
+                    const itemStatus = item.status; // pending, completed, verified, missed/expired?
+
+                    if (statusFilter === 'verified') {
+                        if (itemStatus !== 'verified') return false;
+                    } else if (statusFilter === 'pending') {
+                        if (itemStatus !== 'pending') return false;
+                    } else if (statusFilter === 'completed') {
+                        // Waiting for review
+                        if (itemStatus !== 'completed') return false;
+                    } else if (statusFilter === 'expired') {
+                        // Missed in history or Expired in active
+                        if (itemStatus !== 'missed' && itemStatus !== 'expired') return false;
+                    }
+                }
+
+                // Type Filter
+                if (typeFilter !== 'all') {
+                    // Check isResponsibility
+                    if (typeFilter === 'responsibility') {
+                        if (!item.isResponsibility) return false;
+                    } else if (typeFilter === 'extra') {
+                        if (item.isResponsibility) return false;
+                    } else if (typeFilter === 'school') {
+                        // Need to look up original task for 'isSchool' if not in item
+                        const original = tasks.find((t: any) => t.id === (item.taskId || item.id));
+                        if (!original?.isSchool) return false;
+                    }
+                }
+                return true;
+            };
+
+            const childHistory = filteredHistory.filter((h: any) => h.assignedTo === child.id).filter(matchesFilters);
+
             // But if we are looking at Past Week, pending tasks aren't historically there, they are currently pending.
             // We'll show pending tasks only if viewing Current Week or Today.
             const isLatest = new Date() <= endOfWeek;
@@ -99,37 +156,46 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
             // For simplicity: Pending tasks show up if visualizing "Today" or containing week.
             const showActive = isCurrentPeriod;
 
-            const pending = showActive ? activePending.length : 0;
-            const waiting = showActive ? activeWaiting.length : 0;
-
-            // Map active to history format for display
+            // Map active to history format for display, AND apply filters
             const pendingAsHistory = showActive ? activePending.map((t: any) => ({
                 id: t.id,
+                taskId: t.id,
                 taskTitle: t.title,
                 status: 'pending',
                 date: 'Hoy',
-                points: t.points || 0
-            })) : [];
+                points: t.points || 0,
+                isResponsibility: t.isResponsibility
+            })).filter(matchesFilters) : [];
 
             const waitingAsHistory = showActive ? activeWaiting.map((t: any) => ({
                 id: t.id,
+                taskId: t.id,
                 taskTitle: t.title,
                 status: 'completed',
                 date: 'Hoy',
-                points: t.points || 0
-            })) : [];
+                points: t.points || 0,
+                isResponsibility: t.isResponsibility
+            })).filter(matchesFilters) : [];
 
             const combinedActivity = [...childHistory, ...pendingAsHistory, ...waitingAsHistory];
 
-            // Basic Stats
-            const completed = childHistory.filter((h: any) => h.status === 'verified').length;
-            const missed = childHistory.filter((h: any) => h.status === 'missed').length;
+            // Re-calculate Stats based on Filtered Data?
+            // Ideally stats should reflect what is SEEN.
+            const totalPoints = combinedActivity.reduce((acc: any, curr: any) => acc + (curr.status === 'verified' ? curr.points : 0), 0);
+
+            const completed = combinedActivity.filter((h: any) => h.status === 'verified').length;
+            const missed = combinedActivity.filter((h: any) => h.status === 'missed' || h.status === 'expired').length;
+            const pending = pendingAsHistory.length;
+            const waiting = waitingAsHistory.length;
 
             // Punishment Logic (Week based)
+            // Warning should probably be based on REALITY (Raw), not filtered view.
+            // But for UI consistency, let's keep it on raw history for the week.
+            const rawChildHistory = filteredHistory.filter((h: any) => h.assignedTo === child.id);
             let punishmentWarning = false;
             let missedCount = 0;
             if (viewMode === 'week') {
-                missedCount = childHistory.filter((h: any) => h.status === 'missed' && h.isResponsibility).length;
+                missedCount = rawChildHistory.filter((h: any) => h.status === 'missed' && h.isResponsibility).length;
                 punishmentWarning = missedCount > 5;
             }
 
@@ -145,7 +211,7 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
                 missedCount
             };
         });
-    }, [filteredHistory, children, selectedChildId, tasks, isCurrentPeriod, viewMode, endOfWeek]);
+    }, [filteredHistory, children, selectedChildId, tasks, isCurrentPeriod, viewMode, endOfWeek, searchText, statusFilter, typeFilter]);
 
     const formatDate = (date: Date) => {
         return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
@@ -160,80 +226,154 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
     };
 
     const Container = isEmbedded ? View : SafeAreaView;
+    const bgColor = isChildView ? 'bg-sky-50' : 'bg-brand-cream';
+    const darkBgColor = isChildView ? 'dark:bg-brand-dark' : 'dark:bg-brand-dark';
 
     return (
-        <Container className="flex-1 bg-gray-50 dark:bg-slate-900">
+        <Container className={`flex-1 ${bgColor} ${darkBgColor}`}>
             {!isEmbedded && (
-                <View className="p-6 bg-white dark:bg-slate-800 shadow-sm flex-row items-center justify-between">
+                <View className={`p-6 bg-white dark:bg-slate-800 shadow-sm flex-row items-center justify-between`}>
                     <Text className="text-xl font-bold text-gray-900 dark:text-white">Estadísticas</Text>
                     <Button title="Cerrar" size="sm" variant="outline" onPress={() => navigation.goBack()} />
                 </View>
             )}
 
-            <View className="px-6 pt-4 flex-row justify-between items-center bg-gray-50 dark:bg-slate-900">
-                {/* View Mode Toggle */}
-                <View className="flex-row bg-gray-200 dark:bg-gray-800 rounded-lg p-1">
-                    <TouchableOpacity
-                        onPress={() => setViewMode('week')}
-                        className={`px-4 py-2 rounded-md ${viewMode === 'week' ? 'bg-white dark:bg-gray-700 shadow-sm' : ''}`}
-                    >
-                        <Text className={`font-bold ${viewMode === 'week' ? 'text-indigo-600 dark:text-white' : 'text-gray-500'}`}>Semana</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        onPress={() => setViewMode('day')}
-                        className={`px-4 py-2 rounded-md ${viewMode === 'day' ? 'bg-white dark:bg-gray-700 shadow-sm' : ''}`}
-                    >
-                        <Text className={`font-bold ${viewMode === 'day' ? 'text-indigo-600 dark:text-white' : 'text-gray-500'}`}>Día</Text>
-                    </TouchableOpacity>
-                </View>
+            <View className={`px-6 pt-4 bg-transparent border-b border-gray-100 dark:border-gray-800`}>
+                <TouchableOpacity
+                    onPress={() => setShowFilters(!showFilters)}
+                    className="flex-row justify-between items-center mb-4"
+                >
+                    <Text className="text-gray-500 text-xs font-bold uppercase">Filtros Avanzados</Text>
+                    <Text className="text-gray-500 text-lg">{showFilters ? '🔼' : '🔽'}</Text>
+                </TouchableOpacity>
 
-                {/* Date Picker for Day Mode */}
-                {viewMode === 'day' && (
-                    <DatePicker
-                        value={toDateString(currentDate)}
-                        onChange={(d) => {
-                            if (d) {
-                                const [y, m, day] = d.split('-').map(Number);
-                                setCurrentDate(new Date(y, m - 1, day));
-                            }
-                        }}
-                    />
+                {showFilters && (
+                    <View>
+                        <Text className="text-gray-500 text-xs font-bold uppercase mb-2">Buscar:</Text>
+                        <View className="mb-4">
+                            <SearchInput
+                                value={searchText}
+                                onChangeText={setSearchText}
+                                placeholder="Buscar tarea..."
+                            />
+                        </View>
+
+                        <Text className="text-gray-500 text-xs font-bold uppercase mb-2">Periodo:</Text>
+                        <View className="flex-row items-center justify-between mb-4 bg-gray-100 dark:bg-gray-800 p-2 rounded-lg">
+                            <View className="flex-row bg-white dark:bg-gray-700 rounded-md p-0.5">
+                                <TouchableOpacity
+                                    onPress={() => setViewMode('week')}
+                                    className={`px-3 py-1.5 rounded-md ${viewMode === 'week' ? 'bg-indigo-100' : ''}`}
+                                >
+                                    <Text className={`font-bold ${viewMode === 'week' ? 'text-indigo-600' : 'text-gray-500'}`}>Semana</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => setViewMode('day')}
+                                    className={`px-3 py-1.5 rounded-md ${viewMode === 'day' ? 'bg-indigo-100' : ''}`}
+                                >
+                                    <Text className={`font-bold ${viewMode === 'day' ? 'text-indigo-600' : 'text-gray-500'}`}>Día</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            {viewMode === 'day' && (
+                                <DatePicker
+                                    value={toDateString(currentDate)}
+                                    onChange={(d) => {
+                                        if (d) {
+                                            const [y, m, day] = d.split('-').map(Number);
+                                            setCurrentDate(new Date(y, m - 1, day));
+                                        }
+                                    }}
+                                />
+                            )}
+                        </View>
+
+                        {/* Child Filter */}
+                        {!isChildView && (
+                            <>
+                                <Text className="text-gray-500 text-xs font-bold uppercase mb-2">Filtrar por hijo:</Text>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} className="mb-4">
+                                    <TouchableOpacity
+                                        onPress={() => setSelectedChildId(null)}
+                                        className={`px-4 py-2 rounded-full border ${selectedChildId === null
+                                            ? 'bg-gray-800 border-gray-800'
+                                            : 'bg-white border-gray-300'
+                                            }`}
+                                    >
+                                        <Text className={selectedChildId === null ? 'text-white font-medium' : 'text-gray-700'}>Todos</Text>
+                                    </TouchableOpacity>
+
+                                    {children.map((child: any) => {
+                                        const isSelected = selectedChildId === child.id;
+                                        const userColor = child.color || '#4338ca';
+
+                                        return (
+                                            <TouchableOpacity
+                                                key={child.id}
+                                                onPress={() => setSelectedChildId(child.id)}
+                                                style={isSelected ? { backgroundColor: userColor, borderColor: userColor } : { borderColor: '#d1d5db' }}
+                                                className="px-4 py-2 rounded-full border bg-white flex-row items-center gap-2"
+                                            >
+                                                {!isSelected && (
+                                                    <View style={{ backgroundColor: userColor }} className="w-2 h-2 rounded-full" />
+                                                )}
+                                                <Text className={isSelected ? 'text-white font-medium' : 'text-gray-700'}>{child.name}</Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </ScrollView>
+                            </>
+                        )}
+
+                        <Text className="text-gray-500 text-xs font-bold uppercase mb-2">Estado:</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} className="mb-4">
+                            {[
+                                { id: 'all', label: 'Todos' },
+                                { id: 'pending', label: '⏳ Pendientes' },
+                                { id: 'completed', label: '✅ Por Revisar' },
+                                { id: 'verified', label: '⭐️ Completados' },
+                                { id: 'expired', label: '❌ Fallados' },
+                            ].map(f => (
+                                <TouchableOpacity
+                                    key={f.id}
+                                    onPress={() => setStatusFilter(f.id as any)}
+                                    className={`px-3 py-1.5 rounded-full border ${statusFilter === f.id
+                                        ? 'bg-indigo-600 border-indigo-600'
+                                        : 'bg-white border-gray-300'
+                                        }`}
+                                >
+                                    <Text className={`text-xs font-semibold ${statusFilter === f.id ? 'text-white' : 'text-gray-600'}`}>
+                                        {f.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+
+                        <Text className="text-gray-500 text-xs font-bold uppercase mb-2">Tipo:</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                            {[
+                                { id: 'all', label: 'Todos' },
+                                { id: 'responsibility', label: '🎁 Bonos' },
+                                { id: 'extra', label: '💵 Extras' },
+                                { id: 'school', label: '🎓 Escolar' },
+                            ].map(f => (
+                                <TouchableOpacity
+                                    key={f.id}
+                                    onPress={() => setTypeFilter(f.id as any)}
+                                    className={`px-3 py-1.5 rounded-full border ${typeFilter === f.id
+                                        ? 'bg-indigo-600 border-indigo-600'
+                                        : 'bg-white border-gray-300'
+                                        }`}
+                                >
+                                    <Text className={`text-xs font-semibold ${typeFilter === f.id ? 'text-white' : 'text-gray-600'}`}>
+                                        {f.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </View>
                 )}
             </View>
-
-            {/* Child Filter (Only show if Parent) */}
-            {!isChildView && (
-                <View className="px-6 py-4">
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                        <TouchableOpacity
-                            onPress={() => setSelectedChildId(null)}
-                            className={`px-4 py-2 rounded-full border ${selectedChildId === null
-                                ? 'bg-gray-800 border-gray-800'
-                                : 'bg-white border-gray-300'
-                                }`}
-                        >
-                            <Text className={selectedChildId === null ? 'text-white font-medium' : 'text-gray-700'}>Todos</Text>
-                        </TouchableOpacity>
-
-                        {children.map(child => {
-                            const isSelected = selectedChildId === child.id;
-                            const userColor = child.color || '#4338ca';
-
-                            return (
-                                <TouchableOpacity
-                                    key={child.id}
-                                    onPress={() => setSelectedChildId(child.id)}
-                                    style={isSelected ? { backgroundColor: userColor, borderColor: userColor } : { borderColor: '#d1d5db' }}
-                                    className="px-4 py-2 rounded-full border bg-white flex-row items-center gap-2"
-                                >
-                                    <View style={{ backgroundColor: isSelected ? 'white' : userColor }} className="w-3 h-3 rounded-full mr-2" />
-                                    <Text className={isSelected ? 'text-white font-medium' : 'text-gray-700'}>{child.name}</Text>
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </ScrollView>
-                </View>
-            )}
 
             <ScrollView contentContainerStyle={{ padding: 24 }}>
                 {/* Navigator */}
@@ -314,7 +454,7 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
                             <View className="flex-row gap-4">
                                 <Card className="flex-1 bg-green-50 border-green-100 items-center p-4">
                                     <Text className="text-3xl font-bold text-green-600">{completed}</Text>
-                                    <Text className="text-green-400 text-xs font-bold uppercase mt-1">Completados</Text>
+                                    <Text className="text-green-400 text-xs font-bold uppercase mt-1">Aprobados</Text>
                                 </Card>
 
                                 <Card className="flex-1 bg-rose-50 border-rose-100 items-center p-4">
@@ -330,10 +470,52 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
                         ) : (
                             // Group by date if Week View
                             (() => {
-                                const sortedHistory = history.slice().sort((a, b) => {
-                                    const dateA = a.date === 'Hoy' ? new Date() : new Date(a.date);
-                                    const dateB = b.date === 'Hoy' ? new Date() : new Date(b.date);
-                                    return dateB.getTime() - dateA.getTime();
+                                const getStatusWeight = (status: string) => {
+                                    switch (status) {
+                                        case 'completed': return 1; // Waiting for review (High priority)
+                                        case 'pending': return 2;   // Still to do
+                                        case 'verified': return 3;  // Done
+                                        case 'missed': return 4;    // Failed
+                                        case 'expired': return 5;
+                                        default: return 99;
+                                    }
+                                };
+
+                                const sortedHistory = history.slice().sort((a: any, b: any) => {
+                                    // 1. Sort by Date (Descending)
+                                    // Normalize dates for comparison
+                                    const getDate = (d: string) => {
+                                        if (d === 'Hoy') return new Date();
+                                        if (d.includes('-')) {
+                                            const [y, m, day] = d.split('-').map(Number);
+                                            return new Date(y, m - 1, day);
+                                        }
+                                        return new Date(d);
+                                    };
+
+                                    const dateA = getDate(a.date);
+                                    const dateB = getDate(b.date);
+
+                                    // Compare days only? Or full time?
+                                    // 'Hoy' includes time. Past dates are 00:00.
+                                    // Descending: Newer (Hoy) > Older.
+                                    const timeDiff = dateB.getTime() - dateA.getTime();
+
+                                    // If dates are significantly different (more than a day approx, or just different days)
+                                    // We want strict day ordering.
+                                    const dayA = dateA.toDateString();
+                                    const dayB = dateB.toDateString();
+
+                                    if (dayA !== dayB) {
+                                        return dateB.getTime() - dateA.getTime();
+                                    }
+
+                                    // 2. Sort by Status
+                                    const statusDiff = getStatusWeight(a.status) - getStatusWeight(b.status);
+                                    if (statusDiff !== 0) return statusDiff;
+
+                                    // 3. Sort by Title (Alphabetical)
+                                    return a.taskTitle.localeCompare(b.taskTitle);
                                 });
 
                                 // Render logic
@@ -389,7 +571,41 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
 
                                                 <View className="flex-1">
                                                     <Text className="font-bold text-gray-800">{item.taskTitle}</Text>
-                                                    <Text className="text-xs text-gray-500">{item.date}</Text>
+
+                                                    {/* Tags Row */}
+                                                    <View className="flex-row flex-wrap gap-1 mt-1">
+                                                        <Text className="text-xs text-gray-400 mr-2">{item.date === 'Hoy' ? 'Hoy' : item.date}</Text>
+
+                                                        {item.isResponsibility !== undefined && (
+                                                            <Text className={`text-[10px] px-1.5 py-0.5 rounded font-bold overflow-hidden ${item.isResponsibility ? 'bg-rose-100 text-rose-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                                {item.isResponsibility ? 'Bono' : 'Extra'}
+                                                            </Text>
+                                                        )}
+
+                                                        {(() => {
+                                                            const originalTask = tasks.find((t: any) => t.id === item.taskId);
+                                                            if (!originalTask) return null;
+                                                            return (
+                                                                <>
+                                                                    {originalTask.frequency && (
+                                                                        <Text className="text-[10px] bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded font-bold overflow-hidden capitalize">
+                                                                            {originalTask.frequency === 'daily' ? 'Diario' : originalTask.frequency === 'weekly' ? 'Semanal' : 'Una Vez'}
+                                                                        </Text>
+                                                                    )}
+                                                                    {originalTask.isSchool && (
+                                                                        <Text className="text-[10px] bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded font-bold overflow-hidden">
+                                                                            Escolar
+                                                                        </Text>
+                                                                    )}
+                                                                    {originalTask.timeWindow && (
+                                                                        <Text className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold overflow-hidden">
+                                                                            {originalTask.timeWindow.start}-{originalTask.timeWindow.end}
+                                                                        </Text>
+                                                                    )}
+                                                                </>
+                                                            );
+                                                        })()}
+                                                    </View>
                                                 </View>
 
                                                 <View className="items-end">

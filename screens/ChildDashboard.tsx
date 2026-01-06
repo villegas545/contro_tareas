@@ -4,6 +4,7 @@ import { useTaskContext } from '../context/TaskContext';
 import { Card } from '../components/ui/Card';
 import { Task, Reward } from '../types';
 import { Button } from '../components/ui/Button';
+import { SearchInput } from '../components/ui/SearchInput';
 import { ChildTaskCard } from '../components/ChildTaskCard';
 import StatisticsScreen from './StatisticsScreen';
 
@@ -17,11 +18,13 @@ export default function ChildDashboard({ navigation }: any) {
 
     const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed' | 'verified'>('all');
     const [typeFilter, setTypeFilter] = useState<'all' | 'responsibility' | 'extra' | 'school'>('all');
+    const [searchText, setSearchText] = useState('');
     const [showFilters, setShowFilters] = useState(false);
 
     const myTasks = tasks
         .filter(t => t.assignedTo === currentUser?.id && (isTaskActiveToday ? isTaskActiveToday(t) : true))
         .filter(t => {
+            if (searchText && !t.title.toLowerCase().includes(searchText.toLowerCase())) return false;
             if (statusFilter !== 'all' && t.status !== statusFilter) return false;
             if (typeFilter === 'responsibility') return t.type === 'obligatory';
             if (typeFilter === 'extra') return t.type === 'additional';
@@ -85,13 +88,32 @@ export default function ChildDashboard({ navigation }: any) {
         }
 
         // Due Date Check
-        if (task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'completed') {
-            if (Platform.OS === 'web') {
-                window.alert("Esta tarea ha vencido y no se puede completar.");
+        if (task.dueDate && task.status !== 'completed') {
+            const dueDate = new Date(task.dueDate);
+            // Allow completion anytime ON the due date (set to 23:59:59)
+            // Note: task.dueDate string is usually YYYY-MM-DD. new Date(s) might be UTC or Local.
+            // We assume it maps to the correct day. To be safe, we rely on string comparison first or ensure end of day.
+            // If we adjust local date:
+            if (!task.dueDate.includes('T')) {
+                // It's a date string, treat as local day end
+                const [y, m, d] = task.dueDate.split('-').map(Number);
+                dueDate.setFullYear(y);
+                dueDate.setMonth(m - 1);
+                dueDate.setDate(d);
+                dueDate.setHours(23, 59, 59, 999);
             } else {
-                Alert.alert("Vencida", "Esta tarea ha vencido y no se puede completar.");
+                // If it has time, leave as is? Assuming dueDate is just date.
+                dueDate.setHours(23, 59, 59, 999);
             }
-            return;
+
+            if (dueDate < new Date()) {
+                if (Platform.OS === 'web') {
+                    window.alert("Esta tarea ha vencido y no se puede completar.");
+                } else {
+                    Alert.alert("Vencida", "Esta tarea ha vencido y no se puede completar.");
+                }
+                return;
+            }
         }
 
         const proceed = () => {
@@ -234,6 +256,15 @@ export default function ChildDashboard({ navigation }: any) {
 
                         {showFilters && (
                             <View className="mt-2">
+                                <Text className="text-gray-500 text-xs font-bold uppercase mb-2">Buscar:</Text>
+                                <View className="mb-4">
+                                    <SearchInput
+                                        value={searchText}
+                                        onChangeText={setSearchText}
+                                        placeholder="Buscar tarea..."
+                                    />
+                                </View>
+
                                 <Text className="text-gray-500 text-xs font-bold uppercase mb-2">Estado:</Text>
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} className="mb-4">
                                     {[

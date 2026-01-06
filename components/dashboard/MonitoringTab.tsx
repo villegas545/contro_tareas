@@ -8,6 +8,8 @@ import { Task } from '../../types';
 import { Button } from '../ui/Button';
 import { DatePicker } from '../ui/DatePicker';
 
+import { SearchInput } from '../ui/SearchInput';
+
 export const MonitoringTab = () => {
     const navigation = useNavigation<any>();
     const { tasks, users, verifyTask, rejectTask, deleteTask, isTaskActiveToday } = useTaskContext();
@@ -17,8 +19,9 @@ export const MonitoringTab = () => {
     const [filterDate, setFilterDate] = useState<Date>(new Date());
 
     const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
-    const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed' | 'verified'>('all');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed' | 'verified' | 'expired'>('all');
     const [typeFilter, setTypeFilter] = useState<'all' | 'responsibility' | 'extra' | 'school'>('all');
+    const [searchText, setSearchText] = useState('');
     const [showFilters, setShowFilters] = useState(false);
     const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
 
@@ -53,12 +56,32 @@ export const MonitoringTab = () => {
     })
         .filter(t => {
             if (statusFilter !== 'all' && t.status !== statusFilter) return false;
+            // Filter expired logic if needed specially, but handled by general status check above
+
             if (typeFilter === 'responsibility') return t.type === 'obligatory';
             if (typeFilter === 'extra') return t.type === 'additional';
             if (typeFilter === 'school') return t.isSchool;
+
+            // Text Search Filter
+            if (searchText) {
+                const searchLower = searchText.toLowerCase();
+                const matchesTitle = t.title.toLowerCase().includes(searchLower);
+                // Can extend to description or user name if needed
+                return matchesTitle;
+            }
+
             return true;
         })
-        .sort((a, b) => a.title.localeCompare(b.title));
+        .sort((a, b) => {
+            // Priority: Completed (Waiting Verify) > Pending > Verified > Expired
+            const statusPriority: any = { 'completed': 1, 'pending': 2, 'verified': 3, 'expired': 4, 'missed': 4 };
+            const pA = statusPriority[a.status] || 99;
+            const pB = statusPriority[b.status] || 99;
+
+            if (pA !== pB) return pA - pB;
+
+            return a.title.localeCompare(b.title);
+        });
 
     const handleToggleSelection = (task: Task) => {
         if (task.status === 'verified') return;
@@ -147,6 +170,7 @@ export const MonitoringTab = () => {
             onAssign={() => { }}
             onEdit={(item) => navigation.navigate('CreateTask', { taskToEdit: item })}
             onDelete={confirmUnassign}
+            className=""
         />
     );
 
@@ -164,6 +188,15 @@ export const MonitoringTab = () => {
 
                     {showFilters && (
                         <View className="mt-4">
+                            <Text className="text-gray-500 text-xs font-bold uppercase mb-2">Buscar:</Text>
+                            <View className="mb-4">
+                                <SearchInput
+                                    value={searchText}
+                                    onChangeText={setSearchText}
+                                    placeholder="Buscar por nombre..."
+                                />
+                            </View>
+
                             {/* Date Selector Moved Here */}
                             <View className="flex-row items-center justify-between mb-4 bg-gray-50 dark:bg-gray-800 p-2 rounded-lg">
                                 <Text className="text-gray-500 text-xs font-bold uppercase">Fecha de Visualización</Text>
@@ -192,7 +225,7 @@ export const MonitoringTab = () => {
                                     <Text className={selectedChildId === null ? 'text-white font-medium' : 'text-gray-700'}>Todos</Text>
                                 </TouchableOpacity>
 
-                                {children.map(child => {
+                                {users.filter(u => u.role === 'child').map(child => {
                                     const isSelected = selectedChildId === child.id;
                                     const userColor = child.color || '#4338ca';
 
@@ -219,6 +252,7 @@ export const MonitoringTab = () => {
                                     { id: 'pending', label: '⏳ Pendientes' },
                                     { id: 'completed', label: '✅ Hechos' },
                                     { id: 'verified', label: '⭐️ Verificados' },
+                                    { id: 'expired', label: '❌ Falladas/Vencidas' },
                                 ].map(f => (
                                     <TouchableOpacity
                                         key={f.id}
@@ -279,7 +313,7 @@ export const MonitoringTab = () => {
                                     activeOpacity={0.9}
                                     disabled={item.status === 'verified'}
                                 >
-                                    <View className={`mb-4 rounded-xl border-4 overflow-hidden relative ${isSelected ? 'border-green-500 bg-green-50 transform scale-[1.02]' : 'border-transparent bg-white shadow-sm'}`}>
+                                    <View className={`mb-4 rounded-xl border-4 overflow-hidden relative ${isSelected ? 'border-green-500 bg-green-50 transform scale-[1.02]' : 'border-transparent'}`}>
                                         {isSelected && (
                                             <View className="absolute top-2 right-2 z-10 bg-green-600 rounded-full w-6 h-6 items-center justify-center">
                                                 <Text className="text-white font-bold">✓</Text>
@@ -294,18 +328,20 @@ export const MonitoringTab = () => {
                         })
                     )}
                 </View>
-            </ScrollView>
+            </ScrollView >
 
-            {selectedTaskIds.length > 0 && (
-                <View className="absolute bottom-6 left-6 right-6 z-50">
-                    <Button
-                        title={`Verificar (${selectedTaskIds.length}) Tareas`}
-                        onPress={handleBatchVerify}
-                        className="shadow-xl bg-green-600 h-14"
-                        textClassName="text-lg font-bold"
-                    />
-                </View>
-            )}
-        </View>
+            {
+                selectedTaskIds.length > 0 && (
+                    <View className="absolute bottom-6 left-6 right-6 z-50">
+                        <Button
+                            title={`Verificar (${selectedTaskIds.length}) Tareas`}
+                            onPress={handleBatchVerify}
+                            className="shadow-xl bg-green-600 h-14"
+                            textClassName="text-lg font-bold"
+                        />
+                    </View>
+                )
+            }
+        </View >
     );
 };

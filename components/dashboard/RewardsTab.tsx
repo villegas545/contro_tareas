@@ -11,6 +11,8 @@ export const RewardsTab = () => {
 
     const pendingRedemptions = redemptions.filter(r => r.status === 'pending');
 
+    const [isCreating, setIsCreating] = useState(false);
+
     const handleAddReward = () => {
         if (!title.trim() || !cost || isNaN(Number(cost))) {
             if (Platform.OS === 'web') window.alert("Ingresa un título válido y costo en puntos.");
@@ -27,6 +29,7 @@ export const RewardsTab = () => {
 
         setTitle('');
         setCost('');
+        setIsCreating(false);
         if (Platform.OS === 'web') window.alert("Premio agregado");
         else Alert.alert("Éxito", "Premio agregado");
     };
@@ -55,10 +58,16 @@ export const RewardsTab = () => {
 
     return (
         <View className="flex-1 p-6 pb-24">
+            {/* Header */}
+            <View className="flex-row justify-between items-center mb-6">
+                <Text className="text-xl font-bold text-gray-800 dark:text-white">Premios de la Tienda</Text>
+                {!isCreating && <Button title="+ Nuevo" size="sm" onPress={() => setIsCreating(true)} />}
+            </View>
+
             {/* Pending Redemptions */}
             {pendingRedemptions.length > 0 && (
                 <View className="mb-8">
-                    <Text className="text-lg font-bold mb-4 text-brand-text-primary dark:text-brand-text-light">⏳ Solicitudes de Canje</Text>
+                    <Text className="text-sm font-bold mb-2 text-brand-primary uppercase">⏳ Solicitudes de Canje</Text>
                     {pendingRedemptions.map(req => {
                         const childName = users.find(u => u.id === req.childId)?.name || 'Hijo';
                         return (
@@ -82,37 +91,43 @@ export const RewardsTab = () => {
                 </View>
             )}
 
-            {/* Create Reward */}
-            <View className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm mb-6">
-                <Text className="text-lg font-bold mb-4 text-brand-text-primary dark:text-brand-text-light">Nuevo Premio</Text>
+            {/* Create Reward Form */}
+            {isCreating && (
+                <View className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm mb-6 border border-gray-100 dark:border-gray-700">
+                    <Text className="text-lg font-bold mb-4 text-brand-text-primary dark:text-brand-text-light">Nuevo Premio</Text>
 
-                <View className="flex-row gap-3">
+                    <View className="flex-row gap-3">
+                        <TextInput
+                            value={icon}
+                            onChangeText={setIcon}
+                            placeholder="🎁"
+                            placeholderTextColor="#9CA3AF"
+                            className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-3 text-center text-xl w-14"
+                        />
+                        <TextInput
+                            value={title}
+                            onChangeText={setTitle}
+                            placeholder="Título (ej. 1hr Videojuegos)"
+                            placeholderTextColor="#9CA3AF"
+                            className="flex-1 bg-gray-50 p-3 rounded-lg border border-gray-200 mb-3"
+                        />
+                    </View>
+
                     <TextInput
-                        value={icon}
-                        onChangeText={setIcon}
-                        placeholder="🎁"
-                        className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-3 text-center text-xl w-14"
+                        value={cost}
+                        onChangeText={setCost}
+                        placeholder="Costo en Puntos (ej. 50)"
+                        placeholderTextColor="#9CA3AF"
+                        keyboardType="numeric"
+                        className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-4"
                     />
-                    <TextInput
-                        value={title}
-                        onChangeText={setTitle}
-                        placeholder="Título del premio (ej. 1hr Videojuegos)"
-                        className="flex-1 bg-gray-50 p-3 rounded-lg border border-gray-200 mb-3"
-                    />
+
+                    <View className="flex-row gap-2">
+                        <Button title="Cancelar" variant="outline" onPress={() => setIsCreating(false)} className="flex-1" />
+                        <Button title="Guardar Premio" onPress={handleAddReward} className="flex-1" />
+                    </View>
                 </View>
-
-                <TextInput
-                    value={cost}
-                    onChangeText={setCost}
-                    placeholder="Costo en Puntos (ej. 50)"
-                    keyboardType="numeric"
-                    className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-3"
-                />
-
-                <Button title="Agregar Premio a la Tienda" onPress={handleAddReward} />
-            </View>
-
-            <Text className="text-lg font-bold mb-4 text-brand-text-primary dark:text-brand-text-light">Premios Activos</Text>
+            )}
 
             <View className="flex-row flex-wrap gap-3">
                 {rewards.map(item => (

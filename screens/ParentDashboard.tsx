@@ -33,18 +33,18 @@ export default function ParentDashboard({ navigation }: any) {
         <SafeAreaView className="flex-1 bg-brand-cream dark:bg-brand-dark">
             <View className="flex-1">
                 {/* Header */}
-                <View className="p-6 flex-row justify-between items-center bg-brand-primary dark:bg-brand-dark shadow-sm pt-12">
-                    <View>
-                        <View className="flex-row items-center gap-2">
-                            <Text className="text-sm text-orange-50 font-medium">Hola,</Text>
-                            <Image
-                                source={require('../assets/task_logo_final.png')}
-                                className="w-10 h-10 rounded-full border-2 border-white/30"
-                                style={{ width: 40, height: 40 }}
-                                resizeMode="cover"
-                            />
+                <View className="px-6 py-4 flex-row justify-between items-center bg-brand-primary dark:bg-brand-dark shadow-sm">
+                    <View className="flex-row items-center gap-3">
+                        <Image
+                            source={require('../assets/task_logo_final.png')}
+                            className="w-12 h-12 rounded-full border-2 border-white/30"
+                            style={{ width: 44, height: 44 }}
+                            resizeMode="cover"
+                        />
+                        <View>
+                            <Text className="text-orange-100 text-xs font-medium">Hola,</Text>
+                            <Text className="text-xl font-bold text-white dark:text-brand-text-light">{currentUser?.name}</Text>
                         </View>
-                        <Text className="text-2xl font-bold text-white dark:text-brand-text-light">{currentUser?.name}</Text>
                     </View>
                     <View className="flex-row gap-2 items-center">
                         <View className="items-center mr-2">

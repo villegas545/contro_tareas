@@ -49,9 +49,9 @@ export const TaskTags = ({ task, showTime = false }: TaskTagsProps) => {
                 </Text>
             )}
 
-            <Text className={`text-xs px-2 py-1 rounded capitalize ${task.type === 'obligatory' ? 'bg-rose-50 text-rose-700' : 'bg-blue-50 text-blue-700'
+            <Text className={`text-xs px-2 py-1 rounded capitalize ${task.isResponsibility ? 'bg-rose-50 text-rose-700' : 'bg-blue-50 text-blue-700'
                 }`}>
-                {task.type === 'obligatory' ? '🎁 Bono' : '💵 Extra'}
+                {task.isResponsibility ? '🎁 Bono' : '💵 Extra'}
             </Text>
         </View>
     );

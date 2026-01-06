@@ -31,10 +31,10 @@ export const MessagesTab = () => {
 
     return (
         <ScrollView className="flex-1" contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
-            <View className="flex-row justify-between items-center mb-6">
-                <Text className="text-xl font-bold text-gray-800 dark:text-white">Mensajes y Recordatorios</Text>
+            <View className="flex-row justify-between items-center mb-6 flex-wrap gap-2">
+                <Text className="text-xl font-bold text-gray-800 dark:text-white shrink">Mensajes y Recordatorios</Text>
                 <Button
-                    title="+ Nuevo Mensaje"
+                    title="+ Nuevo"
                     onPress={() => navigation.navigate('AddMessage')}
                     size="sm"
                 />

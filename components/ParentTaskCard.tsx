@@ -15,9 +15,10 @@ interface ParentTaskCardProps {
     onDelete?: (taskId: string) => void;
     onConfirmDeleteMessage?: (index: number) => void; // Not used here but keeping interface clean
     showAssignAction?: boolean;
+    className?: string;
 }
 
-export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEdit, onDelete, showAssignAction = true }: ParentTaskCardProps) => {
+export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEdit, onDelete, showAssignAction = true, className = "mb-4" }: ParentTaskCardProps) => {
     const isVerified = task.status === 'verified';
     const isCompleted = task.status === 'completed';
     const awaitingVerification = isCompleted && !isVerified;
@@ -25,7 +26,7 @@ export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEd
     // Different style for Pool Tasks (Templates)
     if (task.assignedTo === 'pool') {
         return (
-            <Card className="mb-4 bg-white dark:bg-slate-800 border-l-4 border-gray-400">
+            <Card className={`bg-white dark:bg-slate-800 border-l-4 border-gray-400 ${className}`}>
                 <View className="mb-2">
                     <Text className="text-lg font-bold text-gray-900 dark:text-white">{task.title}</Text>
                     <Text className="text-gray-500 text-sm mt-1">{task.description}</Text>
@@ -72,7 +73,7 @@ export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEd
     // Standard Task Card (Monitoring)
     return (
         <>
-            <Card className="mb-4 bg-white dark:bg-slate-800 border-l-4 border-l-indigo-500">
+            <Card className={`bg-white dark:bg-slate-800 border-l-4 border-l-indigo-500 ${className}`}>
                 <View className="flex-row justify-between items-start mb-2">
                     <View className="flex-1">
                         <Text className="text-lg font-bold text-gray-900 dark:text-white">{task.title}</Text>

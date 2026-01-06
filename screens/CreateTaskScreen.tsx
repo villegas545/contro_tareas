@@ -49,7 +49,7 @@ export default function CreateTaskScreen({ navigation, route }: any) {
             assignedTo: 'pool',
             createdBy: currentUser?.id || '',
             status: 'pending',
-            type: 'obligatory',
+            type: isResponsibility ? 'obligatory' : 'additional',
             frequency,
             isResponsibility,
             isSchool,
@@ -69,8 +69,6 @@ export default function CreateTaskScreen({ navigation, route }: any) {
         }
 
         const saveLogic = () => {
-            // ... existing saveLogic implementation (I can reuse the existing block by not replacing it, but I am replacing the whole handleCreate usually if I use large chunks)
-            // Wait, I should try to keep the diff small.
             if (taskToEdit) {
                 updateTask(taskToEdit.id, taskData);
                 if (Platform.OS === 'web') window.alert("Plantilla actualizada");
@@ -182,11 +180,16 @@ export default function CreateTaskScreen({ navigation, route }: any) {
                         {/* Date Picker for One-Time */}
                         {frequency === 'one-time' && (
                             <View className="mt-2">
-                                <Text className="text-gray-700 font-medium mb-1">Fecha Programada:</Text>
+                                <Text className="text-gray-700 font-medium mb-1">Fecha Programada (Opcional en Plantilla):</Text>
                                 <DatePicker
                                     value={dueDate}
                                     onChange={(d) => setDueDate(d)}
                                 />
+                                {dueDate !== '' && (
+                                    <TouchableOpacity onPress={() => setDueDate('')}>
+                                        <Text className="text-xs text-red-500 mt-1">Limpiar Fecha (Dejar como plantilla general)</Text>
+                                    </TouchableOpacity>
+                                )}
                             </View>
                         )}
                     </View>

@@ -186,7 +186,7 @@ export const AssignmentTab = () => {
         : null;
 
     return (
-        <View className="flex-1 relative bg-gray-50 dark:bg-gray-900">
+        <View className="flex-1 relative bg-brand-cream dark:bg-brand-dark">
             <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
                 <View className="mb-4 flex-row justify-between items-center">
                     <Text className="text-lg font-bold text-gray-700 dark:text-gray-200">Plantillas de Tareas</Text>

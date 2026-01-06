@@ -302,35 +302,135 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     // Recurring tasks check logic - Adapted for centralized execution?
     // In a real app, this should be a backend function. 
     // Here, we can let ONLY the logged-in parent run this check to avoid conflicts, or just run it locally.
-    const checkRecurringTasks = async () => {
-        // Only run if we have tasks and mostly safe to do so
+    // Helper: Local Date String YYYY-MM-DD
+    const getLocalDateString = (date: Date = new Date()) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    // Recurring tasks check logic
+    const processDailyReset = async () => {
+        if (tasks.length === 0 || history.length === 0) return;
+
         const now = new Date();
-        const today = now.toISOString().split('T')[0];
+        const todayStr = getLocalDateString(now);
+
+        // Yesterday for checking missed daily tasks
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = getLocalDateString(yesterday);
+
+        // We need to iterate carefully. 
+        // Note: Running this on every client is risky for writes. 
+        // Ideally, we check "Has this been processed?" via a daily log doc or similar.
+        // For this local-first simpler scope, we check if the *result* exists (History entry).
 
         tasks.forEach(async (task) => {
-            if (task.status === 'verified' && task.frequency !== 'one-time') {
-                // Check if it should be reset
-                if (!task.verifiedAt) return;
+            // 1. One Time Tasks: Check Expiration
+            if (task.frequency === 'one-time' && task.status === 'pending' && task.dueDate) {
+                // Check if due date is clearly in the past
+                // task.dueDate is YYYY-MM-DD
+                if (task.dueDate < todayStr) {
+                    // Mark as expired and add missed history
+                    // Check if already logged?
+                    const alreadyLogged = history.some(h => h.taskId === task.id && h.status === 'missed' && h.date === task.dueDate);
 
-                const verifiedDate = task.verifiedAt.split('T')[0];
-                let shouldReset = false;
-
-                if (task.frequency === 'daily') {
-                    // Reset if verified before today
-                    if (verifiedDate < today) {
-                        shouldReset = true;
+                    if (!alreadyLogged) {
+                        await addDoc(collection(db, "history"), {
+                            taskId: task.id,
+                            taskTitle: task.title,
+                            assignedTo: task.assignedTo,
+                            points: 0,
+                            status: 'missed',
+                            isResponsibility: task.isResponsibility || false,
+                            date: task.dueDate,
+                        });
                     }
-                } else if (task.frequency === 'weekly') {
-                    // Reset if verified more than 7 days ago (simple logic) or different week
-                    // For simplicity: if verifiedDate is < 7 days ago
-                    const diffTime = Math.abs(now.getTime() - new Date(task.verifiedAt).getTime());
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    if (diffDays >= 7) {
-                        shouldReset = true;
+
+                    if (task.status !== 'expired') {
+                        await updateDoc(doc(db, "tasks", task.id), { status: 'expired' });
+                    }
+                }
+            }
+
+            // 2. Daily Tasks: Reset and Log Misses
+            if (task.frequency === 'daily') {
+                // Determine if yesterday was a required day for this task
+                // If recurrenceDays is empty, assume every day.
+                // If not empty, check if yesterday's day index was in it.
+                const yesterdayDayIndex = yesterday.getDay();
+                const wasActiveYesterday = task.recurrenceDays?.length ? task.recurrenceDays.includes(yesterdayDayIndex) : true;
+
+                // Log Miss if: Active Yesterday AND No History for Yesterday AND (Not Verified Yesterday)
+                // Actually, if it was verified yesterday, there's a history entry 'verified'.
+                // If it was missed, we might have mapped it? No.
+                if (wasActiveYesterday) {
+                    const hasHistoryForYesterday = history.some(h => h.taskId === task.id && h.date === yesterdayStr);
+
+                    if (!hasHistoryForYesterday) {
+                        // It was missed!
+                        await addDoc(collection(db, "history"), {
+                            taskId: task.id,
+                            taskTitle: task.title,
+                            assignedTo: task.assignedTo,
+                            points: 0,
+                            status: 'missed',
+                            isResponsibility: task.isResponsibility || false,
+                            date: yesterdayStr,
+                        });
                     }
                 }
 
+                // Reset logic: If task is verified (from old days) or pending (from old days), reset to fresh pending for TODAY.
+                // We reset if verifyAt < today.
+                // OR if status is pending (which implies it's "leftover" from yesterday).
+
+                let shouldReset = false;
+
+                if (task.status === 'verified' && task.verifiedAt) {
+                    const verifiedDate = task.verifiedAt.split('T')[0];
+                    if (verifiedDate < todayStr) shouldReset = true;
+                } else if (task.status === 'pending') {
+                    // It's pending. Is it a FRESH pending (created/reset today) or STALE pending?
+                    // We don't have 'lastResetAt'. But if we just ran the "Missed" check, we can safely reset it?
+                    // If we reset a pending task to pending, nothing changes, EXCEPT we might want to clear evidenceUrl if we allowed partial completion?
+                    // But effectively, 'pending' tasks for daily recur every day. So we assume it's "Available" for today.
+                    // We DO need to clear evidence if it was "completed" (waiting) but not verified yesterday?
+                    shouldReset = false; // Pending stays pending.
+                } else if (task.status === 'completed') {
+                    // Task is waiting for review.
+                    // If it was completed yesterday, and not verified...
+                    // User said: "Incomplete tasks should be failed".
+                    // If it's completed, the child claims they did it. 
+                    // We probably shouldn't auto-fail it? Or should we?
+                    // Let's leave 'completed' tasks alone so parents can verify late.
+                    // Once verified, the existing logic resets it next day.
+                    shouldReset = false;
+                } else if (task.status === 'expired') {
+                    // Daily tasks shouldn't really stay expired if they recur daily?
+                    // Currently checking reuse. If it expired yesterday, today is a new day!
+                    shouldReset = true;
+                }
+
                 if (shouldReset) {
+                    await updateDoc(doc(db, "tasks", task.id), {
+                        status: 'pending',
+                        completedAt: deleteField(),
+                        verifiedAt: deleteField(),
+                        evidenceUrl: deleteField(),
+                        // Remove 'expired' status if present
+                        ...(task.status === 'expired' ? { status: 'pending' } : {})
+                    });
+                }
+            }
+
+            // 3. Weekly Tasks (Simple Reset)
+            if (task.status === 'verified' && task.frequency === 'weekly' && task.verifiedAt) {
+                const diffTime = Math.abs(now.getTime() - new Date(task.verifiedAt).getTime());
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                if (diffDays >= 7) {
                     await updateDoc(doc(db, "tasks", task.id), {
                         status: 'pending',
                         completedAt: deleteField(),
@@ -345,9 +445,9 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     // Checking logic
     useEffect(() => {
         if (tasks.length > 0) {
-            checkRecurringTasks();
+            processDailyReset();
         }
-    }, [tasks.length]); // Simple trigger, or interval
+    }, [tasks.length, history.length]); // Dependencies updated
 
     const isTaskActiveToday = (task: Task) => {
         const today = new Date();
