@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Task, User, TaskHistory, Reward, Redemption } from '../types';
 import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, Timestamp, deleteField } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
+import { sendPushNotification, scheduleRemindersForTasks } from '../utils/notifications';
 
 interface TaskContextType {
     currentUser: User | null;
@@ -178,6 +179,12 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
 
     const addTask = async (newTask: Omit<Task, 'id'>) => {
         await addDoc(collection(db, "tasks"), newTask);
+
+        // Notify Child
+        const child = users.find(u => u.id === newTask.assignedTo);
+        if (child && child.pushToken) {
+            sendPushNotification(child.pushToken, "Nueva Tarea", `Tienes una nueva tarea: "${newTask.title}"`);
+        }
     };
 
     const updateTask = async (taskId: string, updates: Partial<Task>) => {
@@ -205,6 +212,15 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             status: 'completed',
             completedAt: new Date().toISOString(),
             ...(evidenceUrl ? { evidenceUrl } : {})
+        });
+
+        // Notify Parents
+        const child = users.find(u => u.id === task.assignedTo);
+        const parents = users.filter(u => u.role === 'parent');
+        parents.forEach(parent => {
+            if (parent.pushToken) {
+                sendPushNotification(parent.pushToken, "Tarea Realizada", `${child?.name || 'Alguien'} completó: "${task.title}"`);
+            }
         });
     };
 
@@ -250,6 +266,14 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             status: 'pending',
             completedAt: deleteField()
         });
+
+        const task = tasks.find(t => t.id === taskId);
+        if (task) {
+            const child = users.find(u => u.id === task.assignedTo);
+            if (child && child.pushToken) {
+                sendPushNotification(child.pushToken, "Tarea Rechazada", `Tu tarea "${task.title}" ha sido rechazada.`);
+            }
+        }
     };
 
     // Rewards & Redemptions Logic
@@ -349,9 +373,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                         });
                     }
 
-                    if (task.status !== 'expired') {
-                        await updateDoc(doc(db, "tasks", task.id), { status: 'expired' });
-                    }
+                    await updateDoc(doc(db, "tasks", task.id), { status: 'expired' });
                 }
             }
 
@@ -448,6 +470,14 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             processDailyReset();
         }
     }, [tasks.length, history.length]); // Dependencies updated
+
+    // Schedule Reminders (Child only)
+    useEffect(() => {
+        if (currentUser?.role === 'child') {
+            const pendingTasks = tasks.filter(t => t.assignedTo === currentUser.id && t.status === 'pending');
+            scheduleRemindersForTasks(pendingTasks);
+        }
+    }, [tasks, currentUser]);
 
     const isTaskActiveToday = (task: Task) => {
         const today = new Date();

@@ -5,10 +5,10 @@ module.exports = {
         'plugin:@typescript-eslint/recommended',
         'plugin:react/recommended',
         'plugin:react-native/all',
-        'plugin:sonarjs/recommended'
+        // 'plugin:sonarjs/recommended' 
     ],
     parser: '@typescript-eslint/parser',
-    plugins: ['@typescript-eslint', 'react', 'react-native', 'sonarjs'],
+    plugins: ['@typescript-eslint', 'react', 'react-native'], // 'sonarjs'
     env: {
         'react-native/react-native': true,
     },
@@ -21,7 +21,7 @@ module.exports = {
         'react-native/no-inline-styles': 'off',
         'react-native/no-color-literals': 'off',
         'react-native/sort-styles': 'off',
-        'sonarjs/cognitive-complexity': ['warn', 15],
+        // 'sonarjs/cognitive-complexity': ['warn', 15],
         '@typescript-eslint/no-explicit-any': 'warn',
     },
     settings: {

@@ -16,6 +16,7 @@ export interface User {
   avatar?: string;
   color?: string; // Hex color code for identifying the user
   isVacationMode?: boolean;
+  pushToken?: string;
 }
 
 export interface Task {

@@ -25,7 +25,8 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "googleServicesFile": "./google-services.json"
     },
     "plugins": [
       [
@@ -33,6 +34,13 @@
         {
           "photosPermission": "La app necesita acceso a tus fotos para adjuntar evidencia de tus tareas.",
           "cameraPermission": "La app necesita acceso a tu cámara para tomar fotos de tus tareas completadas."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/task_logo_final.png",
+          "color": "#ffffff"
         }
       ]
     ],

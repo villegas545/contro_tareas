@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "704113782962",
+    "project_id": "control-tareas-c526c",
+    "storage_bucket": "control-tareas-c526c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:704113782962:android:8baaf055be63cbdb1319ab",
+        "android_client_info": {
+          "package_name": "com.ville.controldetareas"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDNAWqS_-gFC8UxbOgBKV5MhOYIADobiX4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

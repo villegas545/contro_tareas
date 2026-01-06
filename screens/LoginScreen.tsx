@@ -2,16 +2,17 @@ import React, { useState } from 'react';
 import { View, Text, SafeAreaView, TextInput, ScrollView, Alert, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { useTaskContext } from '../context/TaskContext';
 import { Button } from '../components/ui/Button';
+import { registerForPushNotificationsAsync } from '../utils/notifications';
 
 // Static asset import for better web compatibility
 const taskLogo = require('../assets/task_logo_final.png');
 
 export default function LoginScreen() {
-    const { login } = useTaskContext();
+    const { login, users, updateUser } = useTaskContext();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
 
-    const handleLogin = () => {
+    const handleLogin = async () => {
         if (!username || !password) {
             if (Platform.OS === 'web') {
                 window.alert('Por favor ingresa usuario y contraseña');
@@ -22,7 +23,16 @@ export default function LoginScreen() {
         }
 
         const success = login(username, password);
-        if (!success) {
+        if (success) {
+            // Register for Push Notifications
+            const token = await registerForPushNotificationsAsync();
+            if (token) {
+                const user = users.find(u => u.username === username);
+                if (user) {
+                    updateUser(user.id, { pushToken: token });
+                }
+            }
+        } else {
             if (Platform.OS === 'web') {
                 window.alert('Credenciales incorrectas');
             } else {
