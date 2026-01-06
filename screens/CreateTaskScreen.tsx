@@ -3,7 +3,7 @@ import { View, Text, SafeAreaView, TextInput, ScrollView, Alert, TouchableOpacit
 import { useTaskContext } from '../context/TaskContext';
 import { Button } from '../components/ui/Button';
 import { DatePicker } from '../components/ui/DatePicker';
-import { Task, TaskFrequency } from '../types';
+import { TaskFrequency } from '../types';
 
 export default function CreateTaskScreen({ navigation, route }: any) {
     const { addTask, updateTask, currentUser } = useTaskContext();
@@ -17,7 +17,7 @@ export default function CreateTaskScreen({ navigation, route }: any) {
     const [frequency, setFrequency] = useState<TaskFrequency>(taskToEdit?.frequency || 'daily');
     const [isResponsibility, setIsResponsibility] = useState(taskToEdit?.isResponsibility || false);
     const [isSchool, setIsSchool] = useState(taskToEdit?.isSchool || false);
-    const [recurrenceDays, setRecurrenceDays] = useState<number[]>(taskToEdit?.recurrenceDays || []);
+    const [recurrenceDays] = useState<number[]>(taskToEdit?.recurrenceDays || []);
     const [points, setPoints] = useState(taskToEdit?.points ? taskToEdit.points.toString() : '');
     const [dueDate, setDueDate] = useState<string>(taskToEdit?.dueDate || '');
 
@@ -98,13 +98,7 @@ export default function CreateTaskScreen({ navigation, route }: any) {
         }
     };
 
-    const toggleDay = (dayIndex: number) => {
-        if (recurrenceDays.includes(dayIndex)) {
-            setRecurrenceDays(recurrenceDays.filter(d => d !== dayIndex));
-        } else {
-            setRecurrenceDays([...recurrenceDays, dayIndex]);
-        }
-    };
+
 
     return (
         <SafeAreaView className="flex-1 bg-gray-50 dark:bg-slate-900">

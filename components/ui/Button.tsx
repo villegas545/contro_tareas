@@ -1,4 +1,4 @@
-import { Text, TouchableOpacity, TouchableOpacityProps, View } from 'react-native';
+import { Text, TouchableOpacity, TouchableOpacityProps } from 'react-native';
 import { cssInterop } from "nativewind";
 
 cssInterop(TouchableOpacity, { className: "style" });

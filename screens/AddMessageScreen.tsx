@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, ScrollView, Platform, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, ScrollView, Alert } from 'react-native';
 import { useTaskContext } from '../context/TaskContext';
 import { Button } from '../components/ui/Button';
 

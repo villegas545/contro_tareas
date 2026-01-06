@@ -13,7 +13,7 @@ import { AdvancedFilterControls } from '../ui/AdvancedFilterControls';
 export const MonitoringTab = () => {
     const navigation = useNavigation<any>();
     const { tasks, users, verifyTask, rejectTask, deleteTask, isTaskActiveToday } = useTaskContext();
-    const children = users.filter(u => u.role === 'child');
+    // const children = users.filter(u => u.role === 'child');
 
     // Add date filter state - defaults to Current Date (Today)
     const [filterDate, setFilterDate] = useState<Date>(new Date());

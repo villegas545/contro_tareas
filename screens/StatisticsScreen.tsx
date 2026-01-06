@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
 import { useTaskContext } from '../context/TaskContext';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -450,7 +450,7 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
                                     // Compare days only? Or full time?
                                     // 'Hoy' includes time. Past dates are 00:00.
                                     // Descending: Newer (Hoy) > Older.
-                                    const timeDiff = dateB.getTime() - dateA.getTime();
+                                    // const timeDiff = dateB.getTime() - dateA.getTime();
 
                                     // If dates are significantly different (more than a day approx, or just different days)
                                     // We want strict day ordering.
@@ -503,7 +503,7 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
                                                     <Text className="text-gray-400 font-bold text-xs uppercase">
                                                         {(() => {
                                                             if (item.date === 'Hoy') return 'HOY';
-                                                            const d = new Date(item.date);
+                                                            // const d = new Date(item.date);
                                                             const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
                                                             // Adjust because new Date("YYYY-MM-DD") might result in UTC, while we often want local date.
                                                             // If item.dateCreated is stored as string already, we assume it's stable.

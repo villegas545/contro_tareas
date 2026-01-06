@@ -10,7 +10,7 @@ import { Task } from '../../types';
 
 export const AssignmentTab = () => {
     const navigation = useNavigation<any>();
-    const { tasks, currentUser, users, verifyTask, rejectTask, addTask, deleteTask } = useTaskContext();
+    const { tasks, currentUser, users, addTask, deleteTask } = useTaskContext();
     const children = users.filter(u => u.role === 'child');
 
     const [assignmentSearch, setAssignmentSearch] = useState('');
@@ -163,8 +163,7 @@ export const AssignmentTab = () => {
         }
     };
 
-    const confirmVerify = (taskId: string) => { /* Not used in pool view usually, strictly for templates */ };
-    const confirmReject = (taskId: string) => { /* Not used */ };
+
 
     const confirmDeleteTemplate = (taskId: string) => {
         if (Platform.OS === 'web') {

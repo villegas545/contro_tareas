@@ -15,7 +15,6 @@ export interface User {
   password?: string; // In a real app this would be hashed, or handled by Firebase Auth
   avatar?: string;
   color?: string; // Hex color code for identifying the user
-  isVacationMode?: boolean;
   pushToken?: string;
 }
 
@@ -63,4 +62,9 @@ export interface Redemption {
   status: 'pending' | 'approved' | 'rejected'; // 'approved' means points are deducted and reward given
   requestDate: string; // ISO
   redeemedDate?: string; // ISO
+}
+
+export interface GlobalSettings {
+  id: string; // 'general'
+  isVacationMode: boolean;
 }

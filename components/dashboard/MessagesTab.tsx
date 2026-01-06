@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Platform, Alert, ScrollView } from 'react-native';
+import { View, Text, Platform, Alert, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTaskContext } from '../../context/TaskContext';
 import { Button } from '../ui/Button';
@@ -54,7 +54,7 @@ export const MessagesTab = () => {
             ) : (
                 filteredMessages.map((item, index) => (
                     <View key={index} className="bg-white dark:bg-gray-800 p-4 rounded-xl mb-3 flex-row justify-between items-center shadow-sm">
-                        <Text className="flex-1 text-gray-800 dark:text-gray-100 text-base mr-2" numberOfLines={2}>"{item}"</Text>
+                        <Text className="flex-1 text-gray-800 dark:text-gray-100 text-base mr-2" numberOfLines={2}>&quot;{item}&quot;</Text>
                         <View className="flex-row gap-2">
                             <Button
                                 title="Editar"

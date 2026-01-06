@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { registerForPushNotificationsAsync } from '../utils/notifications';
 
 // Static asset import for better web compatibility
-const taskLogo = require('../assets/task_logo_final.png');
+const taskLogo = require('../assets/task_logo_final.png'); // eslint-disable-line @typescript-eslint/no-require-imports
 
 export default function LoginScreen() {
     const { login, users, updateUser } = useTaskContext();

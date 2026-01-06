@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Alert, Platform, Switch, Image, Animated, Easing } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Alert, Platform, Switch, Image } from 'react-native';
 import { useTaskContext } from '../context/TaskContext';
 import { Button } from '../components/ui/Button';
 import { MonitoringTab } from '../components/dashboard/MonitoringTab';
@@ -9,7 +9,7 @@ import { MessagesTab } from '../components/dashboard/MessagesTab';
 import { RewardsTab } from '../components/dashboard/RewardsTab';
 
 export default function ParentDashboard({ navigation }: any) {
-    const { currentUser, logout, tasks, updateUser, redemptions, users } = useTaskContext();
+    const { currentUser, logout, tasks, redemptions, globalSettings, updateGlobalSettings } = useTaskContext();
     const [currentTab, setCurrentTab] = useState<'monitoring' | 'assignment' | 'messages' | 'family' | 'rewards'>('monitoring');
 
     const confirmLogout = () => {
@@ -36,7 +36,7 @@ export default function ParentDashboard({ navigation }: any) {
                 <View className="px-6 py-4 flex-row justify-between items-center bg-brand-primary dark:bg-brand-dark shadow-sm">
                     <View className="flex-row items-center gap-3">
                         <Image
-                            source={require('../assets/task_logo_final.png')}
+                            source={require('../assets/task_logo_final.png')} // eslint-disable-line @typescript-eslint/no-require-imports
                             className="w-12 h-12 rounded-full border-2 border-white/30"
                             style={{ width: 44, height: 44 }}
                             resizeMode="cover"
@@ -50,14 +50,12 @@ export default function ParentDashboard({ navigation }: any) {
                         <View className="items-center mr-2">
                             <Text className="text-[10px] text-orange-50 font-bold uppercase mb-1">Vacaciones</Text>
                             <Switch
-                                value={currentUser?.isVacationMode || false}
+                                value={globalSettings?.isVacationMode || false}
                                 onValueChange={(val) => {
-                                    users.filter(u => u.role === 'parent').forEach(p => {
-                                        updateUser(p.id, { isVacationMode: val });
-                                    });
+                                    updateGlobalSettings({ isVacationMode: val });
                                 }}
                                 trackColor={{ false: "rgba(255,255,255,0.3)", true: "#fff" }}
-                                thumbColor={currentUser?.isVacationMode ? "#f97316" : "#f4f3f4"}
+                                thumbColor={globalSettings?.isVacationMode ? "#f97316" : "#f4f3f4"}
                                 style={{ transform: [{ scaleX: .8 }, { scaleY: .8 }] }}
                             />
                         </View>

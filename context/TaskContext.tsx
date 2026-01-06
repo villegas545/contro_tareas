@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Task, User, TaskHistory, Reward, Redemption } from '../types';
-import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where, Timestamp, deleteField } from 'firebase/firestore';
+import { Task, User, TaskHistory, Reward, Redemption, GlobalSettings } from '../types';
+import { collection, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot, deleteField } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { sendPushNotification, scheduleRemindersForTasks } from '../utils/notifications';
 
@@ -36,6 +36,8 @@ interface TaskContextType {
     approveRedemption: (redemptionId: string) => void;
     rejectRedemption: (redemptionId: string) => void;
     isTaskActiveToday: (task: Task) => boolean;
+    globalSettings: GlobalSettings | null;
+    updateGlobalSettings: (settings: Partial<GlobalSettings>) => void;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -50,6 +52,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
 
     const [rewards, setRewards] = useState<Reward[]>([]);
     const [redemptions, setRedemptions] = useState<Redemption[]>([]);
+    const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
     const sessionChecked = React.useRef(false);
 
     // Subscribe to Firestore collections
@@ -95,6 +98,15 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             setRedemptions(redemptionsList);
         });
 
+        // Settings
+        const settingsUnsub = onSnapshot(doc(db, "settings", "general"), (docSnap) => {
+            if (docSnap.exists()) {
+                setGlobalSettings({ id: docSnap.id, ...docSnap.data() } as GlobalSettings);
+            } else {
+                setGlobalSettings({ id: 'general', isVacationMode: false });
+            }
+        });
+
         return () => {
             usersUnsub();
             tasksUnsub();
@@ -102,8 +114,13 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             messagesUnsub();
             rewardsUnsub();
             redemptionsUnsub();
+            settingsUnsub();
         };
     }, []); // Run once on mount
+
+    const updateGlobalSettings = async (settings: Partial<GlobalSettings>) => {
+        await setDoc(doc(db, "settings", "general"), settings, { merge: true });
+    };
 
     const addMessage = async (text: string) => {
         await addDoc(collection(db, "messages"), { text });
@@ -338,6 +355,9 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     const processDailyReset = async () => {
         if (tasks.length === 0 || history.length === 0) return;
 
+        // Check Global Vacation Mode
+        if (globalSettings?.isVacationMode) return;
+
         const now = new Date();
         const todayStr = getLocalDateString(now);
 
@@ -540,8 +560,9 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 redeemReward,
                 approveRedemption,
                 rejectRedemption,
-                // @ts-ignore
-                isTaskActiveToday
+                isTaskActiveToday,
+                globalSettings,
+                updateGlobalSettings
             }}
         >
             {children}

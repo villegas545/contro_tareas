@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, SafeAreaView, FlatList, Alert, Modal, TouchableOpacity, Platform, ScrollView, Image } from 'react-native';
 import { useTaskContext } from '../context/TaskContext';
-import { Card } from '../components/ui/Card';
+
 import { Task, Reward } from '../types';
 import { Button } from '../components/ui/Button';
 import { AdvancedFilterControls } from '../components/ui/AdvancedFilterControls';
@@ -208,7 +208,7 @@ export default function ChildDashboard({ navigation }: any) {
             >
                 <View className="flex-row items-center gap-3">
                     <Image
-                        source={require('../assets/task_logo_final.png')}
+                        source={require('../assets/task_logo_final.png')} // eslint-disable-line @typescript-eslint/no-require-imports
                         className="w-14 h-14 rounded-full border-2 border-white/20"
                         style={{ width: 56, height: 56 }}
                         resizeMode="cover"

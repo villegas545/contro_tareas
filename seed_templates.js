@@ -18,6 +18,7 @@ const firebaseConfig = {
 };
 
 // Polyfill para fetch si es necesario (Node < 18)
+// eslint-disable-next-line no-undef
 if (typeof globalThis.fetch === 'undefined') {
     console.warn("Fetch API no detectada. Asegúrate de usar Node 18+ o instalar node-fetch.");
 }

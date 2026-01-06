@@ -23,7 +23,20 @@ module.exports = {
         'react-native/sort-styles': 'off',
         // 'sonarjs/cognitive-complexity': ['warn', 15],
         '@typescript-eslint/no-explicit-any': 'warn',
+        'react/react-in-jsx-scope': 'off',
     },
+    overrides: [
+        {
+            files: ['*.js', '*.cjs'],
+            env: {
+                node: true,
+            },
+            rules: {
+                '@typescript-eslint/no-require-imports': 'off',
+                '@typescript-eslint/no-var-requires': 'off',
+            },
+        },
+    ],
     settings: {
         react: {
             version: 'detect',
