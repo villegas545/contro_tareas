@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Platform, Alert, Modal, ScrollView } from
 import { useNavigation } from '@react-navigation/native';
 import { useTaskContext } from '../../context/TaskContext';
 import { Button } from '../ui/Button';
-import { SearchInput } from '../ui/SearchInput';
+import { AdvancedFilterControls } from '../ui/AdvancedFilterControls';
 import { DatePicker } from '../ui/DatePicker';
 import { ParentTaskCard } from '../ParentTaskCard';
 import { Task } from '../../types';
@@ -197,66 +197,18 @@ export const AssignmentTab = () => {
                     />
                 </View>
 
-                <SearchInput
-                    placeholder="Buscar plantilla..."
-                    value={assignmentSearch}
-                    onChangeText={setAssignmentSearch}
-                />
-
-                <View className="mb-4 mt-2">
-                    <TouchableOpacity
-                        onPress={() => setShowFilters(!showFilters)}
-                        className="flex-row justify-between items-center mb-2 px-1"
-                    >
-                        <Text className="text-gray-500 text-xs font-bold uppercase">Filtros Avanzados</Text>
-                        <Text className="text-gray-500 text-lg">{showFilters ? '🔼' : '🔽'}</Text>
-                    </TouchableOpacity>
-
-                    {showFilters && (
-                        <View className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                            <Text className="text-gray-500 text-[10px] font-bold uppercase mb-2">Tipo:</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} className="mb-3">
-                                {[
-                                    { id: 'all', label: 'Todos' },
-                                    { id: 'responsibility', label: '🎁 Bonos' },
-                                    { id: 'extra', label: '💵 Extras' },
-                                    { id: 'school', label: '🎓 Escolar' },
-                                ].map(f => (
-                                    <TouchableOpacity
-                                        key={f.id}
-                                        onPress={() => setTypeFilter(f.id as any)}
-                                        className={`px-3 py-1.5 rounded-full border ${typeFilter === f.id
-                                            ? 'bg-indigo-600 border-indigo-600'
-                                            : 'bg-white border-gray-300'
-                                            }`}
-                                    >
-                                        <Text className={`text-xs font-semibold ${typeFilter === f.id ? 'text-white' : 'text-gray-600'}`}>{f.label}</Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </ScrollView>
-
-                            <Text className="text-gray-500 text-[10px] font-bold uppercase mb-2">Frecuencia:</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} className="mb-3">
-                                {[
-                                    { id: 'all', label: 'Todas' },
-                                    { id: 'daily', label: '📅 Diaria' },
-                                    { id: 'weekly', label: '📅 Semanal' },
-                                    { id: 'one-time', label: '☝️ Una vez' },
-                                ].map(f => (
-                                    <TouchableOpacity
-                                        key={f.id}
-                                        onPress={() => setFrequencyFilter(f.id as any)}
-                                        className={`px-3 py-1.5 rounded-full border ${frequencyFilter === f.id
-                                            ? 'bg-indigo-600 border-indigo-600'
-                                            : 'bg-white border-gray-300'
-                                            }`}
-                                    >
-                                        <Text className={`text-xs font-semibold ${frequencyFilter === f.id ? 'text-white' : 'text-gray-600'}`}>{f.label}</Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </ScrollView>
-                        </View>
-                    )}
+                <View className="mb-2">
+                    <AdvancedFilterControls
+                        showFilters={showFilters}
+                        setShowFilters={setShowFilters}
+                        searchText={assignmentSearch}
+                        setSearchText={setAssignmentSearch}
+                        searchPlaceholder="Buscar plantilla..."
+                        typeFilter={typeFilter}
+                        setTypeFilter={setTypeFilter}
+                        frequencyFilter={frequencyFilter}
+                        setFrequencyFilter={setFrequencyFilter}
+                    />
                 </View>
 
                 <Text className="text-xs text-gray-400 mb-2 italic">

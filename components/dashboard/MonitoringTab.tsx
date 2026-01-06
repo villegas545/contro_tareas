@@ -8,7 +8,7 @@ import { Task } from '../../types';
 import { Button } from '../ui/Button';
 import { DatePicker } from '../ui/DatePicker';
 
-import { SearchInput } from '../ui/SearchInput';
+import { AdvancedFilterControls } from '../ui/AdvancedFilterControls';
 
 export const MonitoringTab = () => {
     const navigation = useNavigation<any>();
@@ -177,122 +177,72 @@ export const MonitoringTab = () => {
     return (
         <View className="flex-1 relative">
             <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
-                <View className="px-6 py-4 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
-                    <TouchableOpacity
-                        onPress={() => setShowFilters(!showFilters)}
-                        className="flex-row justify-between items-center"
+                <View className="px-6 py-2 border-b border-gray-100 dark:border-gray-800">
+                    <AdvancedFilterControls
+                        showFilters={showFilters}
+                        setShowFilters={setShowFilters}
+                        searchText={searchText}
+                        setSearchText={setSearchText}
+                        searchPlaceholder="Buscar por nombre..."
+                        statusFilter={statusFilter}
+                        setStatusFilter={setStatusFilter}
+                        statusOptions={[
+                            { id: 'all', label: 'Todos' },
+                            { id: 'pending', label: '⏳ Pendientes' },
+                            { id: 'completed', label: '✅ Por Revisar' },
+                            { id: 'verified', label: '⭐️ Verificados' },
+                            { id: 'expired', label: '❌ Falladas/Vencidas' },
+                        ]}
+                        typeFilter={typeFilter}
+                        setTypeFilter={setTypeFilter}
                     >
-                        <Text className="text-gray-500 text-xs font-bold uppercase">Filtros Avanzados</Text>
-                        <Text className="text-gray-500 text-lg">{showFilters ? '🔼' : '🔽'}</Text>
-                    </TouchableOpacity>
-
-                    {showFilters && (
-                        <View className="mt-4">
-                            <Text className="text-gray-500 text-xs font-bold uppercase mb-2">Buscar:</Text>
-                            <View className="mb-4">
-                                <SearchInput
-                                    value={searchText}
-                                    onChangeText={setSearchText}
-                                    placeholder="Buscar por nombre..."
-                                />
-                            </View>
-
-                            {/* Date Selector Moved Here */}
-                            <View className="flex-row items-center justify-between mb-4 bg-gray-50 dark:bg-gray-800 p-2 rounded-lg">
-                                <Text className="text-gray-500 text-xs font-bold uppercase">Fecha de Visualización</Text>
-                                <DatePicker
-                                    value={toDateString(filterDate)}
-                                    onChange={(d) => {
-                                        if (d) {
-                                            const [y, m, day] = d.split('-').map(Number);
-                                            setFilterDate(new Date(y, m - 1, day));
-                                        } else {
-                                            setFilterDate(new Date());
-                                        }
-                                    }}
-                                />
-                            </View>
-
-                            <Text className="text-gray-500 text-xs font-bold uppercase mb-2">Filtrar por hijo:</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} className="mb-4">
-                                <TouchableOpacity
-                                    onPress={() => setSelectedChildId(null)}
-                                    className={`px-4 py-2 rounded-full border ${selectedChildId === null
-                                        ? 'bg-gray-800 border-gray-800'
-                                        : 'bg-white border-gray-300'
-                                        }`}
-                                >
-                                    <Text className={selectedChildId === null ? 'text-white font-medium' : 'text-gray-700'}>Todos</Text>
-                                </TouchableOpacity>
-
-                                {users.filter(u => u.role === 'child').map(child => {
-                                    const isSelected = selectedChildId === child.id;
-                                    const userColor = child.color || '#4338ca';
-
-                                    return (
-                                        <TouchableOpacity
-                                            key={child.id}
-                                            onPress={() => setSelectedChildId(child.id)}
-                                            style={isSelected ? { backgroundColor: userColor, borderColor: userColor } : { borderColor: '#d1d5db' }}
-                                            className="px-4 py-2 rounded-full border bg-white flex-row items-center gap-2"
-                                        >
-                                            {!isSelected && (
-                                                <View style={{ backgroundColor: userColor }} className="w-2 h-2 rounded-full" />
-                                            )}
-                                            <Text className={isSelected ? 'text-white font-medium' : 'text-gray-700'}>{child.name}</Text>
-                                        </TouchableOpacity>
-                                    );
-                                })}
-                            </ScrollView>
-
-                            <Text className="text-gray-500 text-xs font-bold uppercase mb-2">Estado:</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} className="mb-4">
-                                {[
-                                    { id: 'all', label: 'Todos' },
-                                    { id: 'pending', label: '⏳ Pendientes' },
-                                    { id: 'completed', label: '✅ Hechos' },
-                                    { id: 'verified', label: '⭐️ Verificados' },
-                                    { id: 'expired', label: '❌ Falladas/Vencidas' },
-                                ].map(f => (
-                                    <TouchableOpacity
-                                        key={f.id}
-                                        onPress={() => setStatusFilter(f.id as any)}
-                                        className={`px-3 py-1.5 rounded-full border ${statusFilter === f.id
-                                            ? 'bg-indigo-600 border-indigo-600'
-                                            : 'bg-white border-gray-300'
-                                            }`}
-                                    >
-                                        <Text className={`text-xs font-semibold ${statusFilter === f.id ? 'text-white' : 'text-gray-600'}`}>
-                                            {f.label}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </ScrollView>
-
-                            <Text className="text-gray-500 text-xs font-bold uppercase mb-2">Tipo:</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                                {[
-                                    { id: 'all', label: 'Todos' },
-                                    { id: 'responsibility', label: '🎁 Bonos' },
-                                    { id: 'extra', label: '💵 Extras' },
-                                    { id: 'school', label: '🎓 Escolar' },
-                                ].map(f => (
-                                    <TouchableOpacity
-                                        key={f.id}
-                                        onPress={() => setTypeFilter(f.id as any)}
-                                        className={`px-3 py-1.5 rounded-full border ${typeFilter === f.id
-                                            ? 'bg-indigo-600 border-indigo-600'
-                                            : 'bg-white border-gray-300'
-                                            }`}
-                                    >
-                                        <Text className={`text-xs font-semibold ${typeFilter === f.id ? 'text-white' : 'text-gray-600'}`}>
-                                            {f.label}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </ScrollView>
+                        <View className="flex-row items-center justify-between mb-4 bg-gray-50 dark:bg-gray-800 p-2 rounded-lg">
+                            <Text className="text-gray-500 text-xs font-bold uppercase">Fecha de Visualización</Text>
+                            <DatePicker
+                                value={toDateString(filterDate)}
+                                onChange={(d) => {
+                                    if (d) {
+                                        const [y, m, day] = d.split('-').map(Number);
+                                        setFilterDate(new Date(y, m - 1, day));
+                                    } else {
+                                        setFilterDate(new Date());
+                                    }
+                                }}
+                            />
                         </View>
-                    )}
+
+                        <Text className="text-gray-500 text-xs font-bold uppercase mb-2">Filtrar por hijo:</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} className="mb-4">
+                            <TouchableOpacity
+                                onPress={() => setSelectedChildId(null)}
+                                className={`px-4 py-2 rounded-full border ${selectedChildId === null
+                                    ? 'bg-gray-800 border-gray-800'
+                                    : 'bg-white border-gray-300'
+                                    }`}
+                            >
+                                <Text className={selectedChildId === null ? 'text-white font-medium' : 'text-gray-700'}>Todos</Text>
+                            </TouchableOpacity>
+
+                            {users.filter(u => u.role === 'child').map(child => {
+                                const isSelected = selectedChildId === child.id;
+                                const userColor = child.color || '#4338ca';
+
+                                return (
+                                    <TouchableOpacity
+                                        key={child.id}
+                                        onPress={() => setSelectedChildId(child.id)}
+                                        style={isSelected ? { backgroundColor: userColor, borderColor: userColor } : { borderColor: '#d1d5db' }}
+                                        className="px-4 py-2 rounded-full border bg-white flex-row items-center gap-2"
+                                    >
+                                        {!isSelected && (
+                                            <View style={{ backgroundColor: userColor }} className="w-2 h-2 rounded-full" />
+                                        )}
+                                        <Text className={isSelected ? 'text-white font-medium' : 'text-gray-700'}>{child.name}</Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </ScrollView>
+                    </AdvancedFilterControls>
                 </View>
 
                 <View className="p-5">

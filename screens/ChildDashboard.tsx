@@ -4,7 +4,7 @@ import { useTaskContext } from '../context/TaskContext';
 import { Card } from '../components/ui/Card';
 import { Task, Reward } from '../types';
 import { Button } from '../components/ui/Button';
-import { SearchInput } from '../components/ui/SearchInput';
+import { AdvancedFilterControls } from '../components/ui/AdvancedFilterControls';
 import { ChildTaskCard } from '../components/ChildTaskCard';
 import StatisticsScreen from './StatisticsScreen';
 
@@ -245,73 +245,24 @@ export default function ChildDashboard({ navigation }: any) {
 
             {currentTab === 'tasks' ? (
                 <>
-                    <View className="px-6 pb-2">
-                        <TouchableOpacity
-                            onPress={() => setShowFilters(!showFilters)}
-                            className="flex-row justify-between items-center mb-2"
-                        >
-                            <Text className="text-gray-500 text-xs font-bold uppercase">Filtros Avanzados</Text>
-                            <Text className="text-gray-500 text-lg">{showFilters ? '🔼' : '🔽'}</Text>
-                        </TouchableOpacity>
-
-                        {showFilters && (
-                            <View className="mt-2">
-                                <Text className="text-gray-500 text-xs font-bold uppercase mb-2">Buscar:</Text>
-                                <View className="mb-4">
-                                    <SearchInput
-                                        value={searchText}
-                                        onChangeText={setSearchText}
-                                        placeholder="Buscar tarea..."
-                                    />
-                                </View>
-
-                                <Text className="text-gray-500 text-xs font-bold uppercase mb-2">Estado:</Text>
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} className="mb-4">
-                                    {[
-                                        { id: 'all', label: 'Todos' },
-                                        { id: 'pending', label: '⏳ Por hacer' },
-                                        { id: 'completed', label: '✅ Hechos' },
-                                        { id: 'verified', label: '⭐️ Listos' },
-                                    ].map(f => (
-                                        <TouchableOpacity
-                                            key={f.id}
-                                            onPress={() => setStatusFilter(f.id as any)}
-                                            className={`px-3 py-1.5 rounded-full border ${statusFilter === f.id
-                                                ? 'bg-indigo-600 border-indigo-600'
-                                                : 'bg-white border-gray-300'
-                                                }`}
-                                        >
-                                            <Text className={`text-xs font-semibold ${statusFilter === f.id ? 'text-white' : 'text-gray-600'}`}>
-                                                {f.label}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </ScrollView>
-
-                                <Text className="text-gray-500 text-xs font-bold uppercase mb-2">Tipo:</Text>
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                                    {[
-                                        { id: 'all', label: 'Todos' },
-                                        { id: 'responsibility', label: '🎁 Bonos' },
-                                        { id: 'extra', label: '💵 Extras' },
-                                        { id: 'school', label: '🎓 Escolar' },
-                                    ].map(f => (
-                                        <TouchableOpacity
-                                            key={f.id}
-                                            onPress={() => setTypeFilter(f.id as any)}
-                                            className={`px-3 py-1.5 rounded-full border ${typeFilter === f.id
-                                                ? 'bg-indigo-600 border-indigo-600'
-                                                : 'bg-white border-gray-300'
-                                                }`}
-                                        >
-                                            <Text className={`text-xs font-semibold ${typeFilter === f.id ? 'text-white' : 'text-gray-600'}`}>
-                                                {f.label}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </ScrollView>
-                            </View>
-                        )}
+                    <View className="px-6 py-2 border-b border-gray-100 dark:border-gray-800">
+                        <AdvancedFilterControls
+                            showFilters={showFilters}
+                            setShowFilters={setShowFilters}
+                            searchText={searchText}
+                            setSearchText={setSearchText}
+                            searchPlaceholder="Buscar tarea..."
+                            statusFilter={statusFilter}
+                            setStatusFilter={setStatusFilter}
+                            statusOptions={[
+                                { id: 'all', label: 'Todos' },
+                                { id: 'pending', label: '⏳ Por hacer' },
+                                { id: 'completed', label: '✅ Hechos' },
+                                { id: 'verified', label: '⭐️ Listos' },
+                            ]}
+                            typeFilter={typeFilter}
+                            setTypeFilter={setTypeFilter}
+                        />
                     </View>
 
                     <FlatList
