@@ -1,5 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { useTaskContext } from '../context/TaskContext';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -225,6 +227,67 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
         return `${year}-${month}-${day}`;
     };
 
+    const exportToCSV = async () => {
+        try {
+            let csvContent = "Fecha,Nino,Tarea,Estado,Puntos,Tipo,Turno\n";
+
+            stats.forEach((childStat: any) => {
+                const childName = childStat.child.name;
+                childStat.history.forEach((t: any) => {
+                    // map values
+                    const date = t.date === 'Hoy' ? new Date().toISOString().split('T')[0] : t.date;
+                    const status = t.status === 'verified' ? 'Verificado' :
+                        t.status === 'completed' ? 'Completado' :
+                            t.status === 'missed' ? 'Fallido' :
+                                t.status === 'pending' ? 'Pendiente' : t.status;
+                    const points = t.points || 0;
+                    const type = t.isResponsibility ? "Responsabilidad" : "Extra";
+                    const cleanTitle = (t.taskTitle || "").replace(/,/g, ' ');
+
+                    const shiftMap: Record<string, string> = {
+                        morning: 'Mañana',
+                        afternoon: 'Tarde',
+                        night: 'Noche',
+                        'no-time': 'Sin Horario'
+                    };
+                    const shift = t.shift ? (shiftMap[t.shift] || t.shift) : 'Sin Horario';
+
+                    csvContent += `${date},${childName},${cleanTitle},${status},${points},${type},${shift}\n`;
+                });
+            });
+
+            const fileName = `reporte_tareas_${new Date().toISOString().split('T')[0]}.csv`;
+
+            if (Platform.OS === 'web') {
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", fileName);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else {
+                // @ts-ignore
+                const fileUri = FileSystem.documentDirectory + fileName;
+
+                // @ts-ignore
+                await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
+
+                if (await Sharing.isAvailableAsync()) {
+                    await Sharing.shareAsync(fileUri);
+                } else {
+                    Alert.alert("Error", "Compartir no está disponible en este dispositivo");
+                }
+            }
+
+        } catch (error) {
+            console.error("Export error", error);
+            Alert.alert("Error", "No se pudo exportar el archivo");
+        }
+    };
+
     const Container = isEmbedded ? View : SafeAreaView;
     const bgColor = isChildView ? 'bg-sky-50' : 'bg-brand-cream';
     const darkBgColor = isChildView ? 'dark:bg-brand-dark' : 'dark:bg-brand-dark';
@@ -234,7 +297,12 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
             {!isEmbedded && (
                 <View className={`p-6 bg-white dark:bg-slate-800 shadow-sm flex-row items-center justify-between`}>
                     <Text className="text-xl font-bold text-gray-900 dark:text-white">Estadísticas</Text>
-                    <Button title="Cerrar" size="sm" variant="outline" onPress={() => navigation.goBack()} />
+                    <View className="flex-row gap-2">
+                        {!isChildView && (
+                            <Button title="📥 CSV" size="sm" variant="secondary" onPress={exportToCSV} />
+                        )}
+                        <Button title="Cerrar" size="sm" variant="outline" onPress={() => navigation.goBack()} />
+                    </View>
                 </View>
             )}
 

@@ -42,6 +42,16 @@ export interface Task {
   isResponsibility?: boolean; // Counts for Bonus/Punishment
   isSchool?: boolean; // Only active on School Days
   recurrenceDays?: number[]; // 0=Sun, 1=Mon, ..., 6=Sat. If empty/undefined, assumes daily/frequency standard.
+  shift?: 'morning' | 'afternoon' | 'night' | 'no-time'; // Period of day
+  originalTaskId?: string; // If 'copy', ID of the template/pool task
+  categoryId?: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  icon: string; // Emoji or Icon set name
+  color?: string;
 }
 
 export interface Reward {
@@ -63,8 +73,14 @@ export interface Redemption {
   requestDate: string; // ISO
   redeemedDate?: string; // ISO
 }
+export interface NonSchoolDay {
+  date: string; // YYYY-MM-DD
+  description?: string;
+}
 
 export interface GlobalSettings {
   id: string; // 'general'
   isVacationMode: boolean;
+  nonSchoolDays?: NonSchoolDay[];
+  timezone?: string; // e.g. 'America/Chicago'
 }

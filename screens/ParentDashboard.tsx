@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Alert, Platform, Switch, Image } from 'react-native';
+import { View, Text, SafeAreaView, ScrollView, TouchableOpacity, Alert, Platform, Image } from 'react-native';
 import { useTaskContext } from '../context/TaskContext';
 import { Button } from '../components/ui/Button';
 import { MonitoringTab } from '../components/dashboard/MonitoringTab';
@@ -7,10 +7,12 @@ import { AssignmentTab } from '../components/dashboard/AssignmentTab';
 import { FamilyTab } from '../components/dashboard/FamilyTab';
 import { MessagesTab } from '../components/dashboard/MessagesTab';
 import { RewardsTab } from '../components/dashboard/RewardsTab';
+import { SettingsTab } from '../components/dashboard/SettingsTab';
+import { CategoriesTab } from '../components/dashboard/CategoriesTab';
 
 export default function ParentDashboard({ navigation }: any) {
-    const { currentUser, logout, tasks, redemptions, globalSettings, updateGlobalSettings } = useTaskContext();
-    const [currentTab, setCurrentTab] = useState<'monitoring' | 'assignment' | 'messages' | 'family' | 'rewards'>('monitoring');
+    const { currentUser, logout, tasks, redemptions } = useTaskContext();
+    const [currentTab, setCurrentTab] = useState<'monitoring' | 'assignment' | 'messages' | 'family' | 'rewards' | 'settings' | 'categories'>('monitoring');
 
     const confirmLogout = () => {
         if (Platform.OS === 'web') {
@@ -47,18 +49,7 @@ export default function ParentDashboard({ navigation }: any) {
                         </View>
                     </View>
                     <View className="flex-row gap-2 items-center">
-                        <View className="items-center mr-2">
-                            <Text className="text-[10px] text-orange-50 font-bold uppercase mb-1">Vacaciones</Text>
-                            <Switch
-                                value={globalSettings?.isVacationMode || false}
-                                onValueChange={(val) => {
-                                    updateGlobalSettings({ isVacationMode: val });
-                                }}
-                                trackColor={{ false: "rgba(255,255,255,0.3)", true: "#fff" }}
-                                thumbColor={globalSettings?.isVacationMode ? "#f97316" : "#f4f3f4"}
-                                style={{ transform: [{ scaleX: .8 }, { scaleY: .8 }] }}
-                            />
-                        </View>
+
                         <Button
                             title="📊 Stats"
                             variant="secondary"
@@ -107,6 +98,11 @@ export default function ParentDashboard({ navigation }: any) {
                                 Mensajes
                             </Text>
                         </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setCurrentTab('categories')}>
+                            <Text className={`text - lg font - bold ${currentTab === 'categories' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
+                                Categorías
+                            </Text>
+                        </TouchableOpacity>
                         <TouchableOpacity onPress={() => setCurrentTab('rewards')} className="relative">
                             <Text className={`text - lg font - bold ${currentTab === 'rewards' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
                                 Premios
@@ -116,6 +112,11 @@ export default function ParentDashboard({ navigation }: any) {
                                     <Text className="text-white text-xs font-bold">{redemptions.filter(r => r.status === 'pending').length}</Text>
                                 </View>
                             )}
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setCurrentTab('settings')}>
+                            <Text className={`text - lg font - bold ${currentTab === 'settings' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
+                                Configuración
+                            </Text>
                         </TouchableOpacity>
                     </ScrollView>
                 </View>
@@ -127,6 +128,8 @@ export default function ParentDashboard({ navigation }: any) {
                     {currentTab === 'family' && <FamilyTab />}
                     {currentTab === 'messages' && <MessagesTab />}
                     {currentTab === 'rewards' && <RewardsTab />}
+                    {currentTab === 'settings' && <SettingsTab />}
+                    {currentTab === 'categories' && <CategoriesTab />}
                 </View>
             </View>
         </SafeAreaView>

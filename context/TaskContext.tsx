@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Task, User, TaskHistory, Reward, Redemption, GlobalSettings } from '../types';
+import { Task, User, TaskHistory, Reward, Redemption, GlobalSettings, Category } from '../types';
 import { collection, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot, deleteField } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { sendPushNotification, scheduleRemindersForTasks } from '../utils/notifications';
@@ -38,6 +38,12 @@ interface TaskContextType {
     isTaskActiveToday: (task: Task) => boolean;
     globalSettings: GlobalSettings | null;
     updateGlobalSettings: (settings: Partial<GlobalSettings>) => void;
+    getLocalDateString: () => string;
+
+    // Categories
+    categories: Category[];
+    addCategory: (category: Omit<Category, 'id'>) => void;
+    deleteCategory: (categoryId: string) => void;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -46,6 +52,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [tasks, setTasks] = useState<Task[]>([]);
     const [users, setUsers] = useState<User[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
     const [history, setHistory] = useState<TaskHistory[]>([]);
     const [messages, setMessages] = useState<string[]>([]);
     const [messageIds, setMessageIds] = useState<string[]>([]); // To track IDs for deletion
@@ -96,6 +103,12 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         const redemptionsUnsub = onSnapshot(collection(db, "redemptions"), (snapshot) => {
             const redemptionsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Redemption));
             setRedemptions(redemptionsList);
+        });
+
+        // Categories
+        const categoriesUnsub = onSnapshot(collection(db, "categories"), (snapshot) => {
+            const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
+            setCategories(list);
         });
 
         // Settings
@@ -206,6 +219,36 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
 
     const updateTask = async (taskId: string, updates: Partial<Task>) => {
         await updateDoc(doc(db, "tasks", taskId), updates);
+
+        // If this is a pool task (template), propagate changes to linked tasks
+        const task = tasks.find(t => t.id === taskId);
+        if (task && task.assignedTo === 'pool') {
+            const linkedTasks = tasks.filter(t => t.originalTaskId === taskId);
+
+            // Define keys that should be synchronized from template
+            const syncKeys: (keyof Task)[] = [
+                'title', 'description', 'points', 'type', 'frequency',
+                'isResponsibility', 'isSchool', 'shift', 'timeWindow',
+                'timeLimit', 'dueTime'
+            ];
+
+            const safeUpdates: Partial<Task> = {};
+
+            syncKeys.forEach(key => {
+                if (updates[key] !== undefined) {
+                    // @ts-ignore
+                    safeUpdates[key] = updates[key];
+                }
+            });
+
+            if (Object.keys(safeUpdates).length > 0) {
+                linkedTasks.forEach(async (childTask) => {
+                    if (childTask.status !== 'verified') { // Only update non-archived tasks
+                        await updateDoc(doc(db, "tasks", childTask.id), safeUpdates);
+                    }
+                });
+            }
+        }
     };
 
     const deleteTask = async (taskId: string) => {
@@ -343,12 +386,23 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     // Recurring tasks check logic - Adapted for centralized execution?
     // In a real app, this should be a backend function. 
     // Here, we can let ONLY the logged-in parent run this check to avoid conflicts, or just run it locally.
-    // Helper: Local Date String YYYY-MM-DD
+    // Helper: Local Date String YYYY-MM-DD (Timezone Aware)
     const getLocalDateString = (date: Date = new Date()) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
+        try {
+            const timeZone = globalSettings?.timezone || 'America/Chicago';
+            return new Intl.DateTimeFormat('en-CA', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                timeZone
+            }).format(date);
+        } catch (e) {
+            // Fallback if timezone invalid or en-CA not supported
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
     };
 
     // Recurring tasks check logic
@@ -403,11 +457,17 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 // If recurrenceDays is empty, assume every day.
                 // If not empty, check if yesterday's day index was in it.
                 const yesterdayDayIndex = yesterday.getDay();
-                const wasActiveYesterday = task.recurrenceDays?.length ? task.recurrenceDays.includes(yesterdayDayIndex) : true;
+                let wasActiveYesterday = task.recurrenceDays?.length ? task.recurrenceDays.includes(yesterdayDayIndex) : true;
 
-                // Log Miss if: Active Yesterday AND No History for Yesterday AND (Not Verified Yesterday)
-                // Actually, if it was verified yesterday, there's a history entry 'verified'.
-                // If it was missed, we might have mapped it? No.
+                // School Check for Yesterday
+                if (task.isSchool) {
+                    let isSchoolDayYesterday = yesterdayDayIndex >= 1 && yesterdayDayIndex <= 5;
+                    if (globalSettings?.nonSchoolDays?.some(d => d.date === yesterdayStr)) {
+                        isSchoolDayYesterday = false;
+                    }
+                    if (!isSchoolDayYesterday) wasActiveYesterday = false;
+                }
+
                 if (wasActiveYesterday) {
                     const hasHistoryForYesterday = history.some(h => h.taskId === task.id && h.date === yesterdayStr);
 
@@ -501,17 +561,29 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
 
     const isTaskActiveToday = (task: Task) => {
         const today = new Date();
-        const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, ...
+        const dateStr = getLocalDateString(today);
 
-        // Simple School Day Logic (Mon-Fri) - Holidays to be added later
-        const isSchoolDay = dayOfWeek >= 1 && dayOfWeek <= 5;
+        // Calculate Day Of Week based on the Timezone-Adjusted Date
+        // Construct a date object from the string components to get the correct weekday for that date
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const zDate = new Date(y, m - 1, d);
+        const dayOfWeek = zDate.getDay(); // 0 = Sunday, 1 = Monday, ...
 
-        // 1. One Time: Always visible (filtering happens by status)
-        if (task.frequency === 'one-time') return true;
+        // School Day Logic: Mon-Fri by default, overridden by nonSchoolDays setting
+        let isSchoolDay = dayOfWeek >= 1 && dayOfWeek <= 5;
 
-        // Check Vacation Mode (Parent Setting)
-        // Check Vacation Mode (Any Parent)
-        const isVacationMode = users.some(u => u.role === 'parent' && u.isVacationMode);
+        if (globalSettings?.nonSchoolDays?.some(d => d.date === dateStr)) {
+            isSchoolDay = false;
+        }
+
+        // 1. One Time: Visible if due today or past (or no date), BUT NOT FUTURE
+        if (task.frequency === 'one-time') {
+            if (task.dueDate && task.dueDate > dateStr) return false;
+            return true;
+        }
+
+        // Check Vacation Mode (Global)
+        const isVacationMode = globalSettings?.isVacationMode || false;
 
         // 2. School Check
         // If Vacation Mode is ON, school tasks are hidden regardless of day
@@ -530,6 +602,14 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         return true;
     };
 
+    const addCategory = async (category: Omit<Category, 'id'>) => {
+        await addDoc(collection(db, "categories"), category);
+    };
+
+    const deleteCategory = async (categoryId: string) => {
+        await deleteDoc(doc(db, "categories", categoryId));
+    };
+
     return (
         <TaskContext.Provider
             value={{
@@ -538,6 +618,9 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 users,
                 history,
                 login,
+                categories,
+                addCategory,
+                deleteCategory,
                 logout,
                 addTask,
                 updateTask,
@@ -562,7 +645,8 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 rejectRedemption,
                 isTaskActiveToday,
                 globalSettings,
-                updateGlobalSettings
+                updateGlobalSettings,
+                getLocalDateString: () => getLocalDateString()
             }}
         >
             {children}

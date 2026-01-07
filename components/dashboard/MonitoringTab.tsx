@@ -12,7 +12,7 @@ import { AdvancedFilterControls } from '../ui/AdvancedFilterControls';
 
 export const MonitoringTab = () => {
     const navigation = useNavigation<any>();
-    const { tasks, users, verifyTask, rejectTask, deleteTask, isTaskActiveToday } = useTaskContext();
+    const { tasks, users, verifyTask, rejectTask, deleteTask, isTaskActiveToday, getLocalDateString } = useTaskContext();
     // const children = users.filter(u => u.role === 'child');
 
     // Add date filter state - defaults to Current Date (Today)
@@ -161,6 +161,11 @@ export const MonitoringTab = () => {
         }
     };
 
+    // Timezone Aware Comparison
+    const todayStr = getLocalDateString();
+    const filterDateStr = toDateString(filterDate);
+    const isFutureDate = filterDateStr > todayStr;
+
     const renderTask = ({ item }: { item: Task }) => (
         <ParentTaskCard
             task={item}
@@ -171,6 +176,7 @@ export const MonitoringTab = () => {
             onEdit={(item) => navigation.navigate('CreateTask', { taskToEdit: item })}
             onDelete={confirmUnassign}
             className=""
+            isReadOnly={isFutureDate}
         />
     );
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Image, Modal, TouchableOpacity } from 'react-native';
+import { useTaskContext } from '../context/TaskContext';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { TaskTags } from './TaskTags';
@@ -15,10 +16,13 @@ interface ParentTaskCardProps {
     onDelete?: (taskId: string) => void;
     onConfirmDeleteMessage?: (index: number) => void; // Not used here but keeping interface clean
     showAssignAction?: boolean;
+    isReadOnly?: boolean;
     className?: string;
 }
 
-export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEdit, onDelete, showAssignAction = true, className = "mb-4" }: ParentTaskCardProps) => {
+export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEdit, onDelete, showAssignAction = true, isReadOnly = false, className = "mb-4" }: ParentTaskCardProps) => {
+    const { categories } = useTaskContext();
+    const category = categories.find(c => c.id === task.categoryId);
     const isVerified = task.status === 'verified';
     const isCompleted = task.status === 'completed';
     const awaitingVerification = isCompleted && !isVerified;
@@ -28,7 +32,10 @@ export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEd
         return (
             <Card className={`bg-white dark:bg-slate-800 border-l-4 border-gray-400 ${className}`}>
                 <View className="mb-2">
-                    <Text className="text-lg font-bold text-gray-900 dark:text-white">{task.title}</Text>
+                    <Text className="text-lg font-bold text-gray-900 dark:text-white">
+                        {category && <Text>{category.icon} </Text>}
+                        {task.title}
+                    </Text>
                     <Text className="text-gray-500 text-sm mt-1">{task.description}</Text>
                 </View>
 
@@ -76,7 +83,10 @@ export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEd
             <Card className={`bg-white dark:bg-slate-800 border-l-4 border-l-indigo-500 ${className}`}>
                 <View className="flex-row justify-between items-start mb-2">
                     <View className="flex-1">
-                        <Text className="text-lg font-bold text-gray-900 dark:text-white">{task.title}</Text>
+                        <Text className="text-lg font-bold text-gray-900 dark:text-white">
+                            {category && <Text>{category.icon} </Text>}
+                            {task.title}
+                        </Text>
                         <Text className="text-gray-500 text-sm mt-1">{task.description}</Text>
                     </View>
                     <View className={`px-2 py-1 rounded text-xs ${task.status === 'verified' ? 'bg-green-100 text-green-700' :
@@ -109,7 +119,15 @@ export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEd
                     <TaskTags task={task} showTime={true} />
                 </View>
 
-                {task.evidenceUrl && (
+                {task.evidenceUrl && task.evidenceUrl.startsWith('JUSTIFICADO:') ? (
+                    <View className="mt-4 mb-2 bg-orange-50 border border-orange-200 p-3 rounded-lg flex-row gap-2">
+                        <Text className="text-2xl">⚠️</Text>
+                        <View className="flex-1">
+                            <Text className="text-orange-800 font-bold mb-1">Tarea Justificada</Text>
+                            <Text className="text-orange-700 italic">"{task.evidenceUrl.replace('JUSTIFICADO:', '').trim()}"</Text>
+                        </View>
+                    </View>
+                ) : task.evidenceUrl && (
                     <TouchableOpacity onPress={() => setImageModalVisible(true)}>
                         <View className="mt-4 mb-2 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
                             <Image
@@ -125,7 +143,7 @@ export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEd
 
                 <View className="flex-row justify-end items-center mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
                     {/* Actions for Parents: Verify if pending OR completed (but not verified) */}
-                    {(task.status === 'pending' || awaitingVerification || task.status === 'expired') && !isVerified && (
+                    {(task.status === 'pending' || awaitingVerification || task.status === 'expired') && !isVerified && !isReadOnly && (
                         <View className="flex-row gap-2 flex-wrap justify-end">
                             {onDelete && (
                                 <Button

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Platform, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Platform, Alert, ActivityIndicator, Modal, TextInput } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useTaskContext } from '../context/TaskContext';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../firebaseConfig';
 import { Card } from './ui/Card';
@@ -12,7 +13,11 @@ interface ChildTaskCardProps {
 }
 
 export const ChildTaskCard = ({ item, onComplete }: ChildTaskCardProps) => {
+    const { categories } = useTaskContext();
+    const category = categories.find(c => c.id === item.categoryId);
     const [uploading, setUploading] = useState(false);
+    const [justifyModalVisible, setJustifyModalVisible] = useState(false);
+    const [justificationReason, setJustificationReason] = useState('');
     const isPending = item.status === 'pending';
 
     const handleTakePhoto = async () => {
@@ -99,6 +104,7 @@ export const ChildTaskCard = ({ item, onComplete }: ChildTaskCardProps) => {
             <View className="flex-row items-center">
                 <View className="flex-1">
                     <Text className={`text-lg font-bold ${item.status === 'verified' ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                        {category && <Text>{category.icon} </Text>}
                         {item.title}
                     </Text>
                     {item.description && (
@@ -136,6 +142,19 @@ export const ChildTaskCard = ({ item, onComplete }: ChildTaskCardProps) => {
                         </View>
                     )}
 
+                    {item.shift && item.shift !== 'no-time' && (
+                        <View className="mt-1.5 flex-row">
+                            <Text className={`text-xs px-2 py-0.5 rounded capitalize ${item.shift === 'morning' ? 'bg-amber-100 text-amber-800' :
+                                item.shift === 'afternoon' ? 'bg-orange-100 text-orange-800' :
+                                    item.shift === 'night' ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                {item.shift === 'morning' ? '🌅 Mañana' :
+                                    item.shift === 'afternoon' ? '☀️ Tarde' :
+                                        item.shift === 'night' ? '🌙 Noche' : 'Sin Horario'}
+                            </Text>
+                        </View>
+                    )}
+
                     <View className="flex-row gap-2 mt-2 items-center flex-wrap">
                         {item.isSchool && (
                             <Text className="self-start text-xs bg-sky-100 text-sky-700 px-2 py-1 rounded font-bold overflow-hidden">
@@ -154,22 +173,77 @@ export const ChildTaskCard = ({ item, onComplete }: ChildTaskCardProps) => {
             </View>
 
             {isPending && (
-                <View className="mt-4">
+                <View className="mt-4 flex-row gap-2">
                     {uploading ? (
-                        <View className="bg-indigo-100 px-4 py-3 rounded-xl items-center justify-center">
+                        <View className="bg-indigo-100 px-4 py-3 rounded-xl items-center justify-center flex-1">
                             <ActivityIndicator color="#4f46e5" />
                             <Text className="text-indigo-600 text-xs mt-1">Subiendo foto...</Text>
                         </View>
                     ) : (
-                        <TouchableOpacity
-                            onPress={handlePressComplete}
-                            className="bg-indigo-600 px-4 py-3 rounded-xl items-center justify-center shadow-sm active:opacity-80 flex-row gap-2"
-                        >
-                            <Text className="text-white font-bold font-semibold">¡Ya lo hice!</Text>
-                        </TouchableOpacity>
+                        <>
+                            <TouchableOpacity
+                                onPress={handlePressComplete}
+                                className="bg-indigo-600 px-4 py-3 rounded-xl items-center justify-center shadow-sm active:opacity-80 flex-row gap-2 flex-1"
+                            >
+                                <Text className="text-white font-bold text-center">¡Ya lo hice! 📸</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                onPress={() => setJustifyModalVisible(true)}
+                                className="bg-orange-100 border border-orange-200 px-3 py-3 rounded-xl items-center justify-center shadow-sm active:opacity-80 w-14"
+                            >
+                                <Text className="text-orange-600 font-bold text-2xl">⚠️</Text>
+                            </TouchableOpacity>
+                        </>
                     )}
                 </View>
             )}
+
+            <Modal
+                visible={justifyModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setJustifyModalVisible(false)}
+            >
+                <View className="flex-1 bg-black/50 items-center justify-center p-4">
+                    <View className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-xl">
+                        <Text className="text-xl font-bold text-gray-800 mb-2">Justificar Tarea</Text>
+                        <Text className="text-gray-500 mb-4 tex-sm">
+                            ¿Por qué no puedes realizar esta tarea hoy? (Opcional)
+                        </Text>
+
+                        <TextInput
+                            value={justificationReason}
+                            onChangeText={setJustificationReason}
+                            placeholder="Ej: Me duele la cabeza, no hay material..."
+                            multiline
+                            numberOfLines={3}
+                            className="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-6 text-gray-800"
+                            style={{ textAlignVertical: 'top' }}
+                        />
+
+                        <View className="flex-row gap-3">
+                            <TouchableOpacity
+                                onPress={() => setJustifyModalVisible(false)}
+                                className="flex-1 py-3 items-center justify-center rounded-xl bg-gray-200"
+                            >
+                                <Text className="text-gray-600 font-bold">Cancelar</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={() => {
+                                    setJustifyModalVisible(false);
+                                    // Send specialized evidence string
+                                    const evidence = `JUSTIFICADO: ${justificationReason.trim() || 'Sin razón especificada'}`;
+                                    onComplete(item, evidence);
+                                }}
+                                className="flex-1 py-3 items-center justify-center rounded-xl bg-orange-500"
+                            >
+                                <Text className="text-white font-bold">Enviar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
 
             {item.status === 'completed' && (
                 <View className="mt-4 bg-amber-50 p-2 rounded items-center">

@@ -9,7 +9,7 @@ import { ChildTaskCard } from '../components/ChildTaskCard';
 import StatisticsScreen from './StatisticsScreen';
 
 export default function ChildDashboard({ navigation }: any) {
-    const { currentUser, tasks, history, completeTask, logout, messages, rewards, redeemReward, redemptions, isTaskActiveToday } = useTaskContext();
+    const { currentUser, tasks, history, completeTask, logout, messages, rewards, redeemReward, redemptions, isTaskActiveToday, categories } = useTaskContext();
     const [messageModalVisible, setMessageModalVisible] = useState(false);
     const [currentMessage, setCurrentMessage] = useState('');
     const [canClose, setCanClose] = useState(false);
@@ -20,6 +20,7 @@ export default function ChildDashboard({ navigation }: any) {
     const [typeFilter, setTypeFilter] = useState<'all' | 'responsibility' | 'extra' | 'school'>('all');
     const [searchText, setSearchText] = useState('');
     const [showFilters, setShowFilters] = useState(false);
+    const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
 
     const myTasks = tasks
         .filter(t => t.assignedTo === currentUser?.id && (isTaskActiveToday ? isTaskActiveToday(t) : true))
@@ -265,19 +266,72 @@ export default function ChildDashboard({ navigation }: any) {
                         />
                     </View>
 
-                    <FlatList
-                        data={myTasks}
-                        renderItem={renderTask}
-                        keyExtractor={item => item.id}
-                        contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
-                        ListEmptyComponent={
+                    <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
+                        {myTasks.length === 0 ? (
                             <View className="items-center justify-center py-10">
                                 <Text className="text-6xl mb-4">🎉</Text>
                                 <Text className="text-gray-500 text-lg text-center dark:text-gray-400">¡No hay tareas!</Text>
                                 <Text className="text-gray-400 text-center mt-2 dark:text-gray-500">Intenta cambiar los filtros.</Text>
                             </View>
-                        }
-                    />
+                        ) : (
+                            (() => {
+                                // 1. Map Categories to Sections
+                                const categorySections = categories.map(cat => ({
+                                    id: cat.id,
+                                    title: `${cat.icon} ${cat.name}`,
+                                    bg: 'bg-white',
+                                    border: 'border-gray-200',
+                                    text: 'text-gray-800'
+                                }));
+
+                                // 2. Add "No Category"
+                                categorySections.push({
+                                    id: 'uncategorized',
+                                    title: '📂 General',
+                                    bg: 'bg-gray-50',
+                                    border: 'border-gray-200',
+                                    text: 'text-gray-600'
+                                });
+
+                                return categorySections.map(section => {
+                                    const sectionTasks = myTasks.filter(t =>
+                                        section.id === 'uncategorized'
+                                            ? !t.categoryId || !categories.find(c => c.id === t.categoryId)
+                                            : t.categoryId === section.id
+                                    );
+
+                                    if (sectionTasks.length === 0) return null;
+
+                                    const isExpanded = expandedCategories[section.id] ?? true;
+
+                                    return (
+                                        <View key={section.id} className="mb-4">
+                                            <TouchableOpacity
+                                                onPress={() => setExpandedCategories(prev => ({ ...prev, [section.id]: !isExpanded }))}
+                                                className={`flex-row justify-between items-center p-3 rounded-xl border ${section.bg} ${section.border} mb-2 shadow-sm bg-white`}
+                                            >
+                                                <View className="flex-row items-center gap-2">
+                                                    <Text className={`font-bold ${section.text} text-lg`}>{section.title}</Text>
+                                                    <View className="bg-gray-100 px-2 py-0.5 rounded-full">
+                                                        <Text className="text-xs font-bold text-gray-600">{sectionTasks.length}</Text>
+                                                    </View>
+                                                </View>
+                                                <Text className="text-gray-400">{isExpanded ? '▼' : '▶'}</Text>
+                                            </TouchableOpacity>
+
+                                            {isExpanded && (
+                                                <View className="gap-4">
+                                                    {sectionTasks.map(item => (
+                                                        <ChildTaskCard key={item.id} item={item} onComplete={handleComplete} />
+                                                    ))}
+                                                </View>
+                                            )}
+                                        </View>
+                                    );
+                                });
+                            })()
+                        )}
+                    </ScrollView>
                 </>
             ) : currentTab === 'history' ? (
                 <View className="flex-1">

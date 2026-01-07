@@ -6,11 +6,12 @@ import { DatePicker } from '../components/ui/DatePicker';
 import { TaskFrequency } from '../types';
 
 export default function CreateTaskScreen({ navigation, route }: any) {
-    const { addTask, updateTask, currentUser } = useTaskContext();
+    const { addTask, updateTask, currentUser, categories } = useTaskContext();
     const taskToEdit = route.params?.taskToEdit;
 
     // Form State
     const [title, setTitle] = useState(taskToEdit?.title || '');
+    const [categoryId, setCategoryId] = useState(taskToEdit?.categoryId || '');
     const [description, setDescription] = useState(taskToEdit?.description || '');
 
     // Task Configuration State
@@ -19,13 +20,17 @@ export default function CreateTaskScreen({ navigation, route }: any) {
     const [isSchool, setIsSchool] = useState(taskToEdit?.isSchool || false);
     const [recurrenceDays] = useState<number[]>(taskToEdit?.recurrenceDays || []);
     const [points, setPoints] = useState(taskToEdit?.points ? taskToEdit.points.toString() : '');
+    const [shift, setShift] = useState<'morning' | 'afternoon' | 'night' | 'no-time'>(taskToEdit?.shift || 'no-time');
     const [dueDate, setDueDate] = useState<string>(taskToEdit?.dueDate || '');
 
     // Time Window State
     const [timeType, setTimeType] = useState<'specific' | 'window' | 'none'>(() => {
-        if (taskToEdit?.timeWindow) return 'window';
-        if (taskToEdit?.dueTime) return 'specific';
-        return 'specific'; // Default
+        if (taskToEdit) {
+            if (taskToEdit.timeWindow) return 'window';
+            if (taskToEdit.dueTime) return 'specific';
+            return 'none';
+        }
+        return 'specific';
     });
     const [dueTime, setDueTime] = useState(taskToEdit?.dueTime || '');
     const [windowStart, setWindowStart] = useState(taskToEdit?.timeWindow?.start || '');
@@ -52,8 +57,10 @@ export default function CreateTaskScreen({ navigation, route }: any) {
             type: isResponsibility ? 'obligatory' : 'additional',
             frequency,
             isResponsibility,
+            categoryId,
             isSchool,
             recurrenceDays,
+            shift,
         };
 
         if (points) taskData.points = parseInt(points);
@@ -172,25 +179,34 @@ export default function CreateTaskScreen({ navigation, route }: any) {
                         </View>
 
                         {/* Date Picker for One-Time */}
-                        {frequency === 'one-time' && (
-                            <View className="mt-2">
-                                <Text className="text-gray-700 font-medium mb-1">Fecha Programada (Opcional en Plantilla):</Text>
-                                <DatePicker
-                                    value={dueDate}
-                                    onChange={(d) => setDueDate(d)}
-                                />
-                                {dueDate !== '' && (
-                                    <TouchableOpacity onPress={() => setDueDate('')}>
-                                        <Text className="text-xs text-red-500 mt-1">Limpiar Fecha (Dejar como plantilla general)</Text>
-                                    </TouchableOpacity>
-                                )}
-                            </View>
-                        )}
+
                     </View>
 
 
+                    <View className="mb-6">
+                        <Text className="text-gray-700 font-medium mb-2">Categoría (Opcional):</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row">
+                            <View className="flex-row gap-2">
+                                {categories.map(cat => (
+                                    <TouchableOpacity
+                                        key={cat.id}
+                                        onPress={() => setCategoryId(cat.id === categoryId ? '' : cat.id)}
+                                        className={`items-center justify-center p-2 rounded-xl border ${categoryId === cat.id ? 'bg-indigo-100 border-indigo-500' : 'bg-white border-gray-200'
+                                            }`}
+                                        style={{ width: 72, height: 72 }}
+                                    >
+                                        <Text className="text-2xl mb-1">{cat.icon}</Text>
+                                        <Text className="text-[10px] text-center font-medium leading-tight text-gray-700">{cat.name}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </ScrollView>
+                    </View>
+
+
+
                     <View>
-                        <Text className="text-gray-700 font-medium mb-1">Tipo de Horario:</Text>
+                        <Text className="text-gray-700 font-medium mb-1">Tipo de Horario (Restrictivo):</Text>
                         <View className="flex-row flex-wrap gap-2 mb-2">
                             <TouchableOpacity
                                 onPress={() => setTimeType('specific')}

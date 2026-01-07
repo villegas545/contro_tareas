@@ -120,6 +120,9 @@ export const AssignmentTab = () => {
                         frequency: template.frequency,
                         isResponsibility: template.isResponsibility,
                         isSchool: template.isSchool,
+                        shift: template.shift,
+                        categoryId: template.categoryId,
+                        originalTaskId: template.id, // Link for updates
                     };
 
                     if (template.points) newTask.points = template.points;

@@ -37,6 +37,17 @@ export const TaskTags = ({ task, showTime = false }: TaskTagsProps) => {
                 {task.frequency === 'daily' ? '🔄 Diario' : task.frequency === 'weekly' ? '🔄 Semanal' : '📌 Una vez'}
             </Text>
 
+            {task.shift && task.shift !== 'no-time' && (
+                <Text className={`text-xs px-2 py-1 rounded capitalize ${task.shift === 'morning' ? 'bg-amber-100 text-amber-800' :
+                        task.shift === 'afternoon' ? 'bg-orange-100 text-orange-800' :
+                            task.shift === 'night' ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                    {task.shift === 'morning' ? '🌅 Mañana' :
+                        task.shift === 'afternoon' ? '☀️ Tarde' :
+                            task.shift === 'night' ? '🌙 Noche' : 'Sin Horario'}
+                </Text>
+            )}
+
             {(task.points || 0) > 0 && (
                 <Text className="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded">
                     ⭐️ {task.points} pts

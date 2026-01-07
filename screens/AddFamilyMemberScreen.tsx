@@ -11,6 +11,7 @@ export default function AddFamilyMemberScreen({ navigation, route }: any) {
     const [username, setUsername] = useState(editingUser?.username || '');
     const [password, setPassword] = useState('');
     const [color, setColor] = useState(editingUser?.color || '#ef4444');
+    const [role, setRole] = useState<'parent' | 'child'>(editingUser?.role || 'child');
 
     const COLORS = [
         '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981',
@@ -44,16 +45,17 @@ export default function AddFamilyMemberScreen({ navigation, route }: any) {
                 name,
                 username,
                 password,
-                role: 'child',
+                role,
                 color,
                 avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + username
             });
-            Alert.alert("Éxito", "Hijo agregado correctamente");
+            Alert.alert("Éxito", "Familiar agregado correctamente");
         } else {
             updateUser(editingUser.id, {
                 name,
                 username,
                 ...(password ? { password } : {}),
+                role,
                 color
             });
             Alert.alert("Éxito", "Información actualizada");
@@ -97,6 +99,27 @@ export default function AddFamilyMemberScreen({ navigation, route }: any) {
                     secureTextEntry
                     className="bg-gray-50 p-4 rounded-xl border border-gray-200 text-base"
                 />
+            </View>
+
+            <View className="mb-6">
+                <Text className="text-gray-700 font-medium mb-1">Rol</Text>
+                <View className="flex-row gap-4">
+                    <TouchableOpacity
+                        onPress={() => setRole('child')}
+                        className={`flex-1 p-4 rounded-xl border flex-row items-center justify-center gap-2 ${role === 'child' ? 'bg-indigo-50 border-indigo-500' : 'bg-gray-50 border-gray-200'}`}
+                    >
+                        <Text className="text-2xl">👶</Text>
+                        <Text className={`font-bold ${role === 'child' ? 'text-indigo-700' : 'text-gray-600'}`}>Hijo/a</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => setRole('parent')}
+                        className={`flex-1 p-4 rounded-xl border flex-row items-center justify-center gap-2 ${role === 'parent' ? 'bg-indigo-50 border-indigo-500' : 'bg-gray-50 border-gray-200'}`}
+                    >
+                        <Text className="text-2xl">👮‍♀️</Text>
+                        <Text className={`font-bold ${role === 'parent' ? 'text-indigo-700' : 'text-gray-600'}`}>Padre/Madre</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
 
             <View className="mb-8">
