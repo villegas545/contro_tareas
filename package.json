@@ -11,7 +11,8 @@
     "reset:inventory": "node reset_inventory.js",
     "seed:templates": "node seed_templates.js",
     "build:apk": "eas build -p android --profile preview",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "backup-db": "ts-node scripts/backup_db.ts"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -53,6 +54,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-native": "^5.0.0",
     "eslint-plugin-sonarjs": "^3.0.5",
+    "firebase-admin": "^13.6.0",
     "ts-node": "^10.9.2",
     "typescript": "~5.9.2"
   },

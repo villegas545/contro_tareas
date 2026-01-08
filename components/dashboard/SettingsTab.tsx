@@ -5,6 +5,7 @@ import { useTaskContext } from '../../context/TaskContext';
 import { Card } from '../ui/Card';
 
 export const SettingsTab = () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const navigation = useNavigation<any>();
     const { globalSettings, updateGlobalSettings } = useTaskContext();
 
@@ -84,7 +85,7 @@ export const SettingsTab = () => {
                     <Text className="text-2xl">🌎</Text>
                     <View>
                         <Text className="text-lg font-bold text-gray-800 dark:text-gray-100">Zona Horaria</Text>
-                        <Text className="text-gray-500 text-xs">Define la hora para el cálculo de "Hoy".</Text>
+                        <Text className="text-gray-500 text-xs">Define la hora para el cálculo de &quot;Hoy&quot;.</Text>
                     </View>
                 </View>
 

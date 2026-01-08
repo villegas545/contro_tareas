@@ -8,6 +8,19 @@ import { Button } from '../components/ui/Button';
 import { DatePicker } from '../components/ui/DatePicker';
 import { AdvancedFilterControls } from '../components/ui/AdvancedFilterControls';
 
+
+interface HistoryItem {
+    id?: string;
+    taskId?: string;
+    taskTitle: string;
+    assignedTo?: string;
+    status: string;
+    date: string | number;
+    points: number;
+    isResponsibility?: boolean;
+    shift?: string;
+}
+
 export default function StatisticsScreen({ navigation, route, embedded }: any) {
     const { history, users, tasks, currentUser } = useTaskContext();
     const children = users.filter((u: any) => u.role === 'child');
@@ -74,7 +87,7 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
     }, [startOfWeek, endOfWeek, currentDate, viewMode]);
 
     const filteredHistory = useMemo(() => {
-        return history.filter((item: any) => {
+        return history.filter((item: HistoryItem) => {
             let dateToCheck;
             if (item.date === 'Hoy') {
                 dateToCheck = new Date();
@@ -94,12 +107,12 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
 
     const stats = useMemo(() => {
         const targetChildren = selectedChildId
-            ? children.filter((c: any) => c.id === selectedChildId)
+            ? children.filter((c) => c.id === selectedChildId)
             : children;
 
-        return targetChildren.map((child: any) => {
+        return targetChildren.map((child) => {
             // Helper to check filters against an item (History or Task-like)
-            const matchesFilters = (item: any) => {
+            const matchesFilters = (item: HistoryItem) => {
                 // Text Search
                 if (searchText) {
                     if (!item.taskTitle.toLowerCase().includes(searchText.toLowerCase())) return false;
@@ -136,21 +149,21 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
                         if (item.isResponsibility) return false;
                     } else if (typeFilter === 'school') {
                         // Need to look up original task for 'isSchool' if not in item
-                        const original = tasks.find((t: any) => t.id === (item.taskId || item.id));
+                        const original = tasks.find((t) => t.id === (item.taskId || item.id));
                         if (!original?.isSchool) return false;
                     }
                 }
                 return true;
             };
 
-            const childHistory = filteredHistory.filter((h: any) => h.assignedTo === child.id).filter(matchesFilters);
+            const childHistory = filteredHistory.filter((h) => h.assignedTo === child.id).filter(matchesFilters);
 
             // But if we are looking at Past Week, pending tasks aren't historically there, they are currently pending.
             // We'll show pending tasks only if viewing Current Week or Today.
             const isLatest = new Date() <= endOfWeek;
 
-            const activePending = isLatest ? tasks.filter((t: any) => t.assignedTo === child.id && t.status === 'pending') : [];
-            const activeWaiting = isLatest ? tasks.filter((t: any) => t.assignedTo === child.id && t.status === 'completed') : [];
+            const activePending = isLatest ? tasks.filter((t) => t.assignedTo === child.id && t.status === 'pending') : [];
+            const activeWaiting = isLatest ? tasks.filter((t) => t.assignedTo === child.id && t.status === 'completed') : [];
 
             // Filter active by date if Day Mode? 
             // If Day Mode is "Yesterday", active tasks (which are current) don't belong there usually, 
@@ -159,45 +172,47 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
             const showActive = isCurrentPeriod;
 
             // Map active to history format for display, AND apply filters
-            const pendingAsHistory = showActive ? activePending.map((t: any) => ({
+            const pendingAsHistory = showActive ? activePending.map((t) => ({
                 id: t.id,
                 taskId: t.id,
                 taskTitle: t.title,
                 status: 'pending',
                 date: 'Hoy',
                 points: t.points || 0,
-                isResponsibility: t.isResponsibility
+                isResponsibility: t.isResponsibility,
+                shift: t.shift
             })).filter(matchesFilters) : [];
 
-            const waitingAsHistory = showActive ? activeWaiting.map((t: any) => ({
+            const waitingAsHistory = showActive ? activeWaiting.map((t) => ({
                 id: t.id,
                 taskId: t.id,
                 taskTitle: t.title,
                 status: 'completed',
                 date: 'Hoy',
                 points: t.points || 0,
-                isResponsibility: t.isResponsibility
+                isResponsibility: t.isResponsibility,
+                shift: t.shift
             })).filter(matchesFilters) : [];
 
             const combinedActivity = [...childHistory, ...pendingAsHistory, ...waitingAsHistory];
 
             // Re-calculate Stats based on Filtered Data?
             // Ideally stats should reflect what is SEEN.
-            const totalPoints = combinedActivity.reduce((acc: any, curr: any) => acc + (curr.status === 'verified' ? curr.points : 0), 0);
+            const totalPoints = combinedActivity.reduce((acc, curr) => acc + (curr.status === 'verified' ? curr.points : 0), 0);
 
-            const completed = combinedActivity.filter((h: any) => h.status === 'verified').length;
-            const missed = combinedActivity.filter((h: any) => h.status === 'missed' || h.status === 'expired').length;
+            const completed = combinedActivity.filter((h) => h.status === 'verified').length;
+            const missed = combinedActivity.filter((h) => h.status === 'missed' || h.status === 'expired').length;
             const pending = pendingAsHistory.length;
             const waiting = waitingAsHistory.length;
 
             // Punishment Logic (Week based)
             // Warning should probably be based on REALITY (Raw), not filtered view.
             // But for UI consistency, let's keep it on raw history for the week.
-            const rawChildHistory = filteredHistory.filter((h: any) => h.assignedTo === child.id);
+            const rawChildHistory = filteredHistory.filter((h) => h.assignedTo === child.id);
             let punishmentWarning = false;
             let missedCount = 0;
             if (viewMode === 'week') {
-                missedCount = rawChildHistory.filter((h: any) => h.status === 'missed' && h.isResponsibility).length;
+                missedCount = rawChildHistory.filter((h) => h.status === 'missed' && h.isResponsibility).length;
                 punishmentWarning = missedCount > 5;
             }
 
@@ -231,9 +246,9 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
         try {
             let csvContent = "Fecha,Nino,Tarea,Estado,Puntos,Tipo,Turno\n";
 
-            stats.forEach((childStat: any) => {
+            stats.forEach((childStat) => {
                 const childName = childStat.child.name;
-                childStat.history.forEach((t: any) => {
+                childStat.history.forEach((t) => {
                     // map values
                     const date = t.date === 'Hoy' ? new Date().toISOString().split('T')[0] : t.date;
                     const status = t.status === 'verified' ? 'Verificado' :
@@ -269,10 +284,10 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
                 link.click();
                 document.body.removeChild(link);
             } else {
-                // @ts-ignore
+                // @ts-expect-error FileSystem types might be missing in web context or specific setup
                 const fileUri = FileSystem.documentDirectory + fileName;
 
-                // @ts-ignore
+                // @ts-expect-error FileSystem types
                 await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
 
                 if (await Sharing.isAvailableAsync()) {

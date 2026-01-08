@@ -124,7 +124,7 @@ export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEd
                         <Text className="text-2xl">⚠️</Text>
                         <View className="flex-1">
                             <Text className="text-orange-800 font-bold mb-1">Tarea Justificada</Text>
-                            <Text className="text-orange-700 italic">"{task.evidenceUrl.replace('JUSTIFICADO:', '').trim()}"</Text>
+                            <Text className="text-orange-700 italic">&quot;{task.evidenceUrl.replace('JUSTIFICADO:', '').trim()}&quot;</Text>
                         </View>
                     </View>
                 ) : task.evidenceUrl && (

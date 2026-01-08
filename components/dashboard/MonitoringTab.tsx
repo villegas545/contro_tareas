@@ -12,7 +12,7 @@ import { AdvancedFilterControls } from '../ui/AdvancedFilterControls';
 
 export const MonitoringTab = () => {
     const navigation = useNavigation<any>();
-    const { tasks, users, verifyTask, rejectTask, deleteTask, isTaskActiveToday, getLocalDateString } = useTaskContext();
+    const { tasks, users, categories, verifyTask, rejectTask, deleteTask, isTaskActiveToday, getLocalDateString } = useTaskContext();
     // const children = users.filter(u => u.role === 'child');
 
     // Add date filter state - defaults to Current Date (Today)
@@ -24,6 +24,7 @@ export const MonitoringTab = () => {
     const [searchText, setSearchText] = useState('');
     const [showFilters, setShowFilters] = useState(false);
     const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+    const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
 
     // Helper to format date for DatePicker "YYYY-MM-DD"
     const toDateString = (date: Date) => {
@@ -260,28 +261,79 @@ export const MonitoringTab = () => {
                     {activeTasks.length === 0 ? (
                         <Text className="text-gray-400 text-center py-8">No hay tareas activas</Text>
                     ) : (
-                        activeTasks.map(item => {
-                            const isSelected = selectedTaskIds.includes(item.id);
-                            return (
-                                <TouchableOpacity
-                                    key={item.id}
-                                    onPress={() => handleToggleSelection(item)}
-                                    activeOpacity={0.9}
-                                    disabled={item.status === 'verified'}
-                                >
-                                    <View className={`mb-4 rounded-xl border-4 overflow-hidden relative ${isSelected ? 'border-green-500 bg-green-50 transform scale-[1.02]' : 'border-transparent'}`}>
-                                        {isSelected && (
-                                            <View className="absolute top-2 right-2 z-10 bg-green-600 rounded-full w-6 h-6 items-center justify-center">
-                                                <Text className="text-white font-bold">✓</Text>
+                        (() => {
+                            const categorySections = categories.map(cat => ({
+                                id: cat.id,
+                                title: `${cat.icon} ${cat.name}`,
+                                bg: 'bg-white',
+                                border: 'border-gray-200',
+                                text: 'text-gray-800'
+                            }));
+
+                            categorySections.push({
+                                id: 'uncategorized',
+                                title: '📂 General',
+                                bg: 'bg-gray-50',
+                                border: 'border-gray-200',
+                                text: 'text-gray-600'
+                            });
+
+                            return categorySections.map(section => {
+                                const sectionTasks = activeTasks.filter(t =>
+                                    section.id === 'uncategorized'
+                                        ? !t.categoryId || !categories.find(c => c.id === t.categoryId)
+                                        : t.categoryId === section.id
+                                );
+
+                                if (sectionTasks.length === 0) return null;
+
+                                const isExpanded = expandedCategories[section.id] ?? true;
+
+                                return (
+                                    <View key={section.id} className="mb-4">
+                                        <TouchableOpacity
+                                            onPress={() => setExpandedCategories(prev => ({ ...prev, [section.id]: !isExpanded }))}
+                                            className={`flex-row justify-between items-center p-3 rounded-xl border ${section.bg} ${section.border} mb-2 shadow-sm bg-white`}
+                                        >
+                                            <View className="flex-row items-center gap-2">
+                                                <Text className={`font-bold ${section.text} text-lg`}>{section.title}</Text>
+                                                <View className="bg-gray-100 px-2 py-0.5 rounded-full">
+                                                    <Text className="text-xs font-bold text-gray-600">{sectionTasks.length}</Text>
+                                                </View>
+                                            </View>
+                                            <Text className="text-gray-400">{isExpanded ? '▼' : '▶'}</Text>
+                                        </TouchableOpacity>
+
+                                        {isExpanded && (
+                                            <View className="gap-0">
+                                                {sectionTasks.map(item => {
+                                                    const isSelected = selectedTaskIds.includes(item.id);
+                                                    return (
+                                                        <TouchableOpacity
+                                                            key={item.id}
+                                                            onPress={() => handleToggleSelection(item)}
+                                                            activeOpacity={0.9}
+                                                            disabled={item.status === 'verified'}
+                                                        >
+                                                            <View className={`mb-4 rounded-xl border-4 overflow-hidden relative ${isSelected ? 'border-green-500 bg-green-50 transform scale-[1.02]' : 'border-transparent'}`}>
+                                                                {isSelected && (
+                                                                    <View className="absolute top-2 right-2 z-10 bg-green-600 rounded-full w-6 h-6 items-center justify-center">
+                                                                        <Text className="text-white font-bold">✓</Text>
+                                                                    </View>
+                                                                )}
+                                                                <View>
+                                                                    {renderTask({ item })}
+                                                                </View>
+                                                            </View>
+                                                        </TouchableOpacity>
+                                                    );
+                                                })}
                                             </View>
                                         )}
-                                        <View>
-                                            {renderTask({ item })}
-                                        </View>
                                     </View>
-                                </TouchableOpacity>
-                            );
-                        })
+                                );
+                            });
+                        })()
                     )}
                 </View>
             </ScrollView >

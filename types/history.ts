@@ -9,4 +9,5 @@ export interface TaskHistory {
     date: string; // ISO Date (YYYY-MM-DD)
     completedAt?: string;
     isResponsibility?: boolean;
+    shift?: string;
 }

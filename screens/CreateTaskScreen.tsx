@@ -42,7 +42,8 @@ export default function CreateTaskScreen({ navigation, route }: any) {
         }
     }, [isResponsibility]);
 
-    const handleCreate = () => {
+    const handleCreate = async () => {
+        console.log("[DEBUG] handleCreate called");
         if (!title) {
             Alert.alert("Error", "El título es obligatorio");
             return;
@@ -75,34 +76,29 @@ export default function CreateTaskScreen({ navigation, route }: any) {
             };
         }
 
-        const saveLogic = () => {
-            if (taskToEdit) {
-                updateTask(taskToEdit.id, taskData);
-                if (Platform.OS === 'web') window.alert("Plantilla actualizada");
-                else Alert.alert("Éxito", "Plantilla actualizada");
-            } else {
-                addTask(taskData);
-                if (Platform.OS === 'web') window.alert("Plantilla creada correctamente");
-                else Alert.alert("Éxito", "Plantilla creada correctamente");
+        const saveLogic = async () => {
+            try {
+                if (taskToEdit) {
+                    await updateTask(taskToEdit.id, taskData);
+                    console.log("[DEBUG] Task Updated");
+                    if (Platform.OS === 'web') window.alert("Plantilla actualizada");
+                    else Alert.alert("Éxito", "Plantilla actualizada");
+                } else {
+                    await addTask(taskData);
+                    console.log("[DEBUG] Task Created");
+                    if (Platform.OS === 'web') window.alert("Plantilla creada correctamente");
+                    else Alert.alert("Éxito", "Plantilla creada correctamente");
+                }
+                navigation.goBack();
+            } catch (e) {
+                console.error("[DEBUG] Error saving:", e);
+                Alert.alert("Error", "Falló al guardar");
             }
-            navigation.goBack();
         };
 
         // ... existing legacy confirmation block
-        if (Platform.OS === 'web') {
-            if (window.confirm(taskToEdit ? "¿Guardar cambios en la plantilla?" : "¿Deseas guardar esta plantilla de tarea?")) {
-                saveLogic();
-            }
-        } else {
-            Alert.alert(
-                taskToEdit ? "Actualizar Plantilla" : "Crear Plantilla",
-                taskToEdit ? "¿Guardar cambios?" : "¿Deseas guardar esta plantilla de tarea?",
-                [
-                    { text: "Cancelar", style: "cancel" },
-                    { text: "Guardar", onPress: saveLogic }
-                ]
-            );
-        }
+        // Direct save without extra confirmation dialog
+        await saveLogic();
     };
 
 

@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 
 export const FamilyTab = () => {
     const { users, deleteUser } = useTaskContext();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const navigation = useNavigation<any>();
     const children = users.filter(u => u.role === 'child');
     const parents = users.filter(u => u.role !== 'child');

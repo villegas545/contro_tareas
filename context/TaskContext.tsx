@@ -4,7 +4,6 @@ import { Task, User, TaskHistory, Reward, Redemption, GlobalSettings, Category }
 import { collection, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot, deleteField } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { sendPushNotification, scheduleRemindersForTasks } from '../utils/notifications';
-
 interface TaskContextType {
     currentUser: User | null;
     tasks: Task[];
@@ -128,6 +127,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             rewardsUnsub();
             redemptionsUnsub();
             settingsUnsub();
+            categoriesUnsub();
         };
     }, []); // Run once on mount
 
@@ -225,11 +225,24 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         if (task && task.assignedTo === 'pool') {
             const linkedTasks = tasks.filter(t => t.originalTaskId === taskId);
 
+            // Detailed Debug for User
+            console.log(`[DEBUG] Updating Template: ${taskId} (${task.title})`);
+            console.log(`[DEBUG] Searching for children with originalTaskId === '${taskId}'`);
+
+            if (linkedTasks.length === 0) {
+                console.warn("[DEBUG] ⚠️ No linked child tasks found in memory.");
+                console.log("[DEBUG] Sample task data in memory:");
+                tasks.slice(0, 5).forEach(t => console.log(`   - ${t.title} | ID: ${t.id} | Orig: '${t.originalTaskId}'`));
+            } else {
+                console.log(`[DEBUG] ✅ Found ${linkedTasks.length} linked tasks. Propagating updates...`);
+                linkedTasks.forEach(t => console.log(`   -> Will update Child: ${t.title} (${t.id})`));
+            }
+
             // Define keys that should be synchronized from template
             const syncKeys: (keyof Task)[] = [
                 'title', 'description', 'points', 'type', 'frequency',
                 'isResponsibility', 'isSchool', 'shift', 'timeWindow',
-                'timeLimit', 'dueTime'
+                'timeLimit', 'dueTime', 'categoryId'
             ];
 
             const safeUpdates: Partial<Task> = {};
@@ -241,18 +254,32 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 }
             });
 
+            console.log("[DEBUG] Propagating updates:", safeUpdates);
+
             if (Object.keys(safeUpdates).length > 0) {
                 linkedTasks.forEach(async (childTask) => {
-                    if (childTask.status !== 'verified') { // Only update non-archived tasks
-                        await updateDoc(doc(db, "tasks", childTask.id), safeUpdates);
-                    }
+                    // Force update on all linked tasks including verified
+                    await updateDoc(doc(db, "tasks", childTask.id), safeUpdates);
                 });
             }
         }
     };
 
     const deleteTask = async (taskId: string) => {
+        const taskToCheck = tasks.find(t => t.id === taskId);
+
+        // Delete the main task (or template)
         await deleteDoc(doc(db, "tasks", taskId));
+
+        // If it was a template, delete all linked child tasks
+        if (taskToCheck && taskToCheck.assignedTo === 'pool') {
+            const linkedTasks = tasks.filter(t => t.originalTaskId === taskId);
+            if (linkedTasks.length > 0) {
+                console.log(`[Cascade Delete] Deleting ${linkedTasks.length} child tasks linked to template ${taskId}`);
+                const deletePromises = linkedTasks.map(t => deleteDoc(doc(db, "tasks", t.id)));
+                await Promise.all(deletePromises);
+            }
+        }
     };
 
     const completeTask = async (taskId: string, evidenceUrl?: string) => {

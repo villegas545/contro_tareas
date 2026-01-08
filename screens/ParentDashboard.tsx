@@ -15,20 +15,7 @@ export default function ParentDashboard({ navigation }: any) {
     const [currentTab, setCurrentTab] = useState<'monitoring' | 'assignment' | 'messages' | 'family' | 'rewards' | 'settings' | 'categories'>('monitoring');
 
     const confirmLogout = () => {
-        if (Platform.OS === 'web') {
-            if (window.confirm("¿Estás seguro de que quieres salir?")) {
-                logout();
-            }
-        } else {
-            Alert.alert(
-                "Cerrar Sesión",
-                "¿Estás seguro de que quieres salir?",
-                [
-                    { text: "Cancelar", style: "cancel" },
-                    { text: "Salir", onPress: logout }
-                ]
-            );
-        }
+        logout();
     };
 
     return (
