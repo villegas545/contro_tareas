@@ -7,18 +7,50 @@ import { Card } from '../ui/Card';
 export const SettingsTab = () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const navigation = useNavigation<any>();
-    const { globalSettings, updateGlobalSettings } = useTaskContext();
+    const { globalSettings, updateGlobalSettings, language, setLanguage, t } = useTaskContext();
 
     return (
         <ScrollView className="flex-1 bg-gray-50 dark:bg-slate-900 p-4">
+            {/* Language Section */}
+            <Card className="mb-4">
+                <View className="flex-row items-center gap-2 mb-4">
+                    <Text className="text-2xl">🌍</Text>
+                    <View>
+                        <Text className="text-lg font-bold text-gray-800 dark:text-gray-100">{t('settings.language')}</Text>
+                        <Text className="text-gray-500 text-xs">Selecciona el idioma de la aplicación</Text>
+                    </View>
+                </View>
+
+                <View className="flex-row flex-wrap gap-2">
+                    {[
+                        { id: 'es', flag: '🇲🇽', name: 'Español' },
+                        { id: 'en', flag: '🇺🇸', name: 'English' },
+                        { id: 'fr', flag: '🇫🇷', name: 'Français' },
+                        { id: 'pt', flag: '🇧🇷', name: 'Português' },
+                        { id: 'it', flag: '🇮🇹', name: 'Italiano' },
+                    ].map((lang) => (
+                        <TouchableOpacity
+                            key={lang.id}
+                            onPress={() => setLanguage(lang.id as any)}
+                            className={`flex-row items-center p-3 rounded-xl border ${language === lang.id ? 'bg-blue-100 border-blue-500' : 'bg-gray-50 border-gray-200'}`}
+                        >
+                            <Text className="text-xl mr-2">{lang.flag}</Text>
+                            <Text className={`font-bold ${language === lang.id ? 'text-blue-700' : 'text-gray-600'}`}>
+                                {lang.name}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </Card>
+
             {/* Vacation Mode Section */}
             <Card className="mb-4">
                 <View className="flex-row justify-between items-center mb-2">
                     <View className="flex-row items-center gap-2">
                         <Text className="text-2xl">🏖️</Text>
                         <View>
-                            <Text className="text-lg font-bold text-gray-800 dark:text-gray-100">Modo Vacaciones</Text>
-                            <Text className="text-gray-500 text-xs">Pausa todas las tareas escolares para todos.</Text>
+                            <Text className="text-lg font-bold text-gray-800 dark:text-gray-100">{t('settings.vacation_mode')}</Text>
+                            <Text className="text-gray-500 text-xs">{t('settings.vacation_desc')}</Text>
                         </View>
                     </View>
                     <Switch
@@ -30,14 +62,66 @@ export const SettingsTab = () => {
                 </View>
             </Card>
 
+            {/* Categories Section */}
+            <Card className="mb-4">
+                <View className="flex-row justify-between items-center mb-4">
+                    <View className="flex-row items-center gap-2">
+                        <Text className="text-2xl">🏷️</Text>
+                        <View>
+                            <Text className="text-lg font-bold text-gray-800 dark:text-gray-100">{t('settings.manage_categories')}</Text>
+                            <Text className="text-gray-500 text-xs">{t('settings.categories_desc')}</Text>
+                        </View>
+                    </View>
+                </View>
+
+                <TouchableOpacity
+                    onPress={() => navigation.navigate('ManageCategories')}
+                    className="flex-row items-center justify-between bg-indigo-50 p-4 rounded-xl border border-indigo-200 active:bg-indigo-100"
+                >
+                    <View>
+                        <Text className="font-bold text-indigo-800">{t('settings.manage_categories')}</Text>
+                        <Text className="text-indigo-600 text-xs mt-1">
+                            {t('settings.categories_desc')}
+                        </Text>
+                    </View>
+                    <Text className="text-indigo-500 text-xl">→</Text>
+                </TouchableOpacity>
+            </Card>
+
+            {/* Justifications Section */}
+            <Card className="mb-4">
+                <View className="flex-row justify-between items-center mb-4">
+                    <View className="flex-row items-center gap-2">
+                        <Text className="text-2xl">🤔</Text>
+                        <View>
+                            <Text className="text-lg font-bold text-gray-800 dark:text-gray-100">{t('settings.manage_justifications')}</Text>
+                            <Text className="text-gray-500 text-xs">{t('settings.manage_justifications_desc')}</Text>
+                        </View>
+                    </View>
+                </View>
+
+                <TouchableOpacity
+                    onPress={() => navigation.navigate('ManageJustifications')}
+                    className="flex-row items-center justify-between bg-purple-50 p-4 rounded-xl border border-purple-200 active:bg-purple-100"
+                >
+                    <View>
+                        <Text className="font-bold text-purple-800">{t('settings.manage_justifications')}</Text>
+                        <Text className="text-purple-600 text-xs mt-1">
+                            Añade o edita las opciones disponibles
+                        </Text>
+                    </View>
+                    <Text className="text-purple-500 text-xl">→</Text>
+                </TouchableOpacity>
+            </Card>
+
             {/* School Calendar Section */}
             <Card className="mb-4">
                 <View className="flex-row justify-between items-center mb-4">
                     <View className="flex-row items-center gap-2">
                         <Text className="text-2xl">📅</Text>
                         <View>
-                            <Text className="text-lg font-bold text-gray-800 dark:text-gray-100">Calendario Escolar</Text>
-                            <Text className="text-gray-500 text-xs">Gestiona feriados y días sin clases.</Text>
+                            <Text className="text-lg font-bold text-gray-800 dark:text-gray-100">{t('settings.school_calendar')}</Text>
+                            <Text className="text-gray-500 text-xs">{t('settings.school_calendar_desc')}</Text>
                         </View>
                     </View>
                 </View>
@@ -47,7 +131,7 @@ export const SettingsTab = () => {
                     className="flex-row items-center justify-between bg-orange-50 p-4 rounded-xl border border-orange-200 active:bg-orange-100"
                 >
                     <View>
-                        <Text className="font-bold text-orange-800">Gestionar Días No Escolares</Text>
+                        <Text className="font-bold text-orange-800">{t('settings.school_calendar')}</Text>
                         <Text className="text-orange-600 text-xs mt-1">
                             {globalSettings?.nonSchoolDays?.length || 0} fechas configuradas
                         </Text>

@@ -1,12 +1,28 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Task, User, TaskHistory, Reward, Redemption, GlobalSettings, Category } from '../types';
-import { collection, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot, deleteField } from 'firebase/firestore';
+import { Task, User, TaskHistory, Reward, Redemption, GlobalSettings, Category, TaskTemplate, JustificationReason, Language } from '../types';
+import { translations } from '../utils/translations';
+import { collection, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot, deleteField, writeBatch } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { sendPushNotification, scheduleRemindersForTasks } from '../utils/notifications';
+import { USERS, TASKS } from '../data/mockData';
+
+// Helper to check for Test Mode
+const isTestMode = () => {
+    // Check for a specific window property set by Cypress or URL param
+    // Standard Cypress detection: window.Cypress exists
+    // Since we are inside the app, we check if window is defined
+    if (typeof window !== 'undefined') {
+        // @ts-ignore
+        return !!window.Cypress;
+    }
+    return false;
+};
+
 interface TaskContextType {
     currentUser: User | null;
     tasks: Task[];
+    templates: TaskTemplate[];
     users: User[];
     history: TaskHistory[];
     login: (username: string, password?: string) => boolean;
@@ -42,7 +58,18 @@ interface TaskContextType {
     // Categories
     categories: Category[];
     addCategory: (category: Omit<Category, 'id'>) => void;
+    updateCategory: (categoryId: string, updates: Partial<Category>) => void;
     deleteCategory: (categoryId: string) => void;
+    reorderCategories: (newOrder: Category[]) => void;
+    // Justifications
+    justificationReasons: JustificationReason[];
+    addJustificationReason: (text: string) => void;
+    deleteJustificationReason: (id: string) => void;
+
+    // I18n
+    language: Language;
+    setLanguage: (lang: Language) => void;
+    t: (key: string) => string;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -50,8 +77,11 @@ const TaskContext = createContext<TaskContextType | undefined>(undefined);
 export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [tasks, setTasks] = useState<Task[]>([]);
+    const [rawTasks, setRawTasks] = useState<Task[]>([]);
+    const [templates, setTemplates] = useState<TaskTemplate[]>([]);
     const [users, setUsers] = useState<User[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
+    const [justificationReasons, setJustificationReasons] = useState<JustificationReason[]>([]);
     const [history, setHistory] = useState<TaskHistory[]>([]);
     const [messages, setMessages] = useState<string[]>([]);
     const [messageIds, setMessageIds] = useState<string[]>([]); // To track IDs for deletion
@@ -59,23 +89,64 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     const [rewards, setRewards] = useState<Reward[]>([]);
     const [redemptions, setRedemptions] = useState<Redemption[]>([]);
     const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
+    const [language, setLanguageState] = useState<Language>('es');
     const sessionChecked = React.useRef(false);
 
-    // Subscribe to Firestore collections
+    // Subscribe to Firestore collections OR Load Mocks
+    // Expose Context for Testing (Refresh when state changes)
     useEffect(() => {
-        // Users
+        if (isTestMode() && typeof window !== 'undefined') {
+            // @ts-ignore
+            window.testContext = {
+                reset: () => {
+                    // Resets to initial Mocks
+                    setUsers(USERS);
+                    setRawTasks(TASKS);
+                    setRewards([]);
+                    setRedemptions([]);
+                    setMessages([]);
+                    setCategories([]);
+                    setHistory([]);
+                    setTemplates([]);
+                },
+                getState: () => ({ users, rawTasks, rewards, redemptions, messages, templates }),
+                setUsers,
+                setRawTasks,
+                setRewards,
+                setMessages,
+                setRedemptions,
+                setHistory,
+                setTemplates,
+            };
+        }
+    }, [users, rawTasks, rewards, redemptions, messages, templates]);
+
+
+
+    // Subscribe to Firestore collections OR Load Mocks (Initial Load)
+    useEffect(() => {
+        if (isTestMode()) {
+            console.log("⚠️ Running in TEST MODE - Using Mock Data");
+            if (rawTasks.length === 0 && users.length === 0) {
+                setUsers(USERS);
+                setRawTasks(TASKS);
+            }
+            return () => { };
+        }
+
         const usersUnsub = onSnapshot(collection(db, "users"), (snapshot) => {
-            const usersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-            setUsers(usersList);
-
-            // Auto-update current user if properties change
-
+            const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+            setUsers(list);
         });
 
-        // Tasks
+        const templatesUnsub = onSnapshot(collection(db, "templates"), (snapshot) => {
+            const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TaskTemplate));
+            setTemplates(list);
+        });
+
         const tasksUnsub = onSnapshot(collection(db, "tasks"), (snapshot) => {
-            const tasksList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
-            setTasks(tasksList);
+            const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
+            setRawTasks(list);
         });
 
         // History
@@ -107,57 +178,147 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         // Categories
         const categoriesUnsub = onSnapshot(collection(db, "categories"), (snapshot) => {
             const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
+            list.sort((a, b) => (a.order || 0) - (b.order || 0));
             setCategories(list);
         });
 
         // Settings
         const settingsUnsub = onSnapshot(doc(db, "settings", "general"), (docSnap) => {
             if (docSnap.exists()) {
-                setGlobalSettings({ id: docSnap.id, ...docSnap.data() } as GlobalSettings);
+                const data = { id: docSnap.id, ...docSnap.data() } as GlobalSettings;
+                setGlobalSettings(data);
+                if (data.language) setLanguageState(data.language);
             } else {
-                setGlobalSettings({ id: 'general', isVacationMode: false });
+                setGlobalSettings({ id: 'general', isVacationMode: false, language: 'es' });
             }
+        });
+
+        // Justifications
+        const justificationsUnsub = onSnapshot(collection(db, "justification_reasons"), (snapshot) => {
+            const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as JustificationReason));
+            setJustificationReasons(list);
         });
 
         return () => {
             usersUnsub();
+            templatesUnsub();
             tasksUnsub();
             historyUnsub();
             messagesUnsub();
             rewardsUnsub();
             redemptionsUnsub();
-            settingsUnsub();
             categoriesUnsub();
+            settingsUnsub();
+            justificationsUnsub();
         };
-    }, []); // Run once on mount
+    }, []);
+
+    // HYDRATION: Merge Templates + RawTasks -> Public Tasks
+    useEffect(() => {
+        // 1. Convert Templates to "Pool Tasks" for UI compatibility
+        const templateTasks = templates.map(t => ({
+            ...t,
+            assignedTo: 'pool',
+            status: 'pending',
+        } as Task));
+
+        // 2. Hydrate Assignments
+        const hydratedAssignments = rawTasks.map(assignment => {
+            // Filter legacy pool tasks from rawTasks (we use templates collection now)
+            if (assignment.assignedTo === 'pool') return null;
+
+            const tId = assignment.templateId || assignment.originalTaskId;
+            if (tId) {
+                const template = templates.find(t => t.id === tId);
+                if (template) {
+                    return {
+                        ...assignment, // Base
+                        ...template,   // Overwrite with Template Latest Data
+                        // Restore Assignment Specifics that might be overwritten if template has them undefined?
+                        // Template fields are: title, description, points, type, etc.
+                        // Assignment fields are: id, assignedTo, status, dates.
+                        // We want Template to Win for Title/Points.
+                        // We want Assignment to Win for Status/Dates.
+                        id: assignment.id,
+                        assignedTo: assignment.assignedTo,
+                        status: assignment.status,
+                        dueDate: assignment.dueDate,
+                        dueTime: assignment.dueTime || assignment.dueTime, // assignment wins
+                        completedAt: assignment.completedAt,
+                        verifiedAt: assignment.verifiedAt,
+                        evidenceUrl: assignment.evidenceUrl,
+                        templateId: tId,
+                        originalTaskId: tId,
+                        recurrenceDays: assignment.recurrenceDays, // Restore recurrenceDays override
+                        shift: assignment.shift, // Restore shift override if applicable
+                    } as Task;
+                }
+            }
+            return assignment;
+        }).filter(Boolean) as Task[];
+
+        setTasks([...templateTasks, ...hydratedAssignments]);
+    }, [rawTasks, templates]);
 
     const updateGlobalSettings = async (settings: Partial<GlobalSettings>) => {
+        if (isTestMode()) {
+            // @ts-ignore
+            setGlobalSettings(prev => ({ ...prev, ...settings }));
+            return;
+        }
         await setDoc(doc(db, "settings", "general"), settings, { merge: true });
     };
 
     const addMessage = async (text: string) => {
+        if (isTestMode()) {
+            setMessages(prev => [...prev, text]);
+            setMessageIds(prev => [...prev, Date.now().toString()]);
+            return;
+        }
         await addDoc(collection(db, "messages"), { text });
     };
 
     const updateMessage = async (index: number, newText: string) => {
+        if (isTestMode()) {
+            setMessages(prev => prev.map((msg, i) => i === index ? newText : msg));
+            return;
+        }
         const idToUpdate = messageIds[index];
         if (idToUpdate) await updateDoc(doc(db, "messages", idToUpdate), { text: newText });
     };
 
     const deleteMessage = async (index: number) => {
+        if (isTestMode()) {
+            setMessages(prev => prev.filter((_, i) => i !== index));
+            setMessageIds(prev => prev.filter((_, i) => i !== index));
+            return;
+        }
         const idToDelete = messageIds[index];
         if (idToDelete) await deleteDoc(doc(db, "messages", idToDelete));
     };
 
     const addUser = async (newUser: Omit<User, 'id'>) => {
+        if (isTestMode()) {
+            // @ts-ignore
+            setUsers(prev => [...prev, { id: Date.now().toString(), ...newUser }]);
+            return;
+        }
         await addDoc(collection(db, "users"), newUser);
     };
 
     const updateUser = async (userId: string, updates: Partial<User>) => {
+        if (isTestMode()) {
+            setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updates } : u));
+            return;
+        }
         await updateDoc(doc(db, "users", userId), updates);
     };
 
     const deleteUser = async (userId: string) => {
+        if (isTestMode()) {
+            setUsers(prev => prev.filter(u => u.id !== userId));
+            return;
+        }
         await deleteDoc(doc(db, "users", userId));
     };
 
@@ -208,85 +369,104 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     const addTask = async (newTask: Omit<Task, 'id'>) => {
-        await addDoc(collection(db, "tasks"), newTask);
+        if (isTestMode()) {
+            if (newTask.assignedTo === 'pool') {
+                // @ts-ignore
+                setTemplates(prev => [...prev, { id: Date.now().toString(), ...newTask }]);
+            } else {
+                // @ts-ignore
+                setRawTasks(prev => {
+                    const updated = [...prev, { id: Date.now().toString(), ...newTask }];
+                    return updated;
+                });
+            }
+            return;
+        }
 
-        // Notify Child
-        const child = users.find(u => u.id === newTask.assignedTo);
-        if (child && child.pushToken) {
-            sendPushNotification(child.pushToken, "Nueva Tarea", `Tienes una nueva tarea: "${newTask.title}"`);
+        if (newTask.assignedTo === 'pool') {
+            // Create Template
+            // We use 'addDoc' but we need to match TaskTemplate type.
+            // Omit irrelevant fields for template if needed, or just cast.
+            const { id, ...templateData } = newTask as any;
+            await addDoc(collection(db, "templates"), templateData);
+        } else {
+            // Create Assignment
+            await addDoc(collection(db, "tasks"), newTask);
+
+            // Notify Child
+            const child = users.find(u => u.id === newTask.assignedTo);
+            console.log(`[Notification] Attempting to notify child selected for task: ${child?.name}`);
+
+            if (child && child.pushToken) {
+                if (child.id === currentUser?.id) {
+                    console.log("[Notification] Skipping notification: User assigned task to themselves.");
+                } else {
+                    console.log(`[Notification] Sending Push to token: ${child.pushToken.substring(0, 10)}...`);
+                    sendPushNotification(child.pushToken, "Nueva Tarea", `Tienes una nueva tarea: "${newTask.title}"`);
+                }
+            } else {
+                console.log("[Notification] Cannot notify: Child not found or has no Push Token.");
+            }
         }
     };
 
     const updateTask = async (taskId: string, updates: Partial<Task>) => {
-        await updateDoc(doc(db, "tasks", taskId), updates);
+        // Check if it's a template
+        const isTemplate = templates.some(t => t.id === taskId);
 
-        // If this is a pool task (template), propagate changes to linked tasks
-        const task = tasks.find(t => t.id === taskId);
-        if (task && task.assignedTo === 'pool') {
-            const linkedTasks = tasks.filter(t => t.originalTaskId === taskId);
-
-            // Detailed Debug for User
-            console.log(`[DEBUG] Updating Template: ${taskId} (${task.title})`);
-            console.log(`[DEBUG] Searching for children with originalTaskId === '${taskId}'`);
-
-            if (linkedTasks.length === 0) {
-                console.warn("[DEBUG] ⚠️ No linked child tasks found in memory.");
-                console.log("[DEBUG] Sample task data in memory:");
-                tasks.slice(0, 5).forEach(t => console.log(`   - ${t.title} | ID: ${t.id} | Orig: '${t.originalTaskId}'`));
+        if (isTestMode()) {
+            if (isTemplate) {
+                setTemplates(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t));
             } else {
-                console.log(`[DEBUG] ✅ Found ${linkedTasks.length} linked tasks. Propagating updates...`);
-                linkedTasks.forEach(t => console.log(`   -> Will update Child: ${t.title} (${t.id})`));
+                setRawTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t));
             }
+            return;
+        }
 
-            // Define keys that should be synchronized from template
-            const syncKeys: (keyof Task)[] = [
-                'title', 'description', 'points', 'type', 'frequency',
-                'isResponsibility', 'isSchool', 'shift', 'timeWindow',
-                'timeLimit', 'dueTime', 'categoryId'
-            ];
-
-            const safeUpdates: Partial<Task> = {};
-
-            syncKeys.forEach(key => {
-                if (updates[key] !== undefined) {
-                    // @ts-ignore
-                    safeUpdates[key] = updates[key];
-                }
-            });
-
-            console.log("[DEBUG] Propagating updates:", safeUpdates);
-
-            if (Object.keys(safeUpdates).length > 0) {
-                linkedTasks.forEach(async (childTask) => {
-                    // Force update on all linked tasks including verified
-                    await updateDoc(doc(db, "tasks", childTask.id), safeUpdates);
-                });
-            }
+        if (isTemplate) {
+            console.log(`[Update] Updating Template ${taskId}`);
+            await updateDoc(doc(db, "templates", taskId), updates);
+            // No manual propagation needed - Hydration handles it!
+        } else {
+            console.log(`[Update] Updating Assignment ${taskId}`);
+            await updateDoc(doc(db, "tasks", taskId), updates);
         }
     };
 
     const deleteTask = async (taskId: string) => {
-        const taskToCheck = tasks.find(t => t.id === taskId);
-
-        // Delete the main task (or template)
-        await deleteDoc(doc(db, "tasks", taskId));
-
-        // If it was a template, delete all linked child tasks
-        if (taskToCheck && taskToCheck.assignedTo === 'pool') {
-            const linkedTasks = tasks.filter(t => t.originalTaskId === taskId);
-            if (linkedTasks.length > 0) {
-                console.log(`[Cascade Delete] Deleting ${linkedTasks.length} child tasks linked to template ${taskId}`);
-                const deletePromises = linkedTasks.map(t => deleteDoc(doc(db, "tasks", t.id)));
-                await Promise.all(deletePromises);
+        if (isTestMode()) {
+            const isTemplate = templates.some(t => t.id === taskId);
+            if (isTemplate) {
+                setTemplates(prev => prev.filter(t => t.id !== taskId));
+                setRawTasks(prev => prev.filter(t => t.templateId !== taskId && t.originalTaskId !== taskId));
+            } else {
+                setRawTasks(prev => prev.filter(t => t.id !== taskId));
             }
+            return;
+        }
+
+        const isTemplate = templates.some(t => t.id === taskId);
+
+        if (isTemplate) {
+            console.log(`[Delete] Deleting Template ${taskId} and linked assignments`);
+            await deleteDoc(doc(db, "templates", taskId));
+
+            // Cascade Delete Assignments linked to this template
+            // Use rawTasks to find them
+            const linked = rawTasks.filter(t => t.templateId === taskId || t.originalTaskId === taskId);
+            const promises = linked.map(t => deleteDoc(doc(db, "tasks", t.id)));
+            await Promise.all(promises);
+        } else {
+            console.log(`[Delete] Deleting Assignment ${taskId}`);
+            await deleteDoc(doc(db, "tasks", taskId));
         }
     };
 
     const completeTask = async (taskId: string, evidenceUrl?: string) => {
-        const task = tasks.find(t => t.id === taskId);
+        // Validation logic remains, but ensure we check hydrated tasks
+        const task = tasks.find(t => t.id === taskId); // Hydrated lookup
         if (!task) return;
 
-        // Validation for Time Window
         if (task.timeWindow) {
             const now = new Date();
             const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
@@ -295,23 +475,90 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             }
         }
 
-        await updateDoc(doc(db, "tasks", taskId), {
-            status: 'completed',
-            completedAt: new Date().toISOString(),
-            ...(evidenceUrl ? { evidenceUrl } : {})
-        });
+        if (isTestMode()) {
+            setRawTasks(prev => prev.map(t => {
+                if (t.id === taskId) {
+                    return {
+                        ...t,
+                        status: 'completed',
+                        completedAt: new Date().toISOString(),
+                        evidenceUrl: evidenceUrl || t.evidenceUrl
+                    };
+                }
+                return t;
+            }));
+            return;
+        }
 
-        // Notify Parents
+        const updates: any = {
+            status: 'completed',
+            completedAt: new Date().toISOString()
+        };
+        if (evidenceUrl) updates.evidenceUrl = evidenceUrl;
+
+        await updateDoc(doc(db, "tasks", taskId), updates);
+
+        // Notify Parents (Debounced)
         const child = users.find(u => u.id === task.assignedTo);
-        const parents = users.filter(u => u.role === 'parent');
-        parents.forEach(parent => {
-            if (parent.pushToken) {
-                sendPushNotification(parent.pushToken, "Tarea Realizada", `${child?.name || 'Alguien'} completó: "${task.title}"`);
+        if (child) {
+            queueTaskCompletionNotification(child.id, child.name, task.title);
+        }
+    };
+
+    // Notification Queue Ref
+    const notificationQueue = React.useRef<Record<string, { childName: string, tasks: string[], timeout: NodeJS.Timeout }>>({});
+
+    const queueTaskCompletionNotification = (childId: string, childName: string, taskTitle: string) => {
+        // Clear existing timeout
+        if (notificationQueue.current[childId]) {
+            clearTimeout(notificationQueue.current[childId].timeout);
+            notificationQueue.current[childId].tasks.push(taskTitle);
+        } else {
+            notificationQueue.current[childId] = {
+                childName,
+                tasks: [taskTitle],
+                timeout: setTimeout(() => { }, 0) // Placeholder
+            };
+        }
+
+        // Set new timeout (60 seconds)
+        notificationQueue.current[childId].timeout = setTimeout(() => {
+            const entry = notificationQueue.current[childId];
+            if (!entry) return;
+
+            const count = entry.tasks.length;
+            let title = "Tareas Realizadas";
+            let body = "";
+
+            if (count === 1) {
+                body = `${entry.childName} completó: "${entry.tasks[0]}"`;
+            } else if (count <= 3) {
+                body = `${entry.childName} completó ${count} tareas: ${entry.tasks.join(", ")}`;
+            } else {
+                const firstTwo = entry.tasks.slice(0, 2).join(", ");
+                const remaining = count - 2;
+                body = `${entry.childName} completó ${count} tareas: ${firstTwo} y ${remaining} más.`;
             }
-        });
+
+            // Send to all parents
+            const parents = users.filter(u => u.role === 'parent');
+            parents.forEach(parent => {
+                if (parent.pushToken) {
+                    sendPushNotification(parent.pushToken, title, body);
+                }
+            });
+
+            // Cleanup
+            delete notificationQueue.current[childId];
+        }, 60000); // 1 minute delay
     };
 
     const verifyTask = async (taskId: string) => {
+        if (isTestMode()) {
+            setRawTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'verified', verifiedAt: new Date().toISOString() } : t));
+            return;
+        }
+
         const task = tasks.find(t => t.id === taskId);
         if (task) {
             await addDoc(collection(db, "history"), {
@@ -333,6 +580,26 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     const failTask = async (taskId: string) => {
+        if (isTestMode()) {
+            const task = tasks.find(t => t.id === taskId);
+            setRawTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'expired' } : t));
+
+            if (task) {
+                // @ts-ignore
+                setHistory(prev => [...prev, {
+                    id: Date.now().toString(),
+                    taskId: task.id,
+                    taskTitle: task.title,
+                    assignedTo: task.assignedTo,
+                    points: 0,
+                    status: 'missed',
+                    isResponsibility: task.isResponsibility || false,
+                    date: new Date().toISOString().split('T')[0]
+                }]);
+            }
+            return;
+        }
+
         const task = tasks.find(t => t.id === taskId);
         if (task) {
             await addDoc(collection(db, "history"), {
@@ -349,6 +616,15 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     const rejectTask = async (taskId: string) => {
+        if (isTestMode()) {
+            setRawTasks(prev => prev.map(t => t.id === taskId ? {
+                ...t,
+                status: 'pending',
+                completedAt: undefined
+            } : t));
+            return;
+        }
+
         await updateDoc(doc(db, "tasks", taskId), {
             status: 'pending',
             completedAt: deleteField()
@@ -365,14 +641,34 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Rewards & Redemptions Logic
     const addReward = async (reward: Omit<Reward, 'id'>) => {
+        if (isTestMode()) {
+            // @ts-ignore
+            setRewards(prev => [...prev, { id: Date.now().toString(), ...reward }]);
+            return;
+        }
         await addDoc(collection(db, "rewards"), reward);
     };
 
     const deleteReward = async (rewardId: string) => {
+        if (isTestMode()) {
+            setRewards(prev => prev.filter(r => r.id !== rewardId));
+            return;
+        }
         await deleteDoc(doc(db, "rewards", rewardId));
     };
 
     const redeemReward = async (redemption: Omit<Redemption, 'id' | 'requestDate' | 'status'>) => {
+        if (isTestMode()) {
+            // @ts-ignore
+            setRedemptions(prev => [...prev, {
+                id: Date.now().toString(),
+                ...redemption,
+                status: 'pending',
+                requestDate: new Date().toISOString()
+            }]);
+            return;
+        }
+
         // We do NOT deduct points yet. Only when approved.
         await addDoc(collection(db, "redemptions"), {
             ...redemption,
@@ -382,6 +678,26 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     const approveRedemption = async (redemptionId: string) => {
+        if (isTestMode()) {
+            setRedemptions(prev => prev.map(r => r.id === redemptionId ? { ...r, status: 'approved', redeemedDate: new Date().toISOString() } : r));
+            // Add negative history
+            const r = redemptions.find(x => x.id === redemptionId);
+            if (r) {
+                // @ts-ignore
+                setHistory(prev => [...prev, {
+                    id: Date.now().toString(),
+                    taskId: 'redemption-' + r.id,
+                    taskTitle: `Canje: ${r.rewardTitle}`,
+                    assignedTo: r.childId,
+                    points: -Math.abs(r.cost),
+                    status: 'verified',
+                    date: new Date().toISOString().split('T')[0],
+                    completedAt: new Date().toISOString()
+                }]);
+            }
+            return;
+        }
+
         const redemption = redemptions.find(r => r.id === redemptionId);
         if (!redemption || redemption.status !== 'pending') return;
 
@@ -407,6 +723,10 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     const rejectRedemption = async (redemptionId: string) => {
+        if (isTestMode()) {
+            setRedemptions(prev => prev.map(r => r.id === redemptionId ? { ...r, status: 'rejected' } : r));
+            return;
+        }
         await updateDoc(doc(db, "redemptions", redemptionId), { status: 'rejected' });
     };
 
@@ -630,11 +950,68 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     const addCategory = async (category: Omit<Category, 'id'>) => {
-        await addDoc(collection(db, "categories"), category);
+        if (isTestMode()) {
+            // @ts-ignore
+            const maxOrder = Math.max(...categories.map(c => c.order || 0), -1);
+            setCategories(prev => [...prev, { id: Date.now().toString(), ...category, order: maxOrder + 1 }]);
+            return;
+        }
+        const maxOrder = Math.max(...categories.map(c => c.order || 0), -1);
+        await addDoc(collection(db, "categories"), { ...category, order: maxOrder + 1 });
+    };
+
+    const updateCategory = async (categoryId: string, updates: Partial<Category>) => {
+        if (isTestMode()) {
+            setCategories(prev => prev.map(c => c.id === categoryId ? { ...c, ...updates } : c));
+            return;
+        }
+        await updateDoc(doc(db, "categories", categoryId), updates);
     };
 
     const deleteCategory = async (categoryId: string) => {
+        if (isTestMode()) {
+            setCategories(prev => prev.filter(c => c.id !== categoryId));
+            return;
+        }
         await deleteDoc(doc(db, "categories", categoryId));
+    };
+
+    const reorderCategories = async (newOrder: Category[]) => {
+        const batch = writeBatch(db);
+        newOrder.forEach((cat, index) => {
+            if (cat.order !== index) {
+                const ref = doc(db, "categories", cat.id);
+                batch.update(ref, { order: index });
+            }
+        });
+        await batch.commit();
+    };
+
+    const addJustificationReason = async (text: string) => {
+        if (isTestMode()) {
+            // @ts-ignore
+            setJustificationReasons(prev => [...prev, { id: Date.now().toString(), text }]);
+            return;
+        }
+        await addDoc(collection(db, "justification_reasons"), { text });
+    };
+
+    const deleteJustificationReason = async (id: string) => {
+        if (isTestMode()) {
+            setJustificationReasons(prev => prev.filter(j => j.id !== id));
+            return;
+        }
+        await deleteDoc(doc(db, "justification_reasons", id));
+    };
+
+    const setLanguage = async (lang: Language) => {
+        setLanguageState(lang);
+        await updateGlobalSettings({ language: lang });
+    };
+
+    const t = (key: string) => {
+        const lang = language || 'es';
+        return translations[lang]?.[key] || translations['es'][key] || key;
     };
 
     return (
@@ -646,8 +1023,14 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 history,
                 login,
                 categories,
+                templates,
                 addCategory,
+                updateCategory,
                 deleteCategory,
+                reorderCategories,
+                justificationReasons,
+                addJustificationReason,
+                deleteJustificationReason,
                 logout,
                 addTask,
                 updateTask,
@@ -673,7 +1056,10 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 isTaskActiveToday,
                 globalSettings,
                 updateGlobalSettings,
-                getLocalDateString: () => getLocalDateString()
+                getLocalDateString: () => getLocalDateString(),
+                language,
+                setLanguage,
+                t
             }}
         >
             {children}

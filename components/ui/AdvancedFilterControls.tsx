@@ -30,39 +30,53 @@ interface AdvancedFilterControlsProps {
     children?: React.ReactNode;
 }
 
+import { useTaskContext } from '../../context/TaskContext';
+
 export const AdvancedFilterControls = ({
     showFilters,
     setShowFilters,
     searchText,
     setSearchText,
-    searchPlaceholder = "Buscar...",
+    searchPlaceholder,
     statusFilter,
     setStatusFilter,
-    statusOptions = [
-        { id: 'all', label: 'Todos' },
-        { id: 'pending', label: '⏳ Pendientes' },
-        { id: 'completed', label: '✅ Por Revisar' },
-        { id: 'verified', label: '⭐️ Completados' },
-        { id: 'expired', label: '❌ Fallados' },
-    ],
+    statusOptions,
     typeFilter,
     setTypeFilter,
-    typeOptions = [
-        { id: 'all', label: 'Todos' },
-        { id: 'responsibility', label: '🎁 Bonos' },
-        { id: 'extra', label: '💵 Extras' },
-        { id: 'school', label: '🎓 Escolar' },
-    ],
+    typeOptions,
     frequencyFilter,
     setFrequencyFilter,
-    frequencyOptions = [
-        { id: 'all', label: 'Todas' },
-        { id: 'daily', label: '📅 Diaria' },
-        { id: 'weekly', label: '📅 Semanal' },
-        { id: 'one-time', label: '☝️ Una vez' },
-    ],
+    frequencyOptions,
     children
 }: AdvancedFilterControlsProps) => {
+    const { t } = useTaskContext();
+
+    const defaultStatusOptions = [
+        { id: 'all', label: t('filter.all') },
+        { id: 'pending', label: `⏳ ${t('status.pending')}` },
+        { id: 'completed', label: `✅ ${t('status.in_review')}` }, // Assuming completed = in review for parent
+        { id: 'verified', label: `⭐️ ${t('status.verified')}` },
+        { id: 'expired', label: `❌ ${t('status.expired')}` },
+    ];
+
+    // Use props or defaults
+    const finalStatusOptions = statusOptions || defaultStatusOptions;
+
+    const defaultTypeOptions = [
+        { id: 'all', label: t('filter.all') },
+        { id: 'responsibility', label: `🎁 ${t('task.bonus')}` },
+        { id: 'extra', label: `💵 ${t('task.extra')}` },
+        { id: 'school', label: `🎓 ${t('task.school')}` },
+    ];
+    const finalTypeOptions = typeOptions || defaultTypeOptions;
+
+    const defaultFrequencyOptions = [
+        { id: 'all', label: t('filter.all') },
+        { id: 'daily', label: `📅 ${t('frequency.daily')}` },
+        { id: 'weekly', label: `📅 ${t('frequency.weekly')}` },
+        { id: 'one-time', label: `☝️ ${t('frequency.one_time')}` },
+    ];
+    const finalFrequencyOptions = frequencyOptions || defaultFrequencyOptions;
 
     return (
         <View>
@@ -70,7 +84,7 @@ export const AdvancedFilterControls = ({
                 onPress={() => setShowFilters(!showFilters)}
                 className="flex-row justify-between items-center py-2"
             >
-                <Text className="text-gray-500 text-xs font-bold uppercase">Filtros Avanzados</Text>
+                <Text className="text-gray-500 text-xs font-bold uppercase">{t('filter.advanced_filters')}</Text>
                 <Text className="text-gray-500 text-xs">{showFilters ? '▲' : '▼'}</Text>
             </TouchableOpacity>
 
@@ -80,11 +94,11 @@ export const AdvancedFilterControls = ({
                     {/* Search */}
                     {setSearchText && (
                         <View className="mb-4">
-                            <Text className="text-gray-500 text-[10px] font-bold uppercase mb-2">Buscar:</Text>
+                            <Text className="text-gray-500 text-[10px] font-bold uppercase mb-2">{t('common.search')}:</Text>
                             <SearchInput
                                 value={searchText || ''}
                                 onChangeText={setSearchText}
-                                placeholder={searchPlaceholder}
+                                placeholder={searchPlaceholder || t('common.search')}
                             />
                         </View>
                     )}
@@ -95,9 +109,9 @@ export const AdvancedFilterControls = ({
                     {/* Status Filter */}
                     {setStatusFilter && (
                         <View className="mb-4">
-                            <Text className="text-gray-500 text-[10px] font-bold uppercase mb-2">Estado:</Text>
+                            <Text className="text-gray-500 text-[10px] font-bold uppercase mb-2">{t('filter.status')}:</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                                {statusOptions.map(f => (
+                                {finalStatusOptions.map(f => (
                                     <TouchableOpacity
                                         key={f.id}
                                         onPress={() => setStatusFilter(f.id)}
@@ -118,9 +132,9 @@ export const AdvancedFilterControls = ({
                     {/* Type Filter */}
                     {setTypeFilter && (
                         <View className={frequencyFilter ? "mb-4" : ""}>
-                            <Text className="text-gray-500 text-[10px] font-bold uppercase mb-2">Tipo:</Text>
+                            <Text className="text-gray-500 text-[10px] font-bold uppercase mb-2">{t('filter.type')}:</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                                {typeOptions.map(f => (
+                                {finalTypeOptions.map(f => (
                                     <TouchableOpacity
                                         key={f.id}
                                         onPress={() => setTypeFilter(f.id)}
@@ -141,9 +155,9 @@ export const AdvancedFilterControls = ({
                     {/* Frequency Filter */}
                     {setFrequencyFilter && (
                         <View>
-                            <Text className="text-gray-500 text-[10px] font-bold uppercase mb-2">Frecuencia:</Text>
+                            <Text className="text-gray-500 text-[10px] font-bold uppercase mb-2">{t('filter.frequency')}:</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                                {frequencyOptions.map(f => (
+                                {finalFrequencyOptions.map(f => (
                                     <TouchableOpacity
                                         key={f.id}
                                         onPress={() => setFrequencyFilter(f.id)}

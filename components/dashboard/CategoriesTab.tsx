@@ -31,7 +31,8 @@ export const CategoriesTab = () => {
         addCategory({
             name: newCategoryName,
             icon: selectedIcon,
-            color: '#4338ca' // Default color for now 
+            color: '#4338ca', // Default color for now
+            order: categories.length
         });
 
         setIsAdding(false);

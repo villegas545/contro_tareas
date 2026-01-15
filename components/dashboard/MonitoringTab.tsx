@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Platform, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Platform, Alert, Modal } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTaskContext } from '../../context/TaskContext';
 import { ParentTaskCard } from '../ParentTaskCard';
@@ -12,7 +12,7 @@ import { AdvancedFilterControls } from '../ui/AdvancedFilterControls';
 
 export const MonitoringTab = () => {
     const navigation = useNavigation<any>();
-    const { tasks, users, categories, verifyTask, rejectTask, deleteTask, isTaskActiveToday, getLocalDateString } = useTaskContext();
+    const { tasks, users, categories, verifyTask, rejectTask, deleteTask, isTaskActiveToday, getLocalDateString, t } = useTaskContext();
     // const children = users.filter(u => u.role === 'child');
 
     // Add date filter state - defaults to Current Date (Today)
@@ -25,6 +25,11 @@ export const MonitoringTab = () => {
     const [showFilters, setShowFilters] = useState(false);
     const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
     const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+
+
+
+    // Custom Confirmation Modal State
+    const [confirmationAction, setConfirmationAction] = useState<{ type: 'verify' | 'reject' | 'delete' | 'batch_verify', taskId?: string } | null>(null);
 
     // Helper to format date for DatePicker "YYYY-MM-DD"
     const toDateString = (date: Date) => {
@@ -96,70 +101,19 @@ export const MonitoringTab = () => {
 
     const handleBatchVerify = () => {
         if (selectedTaskIds.length === 0) return;
-
-        const verifyLogic = () => {
-            selectedTaskIds.forEach(id => verifyTask(id));
-            setSelectedTaskIds([]);
-            if (Platform.OS === 'web') window.alert(`${selectedTaskIds.length} tareas verificadas.`);
-        };
-
-        if (Platform.OS === 'web') {
-            if (window.confirm(`¿Verificar ${selectedTaskIds.length} tareas seleccionadas?`)) verifyLogic();
-        } else {
-            Alert.alert(
-                "Verificación Masiva",
-                `¿Marcar ${selectedTaskIds.length} tareas como verificadas?`,
-                [
-                    { text: "Cancelar", style: "cancel" },
-                    { text: "Verificar Todas", onPress: verifyLogic }
-                ]
-            );
-        }
+        setConfirmationAction({ type: 'batch_verify' });
     };
 
     const confirmVerify = (taskId: string) => {
-        if (Platform.OS === 'web') {
-            if (window.confirm("¿Estás seguro de que esta tarea se completó correctamente?")) verifyTask(taskId);
-        } else {
-            Alert.alert(
-                "Confirmar Verificación",
-                "¿Estás seguro de que esta tarea se completó correctamente?",
-                [
-                    { text: "Cancelar", style: "cancel" },
-                    { text: "Sí, Verificar", onPress: () => verifyTask(taskId) }
-                ]
-            );
-        }
+        setConfirmationAction({ type: 'verify', taskId });
     };
 
     const confirmReject = (taskId: string) => {
-        if (Platform.OS === 'web') {
-            if (window.confirm("¿Estás seguro de rechazar esta tarea? Volverá a estar pendiente.")) rejectTask(taskId);
-        } else {
-            Alert.alert(
-                "Confirmar Rechazo",
-                "¿Estás seguro de rechazar esta tarea? Volverá a estar pendiente.",
-                [
-                    { text: "Cancelar", style: "cancel" },
-                    { text: "Sí, Rechazar", onPress: () => rejectTask(taskId) }
-                ]
-            );
-        }
+        setConfirmationAction({ type: 'reject', taskId });
     };
 
     const confirmUnassign = (taskId: string) => {
-        if (Platform.OS === 'web') {
-            if (window.confirm("¿Quieres desasignar (eliminar) esta tarea?")) deleteTask(taskId);
-        } else {
-            Alert.alert(
-                "Desasignar Tarea",
-                "¿Quieres desasignar (eliminar) esta tarea del hijo?",
-                [
-                    { text: "Cancelar", style: "cancel" },
-                    { text: "Sí, Eliminar", style: "destructive", onPress: () => deleteTask(taskId) }
-                ]
-            );
-        }
+        setConfirmationAction({ type: 'delete', taskId });
     };
 
     // Timezone Aware Comparison
@@ -190,21 +144,21 @@ export const MonitoringTab = () => {
                         setShowFilters={setShowFilters}
                         searchText={searchText}
                         setSearchText={setSearchText}
-                        searchPlaceholder="Buscar por nombre..."
+                        searchPlaceholder={`${t('common.search')}...`}
                         statusFilter={statusFilter}
                         setStatusFilter={setStatusFilter}
                         statusOptions={[
-                            { id: 'all', label: 'Todos' },
-                            { id: 'pending', label: '⏳ Pendientes' },
-                            { id: 'completed', label: '✅ Por Revisar' },
-                            { id: 'verified', label: '⭐️ Verificados' },
-                            { id: 'expired', label: '❌ Falladas/Vencidas' },
+                            { id: 'all', label: t('filter.all') },
+                            { id: 'pending', label: t('status.pending_emoji') },
+                            { id: 'completed', label: t('status.in_review_emoji') },
+                            { id: 'verified', label: t('status.verified_emoji') },
+                            { id: 'expired', label: t('status.failed_expired_emoji') },
                         ]}
                         typeFilter={typeFilter}
                         setTypeFilter={setTypeFilter}
                     >
                         <View className="flex-row items-center justify-between mb-4 bg-gray-50 dark:bg-gray-800 p-2 rounded-lg">
-                            <Text className="text-gray-500 text-xs font-bold uppercase">Fecha de Visualización</Text>
+                            <Text className="text-gray-500 text-xs font-bold uppercase">{t('monitoring.view_date')}</Text>
                             <DatePicker
                                 value={toDateString(filterDate)}
                                 onChange={(d) => {
@@ -218,7 +172,7 @@ export const MonitoringTab = () => {
                             />
                         </View>
 
-                        <Text className="text-gray-500 text-xs font-bold uppercase mb-2">Filtrar por hijo:</Text>
+                        <Text className="text-gray-500 text-xs font-bold uppercase mb-2">{t('monitoring.filter_child')}</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} className="mb-4">
                             <TouchableOpacity
                                 onPress={() => setSelectedChildId(null)}
@@ -227,7 +181,7 @@ export const MonitoringTab = () => {
                                     : 'bg-white border-gray-300'
                                     }`}
                             >
-                                <Text className={selectedChildId === null ? 'text-white font-medium' : 'text-gray-700'}>Todos</Text>
+                                <Text className={selectedChildId === null ? 'text-white font-medium' : 'text-gray-700'}>{t('monitoring.all_children')}</Text>
                             </TouchableOpacity>
 
                             {users.filter(u => u.role === 'child').map(child => {
@@ -253,13 +207,13 @@ export const MonitoringTab = () => {
                 </View>
 
                 <View className="p-5">
-                    <Text className="text-lg font-bold text-gray-700 dark:text-gray-200 mb-2">Tareas Activas</Text>
+                    <Text className="text-lg font-bold text-gray-700 dark:text-gray-200 mb-2">{t('monitoring.active_tasks')}</Text>
                     <Text className="text-xs text-gray-400 mb-4 italic">
-                        * Toca las tarjetas para seleccionar y verificar masivamente.
+                        {t('monitoring.tip_select')}
                     </Text>
 
                     {activeTasks.length === 0 ? (
-                        <Text className="text-gray-400 text-center py-8">No hay tareas activas</Text>
+                        <Text className="text-gray-400 text-center py-8">{t('monitoring.no_active_tasks')}</Text>
                     ) : (
                         (() => {
                             const categorySections = categories.map(cat => ({
@@ -295,11 +249,28 @@ export const MonitoringTab = () => {
                                             onPress={() => setExpandedCategories(prev => ({ ...prev, [section.id]: !isExpanded }))}
                                             className={`flex-row justify-between items-center p-3 rounded-xl border ${section.bg} ${section.border} mb-2 shadow-sm bg-white`}
                                         >
-                                            <View className="flex-row items-center gap-2">
-                                                <Text className={`font-bold ${section.text} text-lg`}>{section.title}</Text>
-                                                <View className="bg-gray-100 px-2 py-0.5 rounded-full">
-                                                    <Text className="text-xs font-bold text-gray-600">{sectionTasks.length}</Text>
-                                                </View>
+                                            <View className="flex-row items-center gap-2 flex-1 mr-2">
+                                                <Text className={`font-bold ${section.text} text-lg mr-2`}>{section.title}</Text>
+                                                {(() => {
+                                                    const pending = sectionTasks.filter(t => t.status === 'pending').length;
+                                                    const completed = sectionTasks.filter(t => t.status === 'completed').length;
+                                                    const verified = sectionTasks.filter(t => t.status === 'verified').length;
+                                                    const total = sectionTasks.length;
+
+                                                    return (
+                                                        <View className="flex-col gap-0 items-start ml-auto">
+                                                            {pending === 0 && total > 0 ? (
+                                                                <Text className="text-green-600 font-bold">{t('status.completed_msg')}</Text>
+                                                            ) : (
+                                                                <>
+                                                                    <Text className="text-[10px] text-red-500 font-bold">{String(pending)} {t('status.pending')}</Text>
+                                                                    <Text className="text-[10px] text-orange-500 font-bold">{String(completed)} {t('status.in_review')}</Text>
+                                                                    <Text className="text-[10px] text-green-600 font-bold">{String(verified)} {t('status.verified')}</Text>
+                                                                </>
+                                                            )}
+                                                        </View>
+                                                    );
+                                                })()}
                                             </View>
                                             <Text className="text-gray-400">{isExpanded ? '▼' : '▶'}</Text>
                                         </TouchableOpacity>
@@ -308,24 +279,32 @@ export const MonitoringTab = () => {
                                             <View className="gap-0">
                                                 {sectionTasks.map(item => {
                                                     const isSelected = selectedTaskIds.includes(item.id);
-                                                    return (
-                                                        <TouchableOpacity
-                                                            key={item.id}
-                                                            onPress={() => handleToggleSelection(item)}
-                                                            activeOpacity={0.9}
-                                                            disabled={item.status === 'verified'}
-                                                        >
-                                                            <View className={`mb-4 rounded-xl border-4 overflow-hidden relative ${isSelected ? 'border-green-500 bg-green-50 transform scale-[1.02]' : 'border-transparent'}`}>
-                                                                {isSelected && (
-                                                                    <View className="absolute top-2 right-2 z-10 bg-green-600 rounded-full w-6 h-6 items-center justify-center">
-                                                                        <Text className="text-white font-bold">✓</Text>
-                                                                    </View>
-                                                                )}
-                                                                <View>
-                                                                    {renderTask({ item })}
+                                                    const Wrapper = ({ children }: { children: React.ReactNode }) => (
+                                                        <View className={`mb-4 rounded-xl border-4 overflow-hidden relative ${isSelected ? 'border-green-500 bg-green-50 transform scale-[1.02]' : 'border-transparent'}`}>
+                                                            {isSelected && (
+                                                                <View className="absolute top-2 right-2 z-10 bg-green-600 rounded-full w-6 h-6 items-center justify-center">
+                                                                    <Text className="text-white font-bold">✓</Text>
                                                                 </View>
-                                                            </View>
-                                                        </TouchableOpacity>
+                                                            )}
+                                                            {children}
+                                                        </View>
+                                                    );
+
+                                                    return (
+                                                        <Wrapper key={item.id}>
+                                                            <ParentTaskCard
+                                                                task={item}
+                                                                users={users}
+                                                                onVerify={confirmVerify}
+                                                                onReject={confirmReject}
+                                                                onAssign={() => { }}
+                                                                onEdit={(item) => navigation.navigate('CreateTask', { taskToEdit: item })}
+                                                                onDelete={confirmUnassign}
+                                                                className=""
+                                                                isReadOnly={isFutureDate}
+                                                                onPress={() => item.status !== 'verified' && handleToggleSelection(item)}
+                                                            />
+                                                        </Wrapper>
                                                     );
                                                 })}
                                             </View>
@@ -342,7 +321,7 @@ export const MonitoringTab = () => {
                 selectedTaskIds.length > 0 && (
                     <View className="absolute bottom-6 left-6 right-6 z-50">
                         <Button
-                            title={`Verificar (${selectedTaskIds.length}) Tareas`}
+                            title={t('monitoring.btn_verify_count').replace('{count}', String(selectedTaskIds.length))}
                             onPress={handleBatchVerify}
                             className="shadow-xl bg-green-600 h-14"
                             textClassName="text-lg font-bold"
@@ -350,6 +329,57 @@ export const MonitoringTab = () => {
                     </View>
                 )
             }
+
+            {/* Generic Confirmation Modal */}
+            <Modal
+                visible={!!confirmationAction}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setConfirmationAction(null)}
+            >
+                <View className="flex-1 bg-black/50 justify-center items-center p-6">
+                    <View className="bg-white p-6 rounded-2xl w-full max-w-sm">
+                        <Text className="text-xl font-bold mb-4 text-center">
+                            {confirmationAction?.type === 'batch_verify'
+                                ? t('monitoring.batch_verify')
+                                : confirmationAction ? t(`monitoring.confirm_${confirmationAction.type}`) : ''}
+                        </Text>
+                        <Text className="text-gray-600 text-center mb-6">
+                            {confirmationAction?.type === 'batch_verify'
+                                ? `${t('monitoring.batch_verify_confirm')} ${selectedTaskIds.length} ${t('monitoring.selected_tasks')}?`
+                                : confirmationAction ? t(`monitoring.confirm_${confirmationAction.type}_msg`) : ''}
+                        </Text>
+                        <View className="flex-col gap-3">
+                            <Button
+                                title={confirmationAction?.type === 'batch_verify'
+                                    ? t('monitoring.verify_all')
+                                    : confirmationAction ? t(`monitoring.yes_${confirmationAction.type}`) : ''}
+                                onPress={async () => {
+                                    if (confirmationAction) {
+                                        if (confirmationAction.type === 'verify' && confirmationAction.taskId) verifyTask(confirmationAction.taskId);
+                                        if (confirmationAction.type === 'reject' && confirmationAction.taskId) rejectTask(confirmationAction.taskId);
+                                        if (confirmationAction.type === 'delete' && confirmationAction.taskId) deleteTask(confirmationAction.taskId);
+
+                                        if (confirmationAction.type === 'batch_verify') {
+                                            for (const id of selectedTaskIds) {
+                                                await verifyTask(id);
+                                            }
+                                            setSelectedTaskIds([]);
+                                        }
+                                        setConfirmationAction(null);
+                                    }
+                                }}
+                                className={confirmationAction?.type === 'verify' || confirmationAction?.type === 'batch_verify' ? "bg-green-600" : "bg-rose-600"}
+                            />
+                            <Button
+                                title={t('common.cancel')}
+                                variant="outline"
+                                onPress={() => setConfirmationAction(null)}
+                            />
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View >
     );
 };

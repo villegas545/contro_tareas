@@ -8,11 +8,13 @@ import { FamilyTab } from '../components/dashboard/FamilyTab';
 import { MessagesTab } from '../components/dashboard/MessagesTab';
 import { RewardsTab } from '../components/dashboard/RewardsTab';
 import { SettingsTab } from '../components/dashboard/SettingsTab';
-import { CategoriesTab } from '../components/dashboard/CategoriesTab';
+import { ScheduleModal } from '../components/ScheduleModal';
+
 
 export default function ParentDashboard({ navigation }: any) {
-    const { currentUser, logout, tasks, redemptions } = useTaskContext();
-    const [currentTab, setCurrentTab] = useState<'monitoring' | 'assignment' | 'messages' | 'family' | 'rewards' | 'settings' | 'categories'>('monitoring');
+    const { currentUser, logout, tasks, redemptions, t } = useTaskContext();
+    const [currentTab, setCurrentTab] = useState<'monitoring' | 'assignment' | 'messages' | 'family' | 'rewards' | 'settings'>('monitoring');
+    const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
 
     const confirmLogout = () => {
         logout();
@@ -31,14 +33,14 @@ export default function ParentDashboard({ navigation }: any) {
                             resizeMode="cover"
                         />
                         <View>
-                            <Text className="text-orange-100 text-xs font-medium">Hola,</Text>
+                            <Text className="text-orange-100 text-xs font-medium">{t('header.greeting')}</Text>
                             <Text className="text-xl font-bold text-white dark:text-brand-text-light">{currentUser?.name}</Text>
                         </View>
                     </View>
                     <View className="flex-row gap-2 items-center">
 
                         <Button
-                            title="📊 Stats"
+                            title={t('header.stats')}
                             variant="secondary"
                             size="sm"
                             onPress={() => navigation.navigate('Statistics')}
@@ -46,7 +48,15 @@ export default function ParentDashboard({ navigation }: any) {
                             textClassName="text-white"
                         />
                         <Button
-                            title="Salir"
+                            title={t('header.schedule')}
+                            variant="secondary"
+                            size="sm"
+                            onPress={() => setScheduleModalVisible(true)}
+                            className="bg-white/20 shadow-none"
+                            textClassName="text-white"
+                        />
+                        <Button
+                            title={t('header.logout')}
                             variant="outline"
                             size="sm"
                             onPress={confirmLogout}
@@ -61,8 +71,8 @@ export default function ParentDashboard({ navigation }: any) {
                 <View className="border-b border-gray-200">
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingVertical: 16, gap: 16 }}>
                         <TouchableOpacity onPress={() => setCurrentTab('monitoring')} className="relative">
-                            <Text className={`text - lg font - bold ${currentTab === 'monitoring' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
-                                Seguimiento
+                            <Text className={`text-lg font-bold ${currentTab === 'monitoring' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
+                                {t('tabs.monitoring')}
                             </Text>
                             {tasks.filter(t => t.status === 'completed').length > 0 && (
                                 <View className="absolute -top-2 -right-3 bg-red-500 rounded-full w-5 h-5 justify-center items-center">
@@ -71,28 +81,24 @@ export default function ParentDashboard({ navigation }: any) {
                             )}
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setCurrentTab('assignment')}>
-                            <Text className={`text - lg font - bold ${currentTab === 'assignment' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
-                                Plantillas
+                            <Text className={`text-lg font-bold ${currentTab === 'assignment' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
+                                {t('tabs.assignment')}
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setCurrentTab('family')}>
-                            <Text className={`text - lg font - bold ${currentTab === 'family' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
-                                Familia
+                            <Text className={`text-lg font-bold ${currentTab === 'family' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
+                                {t('tabs.family')}
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setCurrentTab('messages')}>
-                            <Text className={`text - lg font - bold ${currentTab === 'messages' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
-                                Mensajes
+                            <Text className={`text-lg font-bold ${currentTab === 'messages' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
+                                {t('tabs.messages')}
                             </Text>
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => setCurrentTab('categories')}>
-                            <Text className={`text - lg font - bold ${currentTab === 'categories' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
-                                Categorías
-                            </Text>
-                        </TouchableOpacity>
+
                         <TouchableOpacity onPress={() => setCurrentTab('rewards')} className="relative">
-                            <Text className={`text - lg font - bold ${currentTab === 'rewards' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
-                                Premios
+                            <Text className={`text-lg font-bold ${currentTab === 'rewards' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
+                                {t('tabs.rewards')}
                             </Text>
                             {redemptions.filter(r => r.status === 'pending').length > 0 && (
                                 <View className="absolute -top-2 -right-3 bg-red-500 rounded-full w-5 h-5 justify-center items-center">
@@ -101,8 +107,8 @@ export default function ParentDashboard({ navigation }: any) {
                             )}
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setCurrentTab('settings')}>
-                            <Text className={`text - lg font - bold ${currentTab === 'settings' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
-                                Configuración
+                            <Text className={`text-lg font-bold ${currentTab === 'settings' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
+                                {t('tabs.settings')}
                             </Text>
                         </TouchableOpacity>
                     </ScrollView>
@@ -116,9 +122,10 @@ export default function ParentDashboard({ navigation }: any) {
                     {currentTab === 'messages' && <MessagesTab />}
                     {currentTab === 'rewards' && <RewardsTab />}
                     {currentTab === 'settings' && <SettingsTab />}
-                    {currentTab === 'categories' && <CategoriesTab />}
+
                 </View>
             </View>
-        </SafeAreaView>
+            <ScheduleModal visible={scheduleModalVisible} onClose={() => setScheduleModalVisible(false)} />
+        </SafeAreaView >
     );
 }

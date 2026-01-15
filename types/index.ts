@@ -18,40 +18,69 @@ export interface User {
   pushToken?: string;
 }
 
-export interface Task {
+export interface JustificationReason {
+  id: string;
+  text: string;
+}
+
+export interface TaskTemplate {
   id: string;
   title: string;
   description?: string;
-  assignedTo: string; // User ID (child)
-  createdBy: string; // User ID (parent)
-  dueDate?: string; // ISO string
-  dueTime?: string; // ISO string or specific time string like '14:00'
-  status: TaskStatus;
+  createdBy: string;
   type: TaskType;
   frequency: TaskFrequency;
-  points?: number; // Optional reward points
+  points: number;
+  timeWindow?: {
+    start: string;
+    end: string;
+  };
+  timeLimit?: number;
+  isResponsibility: boolean;
+  isSchool: boolean;
+  recurrenceDays?: number[];
+  shift?: 'morning' | 'afternoon' | 'night' | 'no-time';
+  categoryId?: string;
+}
+
+export interface Task {
+  id: string;
+  title: string; // From Template or Override
+  description?: string; // From Template or Override
+  assignedTo: string;
+  createdBy: string;
+  dueDate?: string;
+  dueTime?: string; // Specific to day
+  status: TaskStatus;
+  type: TaskType; // From Template
+  frequency: TaskFrequency; // From Template
+  points?: number; // From Template
   completedAt?: string;
   verifiedAt?: string;
   reminder?: boolean;
   timeWindow?: {
-    start: string; // Format "HH:mm"
-    end: string;   // Format "HH:mm"
+    start: string;
+    end: string;
   };
-  timeLimit?: number; // Minutes allowed to complete task
+  timeLimit?: number;
   evidenceUrl?: string;
-  isResponsibility?: boolean; // Counts for Bonus/Punishment
-  isSchool?: boolean; // Only active on School Days
-  recurrenceDays?: number[]; // 0=Sun, 1=Mon, ..., 6=Sat. If empty/undefined, assumes daily/frequency standard.
-  shift?: 'morning' | 'afternoon' | 'night' | 'no-time'; // Period of day
-  originalTaskId?: string; // If 'copy', ID of the template/pool task
+  isResponsibility?: boolean;
+  isSchool?: boolean;
+  recurrenceDays?: number[];
+  shift?: 'morning' | 'afternoon' | 'night' | 'no-time';
+
+  // Relational Link
+  templateId?: string;
+  originalTaskId?: string; // DEPRECATED: Use templateId
   categoryId?: string;
 }
 
 export interface Category {
   id: string;
   name: string;
-  icon: string; // Emoji or Icon set name
+  icon: string;
   color?: string;
+  order: number;
 }
 
 export interface Reward {
@@ -78,9 +107,12 @@ export interface NonSchoolDay {
   description?: string;
 }
 
+export type Language = 'es' | 'en' | 'fr' | 'pt' | 'it';
+
 export interface GlobalSettings {
   id: string; // 'general'
   isVacationMode: boolean;
   nonSchoolDays?: NonSchoolDay[];
   timezone?: string; // e.g. 'America/Chicago'
+  language?: Language;
 }

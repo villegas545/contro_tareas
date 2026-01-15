@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, Platform, Modal } from 'react-native';
 import { useTaskContext } from '../../context/TaskContext';
 import { Button } from '../ui/Button';
 
 export const RewardsTab = () => {
-    const { rewards, addReward, deleteReward, redemptions, approveRedemption, rejectRedemption, currentUser, users } = useTaskContext();
+    const { rewards, addReward, deleteReward, redemptions, approveRedemption, rejectRedemption, currentUser, users, t } = useTaskContext();
     const [title, setTitle] = useState('');
     const [cost, setCost] = useState('');
     const [icon, setIcon] = useState('🎁');
@@ -13,10 +13,13 @@ export const RewardsTab = () => {
 
     const [isCreating, setIsCreating] = useState(false);
 
+    // Custom Confirmation Modal State
+    const [confirmationAction, setConfirmationAction] = useState<{ type: 'delete' | 'approve', id: string, payload?: any } | null>(null);
+
     const handleAddReward = () => {
         if (!title.trim() || !cost || isNaN(Number(cost))) {
-            if (Platform.OS === 'web') window.alert("Ingresa un título válido y costo en puntos.");
-            else Alert.alert("Error", "Ingresa un título válido y costo en puntos.");
+            if (Platform.OS === 'web') window.alert(t('rewards.alert_invalid_input'));
+            else Alert.alert(t('rewards.alert_error'), t('rewards.alert_invalid_input'));
             return;
         }
 
@@ -30,44 +33,30 @@ export const RewardsTab = () => {
         setTitle('');
         setCost('');
         setIsCreating(false);
-        if (Platform.OS === 'web') window.alert("Premio agregado");
-        else Alert.alert("Éxito", "Premio agregado");
+        if (Platform.OS === 'web') window.alert(t('rewards.alert_added'));
+        else Alert.alert(t('rewards.alert_success'), t('rewards.alert_added'));
     };
 
     const confirmDelete = (id: string) => {
-        if (Platform.OS === 'web') {
-            if (window.confirm("¿Eliminar este premio?")) deleteReward(id);
-        } else {
-            Alert.alert("Eliminar", "¿Eliminar este premio?", [
-                { text: "Cancelar" },
-                { text: "Eliminar", style: 'destructive', onPress: () => deleteReward(id) }
-            ]);
-        }
+        setConfirmationAction({ type: 'delete', id });
     };
 
     const confirmApprove = (id: string, cost: number) => {
-        if (Platform.OS === 'web') {
-            if (window.confirm(`¿Aprobar canje y restar ${cost} puntos?`)) approveRedemption(id);
-        } else {
-            Alert.alert("Aprobar Canje", `¿Aprobar canje y restar ${cost} puntos?`, [
-                { text: "Cancelar" },
-                { text: "Aprobar", onPress: () => approveRedemption(id) }
-            ]);
-        }
+        setConfirmationAction({ type: 'approve', id, payload: { cost } });
     };
 
     return (
         <View className="flex-1 p-6 pb-24">
             {/* Header */}
             <View className="flex-row justify-between items-center mb-6">
-                <Text className="text-xl font-bold text-gray-800 dark:text-white">Premios de la Tienda</Text>
-                {!isCreating && <Button title="+ Nuevo" size="sm" onPress={() => setIsCreating(true)} />}
+                <Text className="text-xl font-bold text-gray-800 dark:text-white">{t('rewards.title_parents')}</Text>
+                {!isCreating && <Button title={t('rewards.new')} size="sm" onPress={() => setIsCreating(true)} />}
             </View>
 
             {/* Pending Redemptions */}
             {pendingRedemptions.length > 0 && (
                 <View className="mb-8">
-                    <Text className="text-sm font-bold mb-2 text-brand-primary uppercase">⏳ Solicitudes de Canje</Text>
+                    <Text className="text-sm font-bold mb-2 text-brand-primary uppercase">{t('rewards.pending_requests')}</Text>
                     {pendingRedemptions.map(req => {
                         const childName = users.find(u => u.id === req.childId)?.name || 'Hijo';
                         return (
@@ -75,15 +64,15 @@ export const RewardsTab = () => {
                                 <View className="flex-row justify-between items-start mb-3">
                                     <View>
                                         <Text className="text-lg font-bold text-gray-900 dark:text-white">{req.rewardTitle}</Text>
-                                        <Text className="text-gray-500 dark:text-gray-400">Solicitado por: <Text className="font-bold">{childName}</Text></Text>
+                                        <Text className="text-gray-500 dark:text-gray-400">{t('rewards.requested_by')} <Text className="font-bold">{childName}</Text></Text>
                                     </View>
                                     <View className="bg-amber-100 dark:bg-amber-900 px-3 py-1 rounded-full">
-                                        <Text className="text-amber-800 dark:text-amber-200 font-bold">-{req.cost} pts</Text>
+                                        <Text className="text-amber-800 dark:text-amber-200 font-bold">-{req.cost} {t('task.points')}</Text>
                                     </View>
                                 </View>
                                 <View className="flex-row gap-2">
-                                    <Button title="✅ Aprobar" onPress={() => confirmApprove(req.id, req.cost)} className="flex-1 bg-green-600" size="sm" />
-                                    <Button title="❌ Rechazar" onPress={() => rejectRedemption(req.id)} variant="outline" className="flex-1 border-rose-200" textClassName="text-rose-600" size="sm" />
+                                    <Button title={t('rewards.approve_btn')} onPress={() => confirmApprove(req.id, req.cost)} className="flex-1 bg-green-600" size="sm" />
+                                    <Button title={t('rewards.reject_btn')} onPress={() => rejectRedemption(req.id)} variant="outline" className="flex-1 border-rose-200" textClassName="text-rose-600" size="sm" />
                                 </View>
                             </View>
                         );
@@ -94,20 +83,20 @@ export const RewardsTab = () => {
             {/* Create Reward Form */}
             {isCreating && (
                 <View className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm mb-6 border border-gray-100 dark:border-gray-700">
-                    <Text className="text-lg font-bold mb-4 text-brand-text-primary dark:text-brand-text-light">Nuevo Premio</Text>
+                    <Text className="text-lg font-bold mb-4 text-brand-text-primary dark:text-brand-text-light">{t('rewards.create_title')}</Text>
 
                     <View className="flex-row gap-3">
                         <TextInput
                             value={icon}
                             onChangeText={setIcon}
-                            placeholder="🎁"
+                            placeholder={t('rewards.icon_placeholder')}
                             placeholderTextColor="#9CA3AF"
                             className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-3 text-center text-xl w-14"
                         />
                         <TextInput
                             value={title}
                             onChangeText={setTitle}
-                            placeholder="Título (ej. 1hr Videojuegos)"
+                            placeholder={t('rewards.title_placeholder')}
                             placeholderTextColor="#9CA3AF"
                             className="flex-1 bg-gray-50 p-3 rounded-lg border border-gray-200 mb-3"
                         />
@@ -116,15 +105,15 @@ export const RewardsTab = () => {
                     <TextInput
                         value={cost}
                         onChangeText={setCost}
-                        placeholder="Costo en Puntos (ej. 50)"
+                        placeholder={t('rewards.cost_placeholder')}
                         placeholderTextColor="#9CA3AF"
                         keyboardType="numeric"
                         className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-4"
                     />
 
                     <View className="flex-row gap-2">
-                        <Button title="Cancelar" variant="outline" onPress={() => setIsCreating(false)} className="flex-1" />
-                        <Button title="Guardar Premio" onPress={handleAddReward} className="flex-1" />
+                        <Button title={t('common.cancel')} variant="outline" onPress={() => setIsCreating(false)} className="flex-1" />
+                        <Button title={t('rewards.save_btn')} onPress={handleAddReward} className="flex-1" />
                     </View>
                 </View>
             )}
@@ -139,7 +128,7 @@ export const RewardsTab = () => {
                     >
                         <Text className="text-3xl mb-2 text-center">{item.icon || '🎁'}</Text>
                         <Text className="font-bold text-center text-gray-800 dark:text-white mb-1">{item.title}</Text>
-                        <Text className="text-center text-gray-500 text-xs text-brand-primary font-bold">{item.cost} Pts</Text>
+                        <Text className="text-center text-gray-500 text-xs text-brand-primary font-bold">{item.cost} {t('task.points')}</Text>
 
                         {/* Delete Indicator */}
                         <View className="absolute top-2 right-2">
@@ -149,11 +138,51 @@ export const RewardsTab = () => {
                 ))}
             </View>
             {rewards.length === 0 && (
-                <Text className="text-center text-gray-400 mt-4">No hay premios configurados.</Text>
+                <Text className="text-center text-gray-400 mt-4">{t('rewards.no_rewards')}</Text>
             )}
             {rewards.length > 0 && (
-                <Text className="text-center text-gray-400 mt-8 text-xs">Mantén presionado un premio para eliminarlo.</Text>
+                <Text className="text-center text-gray-400 mt-8 text-xs">{t('rewards.delete_hint')}</Text>
             )}
+            {/* Confirmation Modal */}
+            <Modal
+                visible={!!confirmationAction}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setConfirmationAction(null)}
+            >
+                <View className="flex-1 bg-black/50 justify-center items-center p-6">
+                    <View className="bg-white p-6 rounded-2xl w-full max-w-sm">
+                        <Text className="text-xl font-bold mb-4 text-center">
+                            {confirmationAction?.type === 'delete'
+                                ? t('rewards.confirm_delete_title')
+                                : t('rewards.confirm_approve_title')}
+                        </Text>
+                        <Text className="text-gray-600 text-center mb-6">
+                            {confirmationAction?.type === 'delete'
+                                ? t('rewards.confirm_delete_msg')
+                                : t('rewards.confirm_approve_msg').replace('{cost}', String(confirmationAction?.payload?.cost || 0))}
+                        </Text>
+                        <View className="flex-col gap-3">
+                            <Button
+                                title={confirmationAction?.type === 'delete' ? t('common.delete') : t('rewards.approve_btn')}
+                                onPress={() => {
+                                    if (confirmationAction) {
+                                        if (confirmationAction.type === 'delete') deleteReward(confirmationAction.id);
+                                        if (confirmationAction.type === 'approve') approveRedemption(confirmationAction.id);
+                                        setConfirmationAction(null);
+                                    }
+                                }}
+                                className={confirmationAction?.type === 'delete' ? "bg-rose-600" : "bg-green-600"}
+                            />
+                            <Button
+                                title={t('common.cancel')}
+                                variant="outline"
+                                onPress={() => setConfirmationAction(null)}
+                            />
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };

@@ -22,7 +22,7 @@ interface HistoryItem {
 }
 
 export default function StatisticsScreen({ navigation, route, embedded }: any) {
-    const { history, users, tasks, currentUser } = useTaskContext();
+    const { history, users, tasks, currentUser, t } = useTaskContext();
     const children = users.filter((u: any) => u.role === 'child');
 
     const isChildView = currentUser?.role === 'child';
@@ -244,34 +244,34 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
 
     const exportToCSV = async () => {
         try {
-            let csvContent = "Fecha,Nino,Tarea,Estado,Puntos,Tipo,Turno\n";
+            let csvContent = t('stats.csv_header');
 
             stats.forEach((childStat) => {
                 const childName = childStat.child.name;
-                childStat.history.forEach((t) => {
+                childStat.history.forEach((tItem) => {
                     // map values
-                    const date = t.date === 'Hoy' ? new Date().toISOString().split('T')[0] : t.date;
-                    const status = t.status === 'verified' ? 'Verificado' :
-                        t.status === 'completed' ? 'Completado' :
-                            t.status === 'missed' ? 'Fallido' :
-                                t.status === 'pending' ? 'Pendiente' : t.status;
-                    const points = t.points || 0;
-                    const type = t.isResponsibility ? "Responsabilidad" : "Extra";
-                    const cleanTitle = (t.taskTitle || "").replace(/,/g, ' ');
+                    const date = tItem.date === 'Hoy' ? new Date().toISOString().split('T')[0] : tItem.date;
+                    const status = tItem.status === 'verified' ? t('stats.status.verified') :
+                        tItem.status === 'completed' ? t('stats.status.completed') :
+                            tItem.status === 'missed' ? t('stats.status.missed') :
+                                tItem.status === 'pending' ? t('stats.status.pending') : tItem.status;
+                    const points = tItem.points || 0;
+                    const type = tItem.isResponsibility ? t('stats.type.responsibility') : t('stats.type.extra');
+                    const cleanTitle = (tItem.taskTitle || "").replace(/,/g, ' ');
 
                     const shiftMap: Record<string, string> = {
-                        morning: 'Mañana',
-                        afternoon: 'Tarde',
-                        night: 'Noche',
-                        'no-time': 'Sin Horario'
+                        morning: t('stats.shift.morning'),
+                        afternoon: t('stats.shift.afternoon'),
+                        night: t('stats.shift.night'),
+                        'no-time': t('stats.shift.no_schedule')
                     };
-                    const shift = t.shift ? (shiftMap[t.shift] || t.shift) : 'Sin Horario';
+                    const shift = tItem.shift ? (shiftMap[tItem.shift] || tItem.shift) : t('stats.shift.no_schedule');
 
                     csvContent += `${date},${childName},${cleanTitle},${status},${points},${type},${shift}\n`;
                 });
             });
 
-            const fileName = `reporte_tareas_${new Date().toISOString().split('T')[0]}.csv`;
+            const fileName = `${t('stats.csv_filename')}${new Date().toISOString().split('T')[0]}.csv`;
 
             if (Platform.OS === 'web') {
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -311,12 +311,12 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
         <Container className={`flex-1 ${bgColor} ${darkBgColor}`}>
             {!isEmbedded && (
                 <View className={`p-6 bg-white dark:bg-slate-800 shadow-sm flex-row items-center justify-between`}>
-                    <Text className="text-xl font-bold text-gray-900 dark:text-white">Estadísticas</Text>
+                    <Text className="text-xl font-bold text-gray-900 dark:text-white">{t('stats.title')}</Text>
                     <View className="flex-row gap-2">
                         {!isChildView && (
-                            <Button title="📥 CSV" size="sm" variant="secondary" onPress={exportToCSV} />
+                            <Button title={t('stats.csv_export')} size="sm" variant="secondary" onPress={exportToCSV} />
                         )}
-                        <Button title="Cerrar" size="sm" variant="outline" onPress={() => navigation.goBack()} />
+                        <Button title={t('common.close')} size="sm" variant="outline" onPress={() => navigation.goBack()} />
                     </View>
                 </View>
             )}
@@ -327,33 +327,33 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
                     setShowFilters={setShowFilters}
                     searchText={searchText}
                     setSearchText={setSearchText}
-                    searchPlaceholder="Buscar tarea..."
+                    searchPlaceholder={t('stats.search_placeholder')}
                     statusFilter={statusFilter}
                     setStatusFilter={setStatusFilter}
                     statusOptions={[
-                        { id: 'all', label: 'Todos' },
-                        { id: 'pending', label: '⏳ Pendientes' },
-                        { id: 'completed', label: '✅ Por Revisar' },
-                        { id: 'verified', label: '⭐️ Completados' },
-                        { id: 'expired', label: '❌ Fallados' },
+                        { id: 'all', label: t('stats.filter.all') },
+                        { id: 'pending', label: t('stats.filter.pending') },
+                        { id: 'completed', label: t('stats.filter.completed') },
+                        { id: 'verified', label: t('stats.filter.verified') },
+                        { id: 'expired', label: t('stats.filter.expired') },
                     ]}
                     typeFilter={typeFilter}
                     setTypeFilter={setTypeFilter}
                 >
-                    <Text className="text-gray-500 text-xs font-bold uppercase mb-2">Periodo:</Text>
+                    <Text className="text-gray-500 text-xs font-bold uppercase mb-2">{t('stats.period')}</Text>
                     <View className="flex-row items-center justify-between mb-4 bg-gray-100 dark:bg-gray-800 p-2 rounded-lg">
                         <View className="flex-row bg-white dark:bg-gray-700 rounded-md p-0.5">
                             <TouchableOpacity
                                 onPress={() => setViewMode('week')}
                                 className={`px-3 py-1.5 rounded-md ${viewMode === 'week' ? 'bg-indigo-100' : ''}`}
                             >
-                                <Text className={`font-bold ${viewMode === 'week' ? 'text-indigo-600' : 'text-gray-500'}`}>Semana</Text>
+                                <Text className={`font-bold ${viewMode === 'week' ? 'text-indigo-600' : 'text-gray-500'}`}>{t('stats.week')}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 onPress={() => setViewMode('day')}
                                 className={`px-3 py-1.5 rounded-md ${viewMode === 'day' ? 'bg-indigo-100' : ''}`}
                             >
-                                <Text className={`font-bold ${viewMode === 'day' ? 'text-indigo-600' : 'text-gray-500'}`}>Día</Text>
+                                <Text className={`font-bold ${viewMode === 'day' ? 'text-indigo-600' : 'text-gray-500'}`}>{t('stats.day')}</Text>
                             </TouchableOpacity>
                         </View>
 
@@ -373,7 +373,7 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
                     {/* Child Filter */}
                     {!isChildView && (
                         <>
-                            <Text className="text-gray-500 text-xs font-bold uppercase mb-2">Filtrar por hijo:</Text>
+                            <Text className="text-gray-500 text-xs font-bold uppercase mb-2">{t('stats.filter_child')}</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} className="mb-4">
                                 <TouchableOpacity
                                     onPress={() => setSelectedChildId(null)}
@@ -382,7 +382,7 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
                                         : 'bg-white border-gray-300'
                                         }`}
                                 >
-                                    <Text className={selectedChildId === null ? 'text-white font-medium' : 'text-gray-700'}>Todos</Text>
+                                    <Text className={selectedChildId === null ? 'text-white font-medium' : 'text-gray-700'}>{t('filter.all')}</Text>
                                 </TouchableOpacity>
 
                                 {children.map((child: any) => {
@@ -421,7 +421,7 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
 
                     <View className="items-center">
                         <Text className="text-gray-500 text-xs font-bold uppercase mb-1">
-                            {viewMode === 'week' ? 'Semana del' : 'Viendo el'}
+                            {viewMode === 'week' ? t('stats.view_week') : t('stats.view_day')}
                         </Text>
                         <Text className="text-lg font-bold text-indigo-600">
                             {viewMode === 'week'
@@ -431,7 +431,7 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
                         </Text>
                         {isCurrentPeriod && (
                             <Text className="text-xs text-green-600 font-bold mt-1">
-                                {viewMode === 'week' ? 'Semana Actual' : 'Hoy'}
+                                {viewMode === 'week' ? t('stats.current_week') : t('filter.date.today')}
                             </Text>
                         )}
                     </View>
@@ -446,21 +446,21 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
 
                 {stats.map(({ child, totalPoints, completed, waiting, missed, pending, history, punishmentWarning, missedCount }) => (
                     <View key={child.id} className="mb-8 border-b-2 border-gray-100 pb-8 last:border-0">
-                        <Text className="text-xl font-bold text-gray-800 mb-4">Progreso de {child.name}</Text>
+                        <Text className="text-xl font-bold text-gray-800 mb-4">{t('stats.progress_of')} {child.name}</Text>
 
                         {/* Bonus / Punishment Status (Only show in Week View as it's a weekly metric usually) */}
                         {viewMode === 'week' && (
                             punishmentWarning ? (
                                 <View className="bg-red-100 p-4 rounded-xl mb-6 border-l-4 border-red-500">
-                                    <Text className="text-red-700 font-bold text-lg">⚠️ ¡Alerta de Castigo!</Text>
+                                    <Text className="text-red-700 font-bold text-lg">{t('stats.punishment_alert')}</Text>
                                     <Text className="text-red-600 mt-1">
-                                        Ha fallado {missedCount} tareas esta semana. (Límite: 5)
+                                        {t('stats.punishment_msg').replace('{count}', String(missedCount))}
                                     </Text>
                                 </View>
                             ) : (
                                 <View className="bg-green-100 p-3 rounded-xl mb-6 border-l-4 border-green-500">
-                                    <Text className="text-green-700 font-bold">✅ Buen camino para el Bono</Text>
-                                    <Text className="text-green-600 text-xs mt-1">Faltas: {missedCount} / 5 permitidas</Text>
+                                    <Text className="text-green-700 font-bold">{t('stats.bonus_msg')}</Text>
+                                    <Text className="text-green-600 text-xs mt-1">{t('stats.bonus_sub_msg').replace('{count}', String(missedCount))}</Text>
                                 </View>
                             )
                         )}
@@ -470,17 +470,17 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
                             <View className="flex-row gap-4">
                                 <Card className="flex-1 bg-indigo-50 border-indigo-100 items-center p-4">
                                     <Text className="text-3xl font-bold text-indigo-600">{totalPoints}</Text>
-                                    <Text className="text-indigo-400 text-xs font-bold uppercase mt-1">Puntos</Text>
+                                    <Text className="text-indigo-400 text-xs font-bold uppercase mt-1">{t('stats.points')}</Text>
                                 </Card>
 
                                 <Card className="flex-1 bg-yellow-50 border-yellow-100 items-center p-4">
                                     <Text className="text-3xl font-bold text-yellow-600">{pending}</Text>
-                                    <Text className="text-yellow-500 text-xs font-bold uppercase mt-1">Pendientes</Text>
+                                    <Text className="text-yellow-500 text-xs font-bold uppercase mt-1">{t('stats.pending_count')}</Text>
                                 </Card>
 
                                 <Card className="flex-1 bg-blue-50 border-blue-100 items-center p-4">
                                     <Text className="text-3xl font-bold text-blue-600">{waiting}</Text>
-                                    <Text className="text-blue-500 text-xs font-bold uppercase mt-1 text-center">Revisar</Text>
+                                    <Text className="text-blue-500 text-xs font-bold uppercase mt-1 text-center">{t('stats.review_count')}</Text>
                                 </Card>
                             </View>
 
@@ -488,19 +488,19 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
                             <View className="flex-row gap-4">
                                 <Card className="flex-1 bg-green-50 border-green-100 items-center p-4">
                                     <Text className="text-3xl font-bold text-green-600">{completed}</Text>
-                                    <Text className="text-green-400 text-xs font-bold uppercase mt-1">Aprobados</Text>
+                                    <Text className="text-green-400 text-xs font-bold uppercase mt-1">{t('stats.approved_count')}</Text>
                                 </Card>
 
                                 <Card className="flex-1 bg-rose-50 border-rose-100 items-center p-4">
                                     <Text className="text-3xl font-bold text-rose-600">{missed}</Text>
-                                    <Text className="text-rose-400 text-xs font-bold uppercase mt-1">Fallados</Text>
+                                    <Text className="text-rose-400 text-xs font-bold uppercase mt-1">{t('stats.failed_count')}</Text>
                                 </Card>
                             </View>
                         </View>
 
-                        <Text className="text-gray-500 font-bold mb-3">Detalle de Actividad</Text>
+                        <Text className="text-gray-500 font-bold mb-3">{t('stats.activity_detail')}</Text>
                         {history.length === 0 ? (
-                            <Text className="text-center text-gray-400 italic py-4">No hay actividad en este periodo.</Text>
+                            <Text className="text-center text-gray-400 italic py-4">{t('stats.no_activity')}</Text>
                         ) : (
                             // Group by date if Week View
                             (() => {
@@ -563,19 +563,19 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
 
                                     if (item.status === 'verified') {
                                         statusColor = 'bg-green-500';
-                                        statusText = 'Completado';
+                                        statusText = t('child_task.well_done'); // Or "Completado"
                                         statusTextColor = 'text-green-600';
                                     } else if (item.status === 'missed') {
                                         statusColor = 'bg-rose-500';
-                                        statusText = 'No realizado';
+                                        statusText = t('status.expired'); // "No realizado" -> maybe a new key if needed, or expired
                                         statusTextColor = 'text-rose-500';
                                     } else if (item.status === 'completed') {
                                         statusColor = 'bg-blue-400';
-                                        statusText = 'Por Revisar';
+                                        statusText = t('status.in_review');
                                         statusTextColor = 'text-blue-500';
                                     } else if (item.status === 'pending') {
                                         statusColor = 'bg-yellow-400';
-                                        statusText = 'Pendiente';
+                                        statusText = t('status.pending');
                                         statusTextColor = 'text-yellow-600';
                                     }
 
@@ -585,7 +585,7 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
                                                 <View className="mt-4 mb-2 border-b border-gray-200 pb-1">
                                                     <Text className="text-gray-400 font-bold text-xs uppercase">
                                                         {(() => {
-                                                            if (item.date === 'Hoy') return 'HOY';
+                                                            if (item.date === 'Hoy') return t('filter.date.today').toUpperCase();
                                                             // const d = new Date(item.date);
                                                             const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
                                                             // Adjust because new Date("YYYY-MM-DD") might result in UTC, while we often want local date.
@@ -612,7 +612,7 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
 
                                                         {item.isResponsibility !== undefined && (
                                                             <Text className={`text-[10px] px-1.5 py-0.5 rounded font-bold overflow-hidden ${item.isResponsibility ? 'bg-rose-100 text-rose-700' : 'bg-blue-100 text-blue-700'}`}>
-                                                                {item.isResponsibility ? 'Bono' : 'Extra'}
+                                                                {item.isResponsibility ? t('task.bonus') : t('task.extra')}
                                                             </Text>
                                                         )}
 
@@ -623,12 +623,12 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
                                                                 <>
                                                                     {originalTask.frequency && (
                                                                         <Text className="text-[10px] bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded font-bold overflow-hidden capitalize">
-                                                                            {originalTask.frequency === 'daily' ? 'Diario' : originalTask.frequency === 'weekly' ? 'Semanal' : 'Una Vez'}
+                                                                            {originalTask.frequency === 'daily' ? t('frequency.daily') : originalTask.frequency === 'weekly' ? t('frequency.weekly') : t('frequency.one_time')}
                                                                         </Text>
                                                                     )}
                                                                     {originalTask.isSchool && (
                                                                         <Text className="text-[10px] bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded font-bold overflow-hidden">
-                                                                            Escolar
+                                                                            {t('task.school')}
                                                                         </Text>
                                                                     )}
                                                                     {originalTask.timeWindow && (
@@ -647,7 +647,7 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
                                                         {statusText}
                                                     </Text>
                                                     {item.status === 'verified' && (
-                                                        <Text className="text-xs text-indigo-500 font-bold">+{item.points} pts</Text>
+                                                        <Text className="text-xs text-indigo-500 font-bold">+{item.points} {t('task.points')}</Text>
                                                     )}
                                                 </View>
                                             </View>

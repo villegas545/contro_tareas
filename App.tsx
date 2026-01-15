@@ -16,6 +16,8 @@ import AddFamilyMemberScreen from './screens/AddFamilyMemberScreen';
 import AddMessageScreen from './screens/AddMessageScreen';
 import HistoryScreen from './screens/HistoryScreen';
 import SchoolCalendarScreen from './screens/SchoolCalendarScreen';
+import { ManageCategoriesScreen } from './screens/ManageCategoriesScreen';
+import { ManageJustificationsScreen } from './screens/ManageJustificationsScreen';
 import { StatusBar } from 'expo-status-bar';
 
 const Stack = createStackNavigator();
@@ -35,6 +37,8 @@ const MainNavigator = () => {
           <Stack.Screen name="AddFamilyMember" component={AddFamilyMemberScreen} options={{ presentation: 'modal' }} />
           <Stack.Screen name="AddMessage" component={AddMessageScreen} options={{ presentation: 'modal' }} />
           <Stack.Screen name="SchoolCalendar" component={SchoolCalendarScreen} options={{ presentation: 'modal' }} />
+          <Stack.Screen name="ManageCategories" component={ManageCategoriesScreen} options={{ presentation: 'card', headerShown: true, title: 'Gestionar Categorías' }} />
+          <Stack.Screen name="ManageJustifications" component={ManageJustificationsScreen} options={{ presentation: 'card', headerShown: true, title: 'Justificaciones' }} />
         </>
       ) : (
         <>

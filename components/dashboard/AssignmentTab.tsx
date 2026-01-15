@@ -10,13 +10,17 @@ import { Task } from '../../types';
 
 export const AssignmentTab = () => {
     const navigation = useNavigation<any>();
-    const { tasks, currentUser, users, addTask, deleteTask } = useTaskContext();
+    const { tasks, currentUser, users, categories, addTask, deleteTask, t } = useTaskContext();
     const children = users.filter(u => u.role === 'child');
 
     const [assignmentSearch, setAssignmentSearch] = useState('');
     const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
     const [isAssigningMode, setIsAssigningMode] = useState(false);
     const [assignmentSelection, setAssignmentSelection] = useState<string[]>([]);
+    const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+
+    // Custom Confirmation Modal State
+    const [confirmationAction, setConfirmationAction] = useState<{ type: 'assign' | 'delete', taskId?: string, payload?: any } | null>(null);
 
     // Assignment Override State
     const [assignRecurrenceDays, setAssignRecurrenceDays] = useState<number[]>([]);
@@ -58,8 +62,8 @@ export const AssignmentTab = () => {
         // Logic for Weekly Tasks (Must be single selection)
         if (task.frequency === 'weekly') {
             if (selectedTemplateIds.length > 0) {
-                if (Platform.OS === 'web') window.alert("Las tareas semanales deben asignarse individualmente para configurar sus días.");
-                else Alert.alert("Restricción", "Las tareas semanales deben asignarse individualmente para configurar sus días.");
+                if (Platform.OS === 'web') window.alert(t('assign.alert.weekly_restrict_1'));
+                else Alert.alert(t('common.restriction'), t('assign.alert.weekly_restrict_1'));
                 return;
             }
         }
@@ -67,8 +71,8 @@ export const AssignmentTab = () => {
         // Logic restricts adding if a weekly task is ALREADY selected
         const hasWeeklySelected = selectedTemplateIds.some(id => tasks.find(t => t.id === id)?.frequency === 'weekly');
         if (hasWeeklySelected) {
-            if (Platform.OS === 'web') window.alert("No puedes mezclar otras tareas con una tarea semanal seleccionada.");
-            else Alert.alert("Restricción", "No puedes mezclar otras tareas con una tarea semanal seleccionada.");
+            if (Platform.OS === 'web') window.alert(t('assign.alert.weekly_restrict_2'));
+            else Alert.alert(t('common.restriction'), t('assign.alert.weekly_restrict_2'));
             return;
         }
 
@@ -130,7 +134,12 @@ export const AssignmentTab = () => {
                     if (template.dueTime) newTask.dueTime = template.dueTime;
 
                     // Apply Overrides
-                    if (assignRecurrenceDays && assignRecurrenceDays.length > 0) newTask.recurrenceDays = assignRecurrenceDays;
+                    if (template.frequency === 'weekly') {
+                        // Always applying recurrence for weekly tasks to respect user selection (even if empty/subset)
+                        newTask.recurrenceDays = assignRecurrenceDays;
+                    } else if (assignRecurrenceDays && assignRecurrenceDays.length > 0) {
+                        newTask.recurrenceDays = assignRecurrenceDays;
+                    }
                     if (assignDueDate) newTask.dueDate = assignDueDate;
 
                     addTask(newTask);
@@ -143,44 +152,24 @@ export const AssignmentTab = () => {
             setAssignmentSelection([]);
 
             let message = "";
-            if (totalAssigned > 0) message += `Se asignaron ${totalAssigned} tareas en total. `;
-            if (totalSkipped > 0) message += `${totalSkipped} fueron omitidas por duplicado.`;
+            if (totalAssigned > 0) message += t('assign.alert.assign_summary_1').replace('{count}', String(totalAssigned));
+            if (totalSkipped > 0) message += t('assign.alert.assign_summary_2').replace('{skipped}', String(totalSkipped));
 
             if (Platform.OS === 'web') window.alert(message);
-            else Alert.alert("Asignación Completada", message);
+            else Alert.alert(t('assign.alert.assign_success'), message);
         };
 
-        if (Platform.OS === 'web') {
-            if (window.confirm(`¿Asignar ${selectedTemplateIds.length} tareas a los hijos seleccionados?`)) {
-                assignLogic();
-            }
-        } else {
-            Alert.alert(
-                "Confirmar Asignación",
-                `¿Asignar ${selectedTemplateIds.length} tareas a los hijos seleccionados?`,
-                [
-                    { text: "Cancelar", style: "cancel" },
-                    { text: "Asignar", onPress: assignLogic }
-                ]
-            );
-        }
+    };
+
+    const triggerBatchAssign = () => {
+        setConfirmationAction({ type: 'assign', payload: { count: selectedTemplateIds.length } });
     };
 
 
 
+
     const confirmDeleteTemplate = (taskId: string) => {
-        if (Platform.OS === 'web') {
-            if (window.confirm("¿Seguro que quieres eliminar esta plantilla?")) deleteTask(taskId);
-        } else {
-            Alert.alert(
-                "Eliminar Plantilla",
-                "¿Seguro que quieres eliminar esta plantilla?",
-                [
-                    { text: "Cancelar", style: "cancel" },
-                    { text: "Eliminar", style: "destructive", onPress: () => deleteTask(taskId) }
-                ]
-            );
-        }
+        setConfirmationAction({ type: 'delete', taskId });
     };
 
     const representativeTask = selectedTemplateIds.length > 0
@@ -191,9 +180,9 @@ export const AssignmentTab = () => {
         <View className="flex-1 relative bg-brand-cream dark:bg-brand-dark">
             <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
                 <View className="mb-4 flex-row justify-between items-center">
-                    <Text className="text-lg font-bold text-gray-700 dark:text-gray-200">Plantillas de Tareas</Text>
+                    <Text className="text-lg font-bold text-gray-700 dark:text-gray-200">{t('assignment.templates_title')}</Text>
                     <Button
-                        title="+ Crear Plantilla"
+                        title={t('assign.create_template')}
                         size="sm"
                         onPress={() => navigation.navigate('CreateTask')}
                     />
@@ -205,7 +194,7 @@ export const AssignmentTab = () => {
                         setShowFilters={setShowFilters}
                         searchText={assignmentSearch}
                         setSearchText={setAssignmentSearch}
-                        searchPlaceholder="Buscar plantilla..."
+                        searchPlaceholder={t('assign.search_placeholder')}
                         typeFilter={typeFilter}
                         setTypeFilter={setTypeFilter}
                         frequencyFilter={frequencyFilter}
@@ -214,44 +203,91 @@ export const AssignmentTab = () => {
                 </View>
 
                 <Text className="text-xs text-gray-400 mb-2 italic">
-                    * Toca las tarjetas para seleccionarlas.
+                    {t('assign.tip_select')}
                 </Text>
 
                 {displayTasks.length === 0 ? (
-                    <Text className="text-gray-400 text-center py-8">No se encontraron plantillas</Text>
+                    <Text className="text-gray-400 text-center py-8">{t('assign.no_templates')}</Text>
                 ) : (
-                    displayTasks.map(item => {
-                        const isSelected = selectedTemplateIds.includes(item.id);
-                        return (
-                            <TouchableOpacity
-                                key={item.id}
-                                onPress={() => handleToggleSelection(item)}
-                                activeOpacity={0.9}
-                            >
-                                <View
-                                    className={`mb-4 rounded-xl border-4 overflow-hidden relative ${isSelected ? 'border-indigo-500 bg-indigo-50 transform scale-[1.02]' : 'border-transparent bg-white'}`}
-                                >
-                                    {isSelected && (
-                                        <View className="absolute top-2 right-2 z-10 bg-indigo-600 rounded-full w-6 h-6 items-center justify-center">
-                                            <Text className="text-white font-bold">✓</Text>
+                    (() => {
+                        const categorySections = categories.map(cat => ({
+                            id: cat.id,
+                            title: `${cat.icon} ${cat.name}`,
+                            bg: 'bg-white',
+                            border: 'border-gray-200',
+                            text: 'text-gray-800'
+                        }));
+
+                        categorySections.push({
+                            id: 'uncategorized',
+                            title: `📂 ${t('common.general')}`,
+                            bg: 'bg-gray-50',
+                            border: 'border-gray-200',
+                            text: 'text-gray-600'
+                        });
+
+                        return categorySections.map(section => {
+                            const sectionTasks = displayTasks.filter(t =>
+                                section.id === 'uncategorized'
+                                    ? !t.categoryId || !categories.find(c => c.id === t.categoryId)
+                                    : t.categoryId === section.id
+                            );
+
+                            if (sectionTasks.length === 0) return null;
+
+                            const isExpanded = expandedCategories[section.id] ?? true;
+
+                            return (
+                                <View key={section.id} className="mb-4">
+                                    <TouchableOpacity
+                                        onPress={() => setExpandedCategories(prev => ({ ...prev, [section.id]: !isExpanded }))}
+                                        className={`flex-row justify-between items-center p-3 rounded-xl border ${section.bg} ${section.border} mb-2 shadow-sm bg-white`}
+                                    >
+                                        <View className="flex-row items-center gap-2">
+                                            <Text className={`font-bold ${section.text} text-lg`}>{section.title}</Text>
+                                            <View className="bg-gray-100 px-2 py-0.5 rounded-full">
+                                                <Text className="text-xs font-bold text-gray-500">{sectionTasks.length}</Text>
+                                            </View>
+                                        </View>
+                                        <Text className="text-gray-400">{isExpanded ? '▼' : '▶'}</Text>
+                                    </TouchableOpacity>
+
+                                    {isExpanded && (
+                                        <View className="gap-0">
+                                            {sectionTasks.map(item => {
+                                                const isSelected = selectedTemplateIds.includes(item.id);
+                                                return (
+                                                    <View
+                                                        key={item.id}
+                                                        className={`mb-4 rounded-xl border-4 overflow-hidden relative ${isSelected ? 'border-indigo-500 bg-indigo-50 transform scale-[1.02]' : 'border-transparent bg-white'}`}
+                                                    >
+                                                        {isSelected && (
+                                                            <View className="absolute top-2 right-2 z-10 bg-indigo-600 rounded-full w-6 h-6 items-center justify-center">
+                                                                <Text className="text-white font-bold">✓</Text>
+                                                            </View>
+                                                        )}
+                                                        <View>
+                                                            <ParentTaskCard
+                                                                task={item}
+                                                                users={users}
+                                                                showAssignAction={false}
+                                                                onVerify={() => { }}
+                                                                onReject={() => { }}
+                                                                onAssign={() => { }}
+                                                                onEdit={(task) => navigation.navigate('CreateTask', { taskToEdit: task })}
+                                                                onDelete={confirmDeleteTemplate}
+                                                                onPress={() => handleToggleSelection(item)}
+                                                            />
+                                                        </View>
+                                                    </View>
+                                                );
+                                            })}
                                         </View>
                                     )}
-                                    <View>
-                                        <ParentTaskCard
-                                            task={item}
-                                            users={users}
-                                            showAssignAction={false}
-                                            onVerify={() => { }}
-                                            onReject={() => { }}
-                                            onAssign={() => { }}
-                                            onEdit={(task) => navigation.navigate('CreateTask', { taskToEdit: task })}
-                                            onDelete={confirmDeleteTemplate}
-                                        />
-                                    </View>
                                 </View>
-                            </TouchableOpacity>
-                        );
-                    })
+                            );
+                        });
+                    })()
                 )}
             </ScrollView>
 
@@ -259,7 +295,7 @@ export const AssignmentTab = () => {
             {selectedTemplateIds.length > 0 && (
                 <View className="absolute bottom-6 left-6 right-6 z-50">
                     <Button
-                        title={`Asignar ${selectedTemplateIds.length} Tarea(s)`}
+                        title={t('assign.btn_assign_count').replace('{count}', String(selectedTemplateIds.length))}
                         onPress={() => setIsAssigningMode(true)}
                         className="shadow-xl bg-indigo-600 h-14"
                         textClassName="text-lg font-bold"
@@ -273,7 +309,7 @@ export const AssignmentTab = () => {
                     <View className="flex-1 bg-black/50 z-50 justify-center items-center p-6">
                         <View className="bg-white p-6 rounded-2xl w-full max-w-sm">
                             <Text className="text-xl font-bold mb-4">
-                                Asignar {selectedTemplateIds.length} tareas a:
+                                {t('assign.modal_title').replace('{count}', String(selectedTemplateIds.length))}
                             </Text>
 
                             <View className="flex-row flex-wrap gap-2 mb-6">
@@ -305,11 +341,11 @@ export const AssignmentTab = () => {
                             {/* Schedule Override */}
                             {(representativeTask.frequency === 'weekly' || representativeTask.frequency === 'one-time') && (
                                 <View className="mb-6">
-                                    <Text className="text-gray-700 font-bold mb-2">Programación (Opcional):</Text>
+                                    <Text className="text-gray-700 font-bold mb-2">{t('assign.schedule_optional')}</Text>
 
                                     {(representativeTask.frequency === 'weekly') && (
                                         <View>
-                                            <Text className="text-xs text-gray-500 mb-2">Selecciona días específicos:</Text>
+                                            <Text className="text-xs text-gray-500 mb-2">{t('assign.select_days')}</Text>
                                             <View className="flex-row justify-between">
                                                 {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((day, index) => {
                                                     const isDaySelected = assignRecurrenceDays.includes(index);
@@ -336,24 +372,65 @@ export const AssignmentTab = () => {
                                         <DatePicker
                                             value={assignDueDate}
                                             onChange={setAssignDueDate}
-                                            label="Fecha Específica"
+                                            label={t('common.specific_date')}
                                         />
                                     )}
                                 </View>
                             )}
 
                             <Text className="text-xs text-gray-400 mb-4 text-center">
-                                Se aplicará la misma configuración a todas las tareas seleccionadas.
+                                {t('assign.apply_same_config')}
                             </Text>
 
                             <View className="gap-3">
-                                <Button title="Confirmar Asignación" onPress={handleBatchAssign} />
-                                <Button title="Cancelar" variant="outline" onPress={() => setIsAssigningMode(false)} />
+                                <Button title={t('assign.confirm_assign')} onPress={triggerBatchAssign} />
+                                <Button title={t('common.cancel')} variant="outline" onPress={() => setIsAssigningMode(false)} />
                             </View>
                         </View>
                     </View>
                 </Modal>
             )}
+
+            {/* Generic Confirmation Modal */}
+            <Modal
+                visible={!!confirmationAction}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setConfirmationAction(null)}
+            >
+                <View className="flex-1 bg-black/50 justify-center items-center p-6">
+                    <View className="bg-white p-6 rounded-2xl w-full max-w-sm">
+                        <Text className="text-xl font-bold mb-4 text-center">
+                            {confirmationAction?.type === 'assign'
+                                ? t('assign.alert.assign_title')
+                                : t('assign.alert.delete_template_title')}
+                        </Text>
+                        <Text className="text-gray-600 text-center mb-6">
+                            {confirmationAction?.type === 'assign'
+                                ? t('assign.alert.assign_msg').replace('{count}', String(selectedTemplateIds.length))
+                                : t('assign.alert.delete_template_msg')}
+                        </Text>
+                        <View className="flex-col gap-3">
+                            <Button
+                                title={confirmationAction?.type === 'assign' ? t('assignment.assign_task') : t('common.delete')}
+                                onPress={() => {
+                                    if (confirmationAction) {
+                                        if (confirmationAction.type === 'assign') handleBatchAssign();
+                                        if (confirmationAction.type === 'delete' && confirmationAction.taskId) deleteTask(confirmationAction.taskId);
+                                        setConfirmationAction(null);
+                                    }
+                                }}
+                                className={confirmationAction?.type === 'assign' ? "bg-indigo-600" : "bg-red-600"}
+                            />
+                            <Button
+                                title={t('common.cancel')}
+                                variant="outline"
+                                onPress={() => setConfirmationAction(null)}
+                            />
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };

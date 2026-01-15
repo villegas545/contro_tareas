@@ -9,7 +9,7 @@ import { ChildTaskCard } from '../components/ChildTaskCard';
 import StatisticsScreen from './StatisticsScreen';
 
 export default function ChildDashboard({ navigation }: any) {
-    const { currentUser, tasks, history, completeTask, logout, messages, rewards, redeemReward, redemptions, isTaskActiveToday, categories } = useTaskContext();
+    const { currentUser, tasks, history, completeTask, logout, messages, rewards, redeemReward, redemptions, isTaskActiveToday, categories, t } = useTaskContext();
     const [messageModalVisible, setMessageModalVisible] = useState(false);
     const [currentMessage, setCurrentMessage] = useState('');
     const [canClose, setCanClose] = useState(false);
@@ -80,9 +80,9 @@ export default function ChildDashboard({ navigation }: any) {
                 const end12 = to12h(task.timeWindow.end);
 
                 if (Platform.OS === 'web') {
-                    window.alert(`Esta tarea solo está disponible entre ${start12} y ${end12}`);
+                    window.alert(t('child_flow.time_window_alert_msg').replace('{start}', start12).replace('{end}', end12));
                 } else {
-                    Alert.alert("Aún no es hora", `Esta tarea solo está disponible entre ${start12} y ${end12}`);
+                    Alert.alert(t('child_flow.time_window_alert_title'), t('child_flow.time_window_alert_msg').replace('{start}', start12).replace('{end}', end12));
                 }
                 return;
             }
@@ -109,9 +109,9 @@ export default function ChildDashboard({ navigation }: any) {
 
             if (dueDate < new Date()) {
                 if (Platform.OS === 'web') {
-                    window.alert("Esta tarea ha vencido y no se puede completar.");
+                    window.alert(t('child_flow.expired_alert_msg'));
                 } else {
-                    Alert.alert("Vencida", "Esta tarea ha vencido y no se puede completar.");
+                    Alert.alert(t('child_flow.expired_alert_title'), t('child_flow.expired_alert_msg'));
                 }
                 return;
             }
@@ -122,12 +122,12 @@ export default function ChildDashboard({ navigation }: any) {
                 completeTask(task.id, evidenceUrl);
             } catch (e: any) {
                 if (Platform.OS === 'web') window.alert(e.message);
-                else Alert.alert("Ops", e.message);
+                else Alert.alert(t('common.error'), e.message);
             }
         };
 
         if (Platform.OS === 'web') {
-            const confirmed = window.confirm("¿Ya terminaste esta tarea?");
+            const confirmed = window.confirm(t('child_flow.complete_confirm_msg'));
             if (confirmed) proceed();
         } else {
             // If evidence (photo) is provided, we skip the second confirmation because 
@@ -136,12 +136,12 @@ export default function ChildDashboard({ navigation }: any) {
                 proceed();
             } else {
                 Alert.alert(
-                    "¿Estás seguro?",
-                    "¿Ya terminaste esta tarea?",
+                    t('child_flow.complete_confirm_title'),
+                    t('child_flow.complete_confirm_msg'),
                     [
-                        { text: "Cancelar", style: "cancel" },
+                        { text: t('common.cancel'), style: "cancel" },
                         {
-                            text: "Sí, ¡ya la hice!",
+                            text: t('child_flow.complete_confirm_yes'),
                             onPress: proceed
                         }
                     ]
@@ -152,7 +152,7 @@ export default function ChildDashboard({ navigation }: any) {
 
     const handleRedeem = (reward: Reward) => {
         if (myPoints < reward.cost) {
-            Alert.alert("Insuficiente", "No tienes suficientes puntos para este premio.");
+            Alert.alert(t('child_flow.redeem_insufficient_title'), t('child_flow.redeem_insufficient_msg'));
             return;
         }
 
@@ -163,18 +163,18 @@ export default function ChildDashboard({ navigation }: any) {
                 childId: currentUser?.id || '',
                 cost: reward.cost
             });
-            Alert.alert("¡Solicitud Enviada!", "Dile a tus papás que aprueben tu premio.");
+            Alert.alert(t('child_flow.redeem_success_title'), t('child_flow.redeem_success_msg'));
         };
 
         if (Platform.OS === 'web') {
-            if (window.confirm(`¿Quieres canjear "${reward.title}" por ${reward.cost} puntos?`)) proceed();
+            if (window.confirm(t('child_flow.redeem_confirm_msg').replace('{reward}', reward.title).replace('{cost}', reward.cost.toString()))) proceed();
         } else {
             Alert.alert(
-                "Canjear Premio",
-                `¿Quieres canjear "${reward.title}" por ${reward.cost} puntos?`,
+                t('child_flow.redeem_confirm_title'),
+                t('child_flow.redeem_confirm_msg').replace('{reward}', reward.title).replace('{cost}', reward.cost.toString()),
                 [
-                    { text: "Cancelar", style: "cancel" },
-                    { text: "¡SÍ, CANJEAR!", onPress: proceed }
+                    { text: t('common.cancel'), style: "cancel" },
+                    { text: t('child_flow.redeem_confirm_yes'), onPress: proceed }
                 ]
             );
         }
@@ -186,16 +186,16 @@ export default function ChildDashboard({ navigation }: any) {
 
     const confirmLogout = () => {
         if (Platform.OS === 'web') {
-            if (window.confirm("¿Estás seguro de que quieres salir?")) {
+            if (window.confirm(t('child_flow.logout_confirm_msg'))) {
                 logout();
             }
         } else {
             Alert.alert(
-                "Cerrar Sesión",
-                "¿Estás seguro de que quieres salir?",
+                t('child_flow.logout_confirm_title'),
+                t('child_flow.logout_confirm_msg'),
                 [
-                    { text: "Cancelar", style: "cancel" },
-                    { text: "Salir", onPress: logout }
+                    { text: t('common.cancel'), style: "cancel" },
+                    { text: t('header.logout'), onPress: logout }
                 ]
             );
         }
@@ -215,11 +215,11 @@ export default function ChildDashboard({ navigation }: any) {
                         resizeMode="cover"
                     />
                     <View>
-                        <Text className="text-white text-lg font-medium opacity-90">Hola, {currentUser?.name} 👋</Text>
-                        <Text className="text-white text-3xl font-bold mt-1">{myPoints} Puntos ⭐️</Text>
+                        <Text className="text-white text-lg font-medium opacity-90">{t('header.greeting')} {currentUser?.name} 👋</Text>
+                        <Text className="text-white text-3xl font-bold mt-1">{myPoints} {t('stats.points')} ⭐️</Text>
                     </View>
                 </View>
-                <Button title="Salir" variant="secondary" size="sm" onPress={confirmLogout} className="bg-white/20" />
+                <Button title={t('header.logout')} variant="secondary" size="sm" onPress={confirmLogout} className="bg-white/20" />
             </View>
 
             {/* Tab Switcher */}
@@ -228,19 +228,19 @@ export default function ChildDashboard({ navigation }: any) {
                     className={`flex-1 py-3 rounded-lg items-center ${currentTab === 'tasks' ? 'bg-indigo-100 dark:bg-indigo-900' : ''}`}
                     onPress={() => setCurrentTab('tasks')}
                 >
-                    <Text className={`font-bold ${currentTab === 'tasks' ? 'text-indigo-600 dark:text-indigo-300' : 'text-gray-500'}`}>📝 Mis Tareas</Text>
+                    <Text className={`font-bold ${currentTab === 'tasks' ? 'text-indigo-600 dark:text-indigo-300' : 'text-gray-500'}`}>📝 {t('child.tabs.tasks')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                     className={`flex-1 py-3 rounded-lg items-center ${currentTab === 'store' ? 'bg-amber-100 dark:bg-amber-900' : ''}`}
                     onPress={() => setCurrentTab('store')}
                 >
-                    <Text className={`font-bold ${currentTab === 'store' ? 'text-amber-600 dark:text-amber-300' : 'text-gray-500'}`}>🛍️ Tienda</Text>
+                    <Text className={`font-bold ${currentTab === 'store' ? 'text-amber-600 dark:text-amber-300' : 'text-gray-500'}`}>🛍️ {t('child.tabs.store')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                     className={`flex-1 py-3 rounded-lg items-center ${currentTab === 'history' ? 'bg-blue-100 dark:bg-blue-900' : ''}`}
                     onPress={() => setCurrentTab('history')}
                 >
-                    <Text className={`font-bold ${currentTab === 'history' ? 'text-blue-600 dark:text-blue-300' : 'text-gray-500'}`}>📊 Historial</Text>
+                    <Text className={`font-bold ${currentTab === 'history' ? 'text-blue-600 dark:text-blue-300' : 'text-gray-500'}`}>📊 {t('child.tabs.history')}</Text>
                 </TouchableOpacity>
             </View>
 
@@ -256,10 +256,10 @@ export default function ChildDashboard({ navigation }: any) {
                             statusFilter={statusFilter}
                             setStatusFilter={setStatusFilter}
                             statusOptions={[
-                                { id: 'all', label: 'Todos' },
-                                { id: 'pending', label: '⏳ Por hacer' },
-                                { id: 'completed', label: '✅ Hechos' },
-                                { id: 'verified', label: '⭐️ Listos' },
+                                { id: 'all', label: t('filter.all') },
+                                { id: 'pending', label: t('status.pending') },
+                                { id: 'completed', label: t('status.completed_msg') },
+                                { id: 'verified', label: t('status.verified') },
                             ]}
                             typeFilter={typeFilter}
                             setTypeFilter={setTypeFilter}
@@ -270,8 +270,8 @@ export default function ChildDashboard({ navigation }: any) {
                         {myTasks.length === 0 ? (
                             <View className="items-center justify-center py-10">
                                 <Text className="text-6xl mb-4">🎉</Text>
-                                <Text className="text-gray-500 text-lg text-center dark:text-gray-400">¡No hay tareas!</Text>
-                                <Text className="text-gray-400 text-center mt-2 dark:text-gray-500">Intenta cambiar los filtros.</Text>
+                                <Text className="text-gray-500 text-lg text-center dark:text-gray-400">{t('child.no_tasks')}</Text>
+                                <Text className="text-gray-400 text-center mt-2 dark:text-gray-500">{t('child.no_tasks_desc')}</Text>
                             </View>
                         ) : (
                             (() => {
@@ -310,11 +310,28 @@ export default function ChildDashboard({ navigation }: any) {
                                                 onPress={() => setExpandedCategories(prev => ({ ...prev, [section.id]: !isExpanded }))}
                                                 className={`flex-row justify-between items-center p-3 rounded-xl border ${section.bg} ${section.border} mb-2 shadow-sm bg-white`}
                                             >
-                                                <View className="flex-row items-center gap-2">
-                                                    <Text className={`font-bold ${section.text} text-lg`}>{section.title}</Text>
-                                                    <View className="bg-gray-100 px-2 py-0.5 rounded-full">
-                                                        <Text className="text-xs font-bold text-gray-600">{sectionTasks.length}</Text>
-                                                    </View>
+                                                <View className="flex-row items-center gap-2 flex-1 mr-2">
+                                                    <Text className={`font-bold ${section.text} text-lg mr-2`}>{section.title}</Text>
+                                                    {(() => {
+                                                        const pending = sectionTasks.filter(t => t.status === 'pending').length;
+                                                        const completed = sectionTasks.filter(t => t.status === 'completed').length;
+                                                        const verified = sectionTasks.filter(t => t.status === 'verified').length;
+                                                        const total = sectionTasks.length;
+
+                                                        return (
+                                                            <View className="flex-col gap-0 items-start ml-auto">
+                                                                {pending === 0 && total > 0 ? (
+                                                                    <Text className="text-green-600 font-bold">{t('status.completed_msg')}</Text>
+                                                                ) : (
+                                                                    <>
+                                                                        <Text className="text-[10px] text-red-500 font-bold">{String(pending)} {t('status.pending')}</Text>
+                                                                        <Text className="text-[10px] text-orange-500 font-bold">{String(completed)} {t('status.in_review')}</Text>
+                                                                        <Text className="text-[10px] text-green-600 font-bold">{String(verified)} {t('status.verified')}</Text>
+                                                                    </>
+                                                                )}
+                                                            </View>
+                                                        );
+                                                    })()}
                                                 </View>
                                                 <Text className="text-gray-400">{isExpanded ? '▼' : '▶'}</Text>
                                             </TouchableOpacity>
@@ -341,7 +358,7 @@ export default function ChildDashboard({ navigation }: any) {
                 <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
                     {myRedemptionRequests.length > 0 && (
                         <View className="mb-6">
-                            <Text className="text-lg font-bold mb-3 text-gray-700 dark:text-gray-200">⏳ Solicitudes Pendientes</Text>
+                            <Text className="text-lg font-bold mb-3 text-gray-700 dark:text-gray-200">{t('child.pending_requests')}</Text>
                             {myRedemptionRequests.map(req => (
                                 <View key={req.id} className="bg-amber-50 dark:bg-gray-800 border border-amber-200 dark:border-amber-900 p-4 rounded-xl mb-2 flex-row justify-between items-center">
                                     <Text className="font-medium text-gray-800 dark:text-gray-200">{req.rewardTitle}</Text>
@@ -351,7 +368,7 @@ export default function ChildDashboard({ navigation }: any) {
                         </View>
                     )}
 
-                    <Text className="text-lg font-bold mb-3 text-gray-700 dark:text-gray-200">💎 Premios Disponibles</Text>
+                    <Text className="text-lg font-bold mb-3 text-gray-700 dark:text-gray-200">{t('child.available_rewards')}</Text>
                     <View className="flex-row flex-wrap gap-4">
                         {rewards.map(reward => {
                             const canAfford = myPoints >= reward.cost;
@@ -379,10 +396,11 @@ export default function ChildDashboard({ navigation }: any) {
                         })}
                     </View>
                     {rewards.length === 0 && (
-                        <Text className="text-gray-400 text-center py-10">Dile a tus papás que agreguen premios a la tienda.</Text>
+                        <Text className="text-gray-400 text-center py-10">{t('child.ask_parents')}</Text>
                     )}
                 </ScrollView>
-            )}
+            )
+            }
 
             {/* Motivational Message Modal */}
             <Modal
@@ -410,6 +428,6 @@ export default function ChildDashboard({ navigation }: any) {
                     </View>
                 </View>
             </Modal>
-        </SafeAreaView>
+        </SafeAreaView >
     );
 }

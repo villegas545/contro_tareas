@@ -6,7 +6,7 @@ import { DatePicker } from '../components/ui/DatePicker';
 import { TaskFrequency } from '../types';
 
 export default function CreateTaskScreen({ navigation, route }: any) {
-    const { addTask, updateTask, currentUser, categories } = useTaskContext();
+    const { addTask, updateTask, currentUser, categories, t } = useTaskContext();
     const taskToEdit = route.params?.taskToEdit;
 
     // Form State
@@ -45,7 +45,7 @@ export default function CreateTaskScreen({ navigation, route }: any) {
     const handleCreate = async () => {
         console.log("[DEBUG] handleCreate called");
         if (!title) {
-            Alert.alert("Error", "El título es obligatorio");
+            Alert.alert(t('common.error'), t('create_task.error_title'));
             return;
         }
 
@@ -81,18 +81,18 @@ export default function CreateTaskScreen({ navigation, route }: any) {
                 if (taskToEdit) {
                     await updateTask(taskToEdit.id, taskData);
                     console.log("[DEBUG] Task Updated");
-                    if (Platform.OS === 'web') window.alert("Plantilla actualizada");
-                    else Alert.alert("Éxito", "Plantilla actualizada");
+                    if (Platform.OS === 'web') window.alert(t('create_task.success_updated'));
+                    else Alert.alert(t('common.success'), t('create_task.success_updated'));
                 } else {
                     await addTask(taskData);
                     console.log("[DEBUG] Task Created");
-                    if (Platform.OS === 'web') window.alert("Plantilla creada correctamente");
-                    else Alert.alert("Éxito", "Plantilla creada correctamente");
+                    if (Platform.OS === 'web') window.alert(t('create_task.success_created'));
+                    else Alert.alert(t('common.success'), t('create_task.success_created'));
                 }
                 navigation.goBack();
             } catch (e) {
                 console.error("[DEBUG] Error saving:", e);
-                Alert.alert("Error", "Falló al guardar");
+                Alert.alert(t('common.error'), "Falló al guardar");
             }
         };
 
@@ -106,14 +106,14 @@ export default function CreateTaskScreen({ navigation, route }: any) {
     return (
         <SafeAreaView className="flex-1 bg-gray-50 dark:bg-slate-900">
             <ScrollView contentContainerStyle={{ padding: 24 }}>
-                <Text className="text-2xl font-bold text-gray-900 mb-6">{taskToEdit ? "Editar Plantilla" : "Nueva Tarea (Plantilla)"}</Text>
+                <Text className="text-2xl font-bold text-gray-900 mb-6">{taskToEdit ? t('create_task.title_edit') : t('create_task.title_new')}</Text>
 
                 <View className="gap-4">
                     <View>
-                        <Text className="text-gray-700 font-medium mb-1">Título de la tarea</Text>
+                        <Text className="text-gray-700 font-medium mb-1">{t('create_task.task_title_label')}</Text>
                         <TextInput
                             className="bg-white p-4 rounded-xl border border-gray-200 text-lg"
-                            placeholder="Ej. Lavar los platos"
+                            placeholder={t('create_task.task_title_placeholder')}
                             placeholderTextColor="#9ca3af"
                             value={title}
                             onChangeText={setTitle}
@@ -121,10 +121,10 @@ export default function CreateTaskScreen({ navigation, route }: any) {
                     </View>
 
                     <View>
-                        <Text className="text-gray-700 font-medium mb-1">Descripción</Text>
+                        <Text className="text-gray-700 font-medium mb-1">{t('create_task.description_label')}</Text>
                         <TextInput
                             className="bg-white p-4 rounded-xl border border-gray-200 text-base h-24"
-                            placeholder="Detalles adicionales..."
+                            placeholder={t('create_task.description_placeholder')}
                             placeholderTextColor="#9ca3af"
                             multiline
                             value={description}
@@ -139,24 +139,27 @@ export default function CreateTaskScreen({ navigation, route }: any) {
                             onPress={() => setIsResponsibility(!isResponsibility)}
                             className={`flex-1 p-4 rounded-xl border ${isResponsibility ? 'bg-indigo-50 border-indigo-600' : 'bg-white border-gray-200'}`}
                         >
-                            <Text className={`font-bold text-base mb-1 ${isResponsibility ? 'text-indigo-700' : 'text-gray-700'}`}>🏆 De Responsabilidad</Text>
-                            <Text className="text-gray-500 text-xs">Cuenta para bonos y castigos.</Text>
+                            <Text className={`font-bold text-base mb-1 ${isResponsibility ? 'text-indigo-700' : 'text-gray-700'}`}>{t('create_task.responsibility')}</Text>
+                            <Text className="text-gray-500 text-xs">{t('create_task.responsibility_desc')}</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
                             onPress={() => setIsSchool(!isSchool)}
                             className={`flex-1 p-4 rounded-xl border ${isSchool ? 'bg-orange-50 border-orange-600' : 'bg-white border-gray-200'}`}
                         >
-                            <Text className={`font-bold text-base mb-1 ${isSchool ? 'text-orange-700' : 'text-gray-700'}`}>📚 Escolar</Text>
-                            <Text className="text-gray-500 text-xs">Solo en días de escuela.</Text>
+                            <Text className={`font-bold text-base mb-1 ${isSchool ? 'text-orange-700' : 'text-gray-700'}`}>{t('create_task.school')}</Text>
+                            <Text className="text-gray-500 text-xs">{t('create_task.school_desc')}</Text>
                         </TouchableOpacity>
                     </View>
 
                     <View>
-                        <Text className="text-gray-700 font-medium mb-2">Frecuencia:</Text>
+                        <Text className="text-gray-700 font-medium mb-2">{t('create_task.frequency')}</Text>
                         <View className="flex-row flex-wrap gap-2 mb-2">
-                            {(['Diario', 'Semanal', 'Una Vez'] as const).map((opt) => {
-                                const val = opt === 'Diario' ? 'daily' : opt === 'Una Vez' ? 'one-time' : 'weekly';
+                            {(['daily', 'weekly', 'one-time'] as const).map((val) => {
+                                let label = t('frequency.daily');
+                                if (val === 'weekly') label = t('frequency.weekly');
+                                if (val === 'one-time') label = t('frequency.one_time');
+
                                 return (
                                     <TouchableOpacity
                                         key={val}
@@ -167,20 +170,17 @@ export default function CreateTaskScreen({ navigation, route }: any) {
                                             }`}
                                     >
                                         <Text className={frequency === val ? 'text-white font-medium' : 'text-gray-700'}>
-                                            {opt}
+                                            {label}
                                         </Text>
                                     </TouchableOpacity>
                                 );
                             })}
                         </View>
-
-                        {/* Date Picker for One-Time */}
-
                     </View>
 
 
                     <View className="mb-6">
-                        <Text className="text-gray-700 font-medium mb-2">Categoría (Opcional):</Text>
+                        <Text className="text-gray-700 font-medium mb-2">{t('create_task.category')}</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row">
                             <View className="flex-row gap-2">
                                 {categories.map(cat => (
@@ -202,7 +202,7 @@ export default function CreateTaskScreen({ navigation, route }: any) {
 
 
                     <View>
-                        <Text className="text-gray-700 font-medium mb-1">Tipo de Horario (Restrictivo):</Text>
+                        <Text className="text-gray-700 font-medium mb-1">{t('create_task.time_type')}</Text>
                         <View className="flex-row flex-wrap gap-2 mb-2">
                             <TouchableOpacity
                                 onPress={() => setTimeType('specific')}
@@ -212,7 +212,7 @@ export default function CreateTaskScreen({ navigation, route }: any) {
                                     }`}
                             >
                                 <Text className={timeType === 'specific' ? 'text-white font-medium' : 'text-gray-700'}>
-                                    Hora Límite
+                                    {t('create_task.time_limit')}
                                 </Text>
                             </TouchableOpacity>
                             <TouchableOpacity
@@ -223,7 +223,7 @@ export default function CreateTaskScreen({ navigation, route }: any) {
                                     }`}
                             >
                                 <Text className={timeType === 'window' ? 'text-white font-medium' : 'text-gray-700'}>
-                                    Rango de Horario
+                                    {t('create_task.time_range')}
                                 </Text>
                             </TouchableOpacity>
                             <TouchableOpacity
@@ -234,14 +234,14 @@ export default function CreateTaskScreen({ navigation, route }: any) {
                                     }`}
                             >
                                 <Text className={timeType === 'none' ? 'text-white font-medium' : 'text-gray-700'}>
-                                    No requerido
+                                    {t('create_task.time_none')}
                                 </Text>
                             </TouchableOpacity>
                         </View>
 
                         {timeType === 'specific' && (
                             <View>
-                                <Text className="text-gray-500 text-xs mb-1">Se debe cumplir antes de esta hora</Text>
+                                <Text className="text-gray-500 text-xs mb-1">{t('create_task.time_helper')}</Text>
                                 <TextInput
                                     className="bg-white p-4 rounded-xl border border-gray-200 text-lg"
                                     placeholder="Ej. 14:00"
@@ -254,7 +254,7 @@ export default function CreateTaskScreen({ navigation, route }: any) {
                         {timeType === 'window' && (
                             <View className="flex-row gap-4">
                                 <View className="flex-1">
-                                    <Text className="text-gray-500 text-xs mb-1">Desde</Text>
+                                    <Text className="text-gray-500 text-xs mb-1">{t('create_task.start')}</Text>
                                     <TextInput
                                         className="bg-white p-4 rounded-xl border border-gray-200 text-lg"
                                         placeholder="13:00"
@@ -263,7 +263,7 @@ export default function CreateTaskScreen({ navigation, route }: any) {
                                     />
                                 </View>
                                 <View className="flex-1">
-                                    <Text className="text-gray-500 text-xs mb-1">Hasta</Text>
+                                    <Text className="text-gray-500 text-xs mb-1">{t('create_task.end')}</Text>
                                     <TextInput
                                         className="bg-white p-4 rounded-xl border border-gray-200 text-lg"
                                         placeholder="18:00"
@@ -276,10 +276,10 @@ export default function CreateTaskScreen({ navigation, route }: any) {
                     </View>
 
                     <View>
-                        <Text className="text-gray-700 font-medium mb-1">Puntos:</Text>
+                        <Text className="text-gray-700 font-medium mb-1">{t('create_task.points')}</Text>
                         <TextInput
                             className={`bg-white p-4 rounded-xl border border-gray-200 text-lg ${isResponsibility ? 'bg-gray-100 text-gray-400' : ''}`}
-                            placeholder={isResponsibility ? "Sin puntos (Responsabilidad)" : "Ej. 10"}
+                            placeholder={isResponsibility ? t('create_task.points_disabled') : t('create_task.points_placeholder')}
                             placeholderTextColor="#9ca3af"
                             value={points}
                             onChangeText={setPoints}
@@ -289,8 +289,8 @@ export default function CreateTaskScreen({ navigation, route }: any) {
                     </View>
 
                     <View className="mt-8 gap-3">
-                        <Button title={taskToEdit ? "Actualizar Tarea" : "Guardar Tarea"} onPress={handleCreate} />
-                        <Button title="Cancelar" variant="outline" onPress={() => navigation.goBack()} />
+                        <Button title={taskToEdit ? t('create_task.update') : t('create_task.save')} onPress={handleCreate} />
+                        <Button title={t('common.cancel')} variant="outline" onPress={() => navigation.goBack()} />
                     </View>
                 </View>
             </ScrollView>

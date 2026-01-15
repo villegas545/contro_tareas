@@ -8,16 +8,16 @@ import { registerForPushNotificationsAsync } from '../utils/notifications';
 const taskLogo = require('../assets/task_logo_final.png'); // eslint-disable-line @typescript-eslint/no-require-imports
 
 export default function LoginScreen() {
-    const { login, users, updateUser } = useTaskContext();
+    const { login, users, updateUser, t } = useTaskContext();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
 
     const handleLogin = async () => {
         if (!username || !password) {
             if (Platform.OS === 'web') {
-                window.alert('Por favor ingresa usuario y contraseña');
+                window.alert(t('login.error_missing_creds'));
             } else {
-                Alert.alert('Error', 'Por favor ingresa usuario y contraseña');
+                Alert.alert(t('login.error_title'), t('login.error_missing_creds'));
             }
             return;
         }
@@ -34,9 +34,9 @@ export default function LoginScreen() {
             }
         } else {
             if (Platform.OS === 'web') {
-                window.alert('Credenciales incorrectas');
+                window.alert(t('login.error_invalid_creds'));
             } else {
-                Alert.alert('Error', 'Credenciales incorrectas');
+                Alert.alert(t('login.error_title'), t('login.error_invalid_creds'));
             }
         }
     };
@@ -52,19 +52,19 @@ export default function LoginScreen() {
                             resizeMode="contain"
                         />
                         <Text className="text-3xl font-bold text-brand-text-primary dark:text-brand-text-light text-center">
-                            Control de Tareas
+                            {t('login.app_title')}
                         </Text>
                         <Text className="text-brand-text-secondary dark:text-brand-text-muted mt-2 text-center">
-                            Ingresa tus credenciales
+                            {t('login.subtitle')}
                         </Text>
                     </View>
 
                     <View className="gap-4">
                         <View>
-                            <Text className="text-brand-text-secondary font-medium mb-1">Usuario</Text>
+                            <Text className="text-brand-text-secondary font-medium mb-1">{t('login.username_label')}</Text>
                             <TextInput
                                 className="bg-white p-4 rounded-xl border border-gray-200 text-lg"
-                                placeholder="Usuario (ej. papa, hijo1)"
+                                placeholder={t('login.username_placeholder')}
                                 value={username}
                                 onChangeText={setUsername}
                                 autoCapitalize="none"
@@ -72,10 +72,10 @@ export default function LoginScreen() {
                         </View>
 
                         <View>
-                            <Text className="text-brand-text-secondary font-medium mb-1">Contraseña</Text>
+                            <Text className="text-brand-text-secondary font-medium mb-1">{t('login.password_label')}</Text>
                             <TextInput
                                 className="bg-white p-4 rounded-xl border border-gray-200 text-lg"
-                                placeholder="Contraseña (ej. 123)"
+                                placeholder={t('login.password_placeholder')}
                                 value={password}
                                 onChangeText={setPassword}
                                 secureTextEntry
