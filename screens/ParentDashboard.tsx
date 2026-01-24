@@ -24,44 +24,45 @@ export default function ParentDashboard({ navigation }: any) {
         <SafeAreaView className="flex-1 bg-brand-cream dark:bg-brand-dark">
             <View className="flex-1">
                 {/* Header */}
+                {/* Header */}
                 <View className="px-6 py-4 flex-row justify-between items-center bg-brand-primary dark:bg-brand-dark shadow-sm">
-                    <View className="flex-row items-center gap-3">
+                    <View className="flex-row items-center gap-3 flex-1 pr-2">
                         <Image
                             source={require('../assets/task_logo_final.png')} // eslint-disable-line @typescript-eslint/no-require-imports
                             className="w-12 h-12 rounded-full border-2 border-white/30"
                             style={{ width: 44, height: 44 }}
                             resizeMode="cover"
                         />
-                        <View>
-                            <Text className="text-orange-100 text-xs font-medium">{t('header.greeting')}</Text>
-                            <Text className="text-xl font-bold text-white dark:text-brand-text-light">{currentUser?.name}</Text>
+                        <View className="flex-1">
+                            <Text className="text-orange-100 text-xs font-medium" numberOfLines={1}>{t('header.greeting')}</Text>
+                            <Text className="text-xl font-bold text-white dark:text-brand-text-light" numberOfLines={1} adjustsFontSizeToFit>{currentUser?.name}</Text>
                         </View>
                     </View>
-                    <View className="flex-row gap-2 items-center">
+                    <View className="flex-row gap-2 items-center flex-shrink-0">
 
                         <Button
                             title={t('header.stats')}
                             variant="secondary"
                             size="sm"
                             onPress={() => navigation.navigate('Statistics')}
-                            className="bg-white/20 shadow-none"
-                            textClassName="text-white"
+                            className="bg-white/20 shadow-none px-3"
+                            textClassName="text-white text-xs"
                         />
                         <Button
                             title={t('header.schedule')}
                             variant="secondary"
                             size="sm"
                             onPress={() => setScheduleModalVisible(true)}
-                            className="bg-white/20 shadow-none"
-                            textClassName="text-white"
+                            className="bg-white/20 shadow-none px-3"
+                            textClassName="text-white text-xs"
                         />
                         <Button
                             title={t('header.logout')}
                             variant="outline"
                             size="sm"
                             onPress={confirmLogout}
-                            className="border-white/40"
-                            textClassName="text-white"
+                            className="border-white/40 px-3"
+                            textClassName="text-white text-xs"
                             style={{ backgroundColor: 'transparent' }}
                         />
                     </View>
