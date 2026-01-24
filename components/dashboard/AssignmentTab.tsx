@@ -10,7 +10,7 @@ import { Task } from '../../types';
 
 export const AssignmentTab = () => {
     const navigation = useNavigation<any>();
-    const { users, tasks, schedules, currentUser, categories, addTask, deleteTask, addSchedule, t } = useTaskContext();
+    const { users, tasks, schedules, currentUser, categories, addTask, deleteTask, addSchedule, t, refreshTasks } = useTaskContext();
 
     const children = users.filter(u => u.role === 'child');
 
@@ -82,7 +82,8 @@ export const AssignmentTab = () => {
         if (selectedTemplateIds.length === 0) {
             // First selection, initialize potential overrides defaults from this task
             setAssignRecurrenceDays(task.recurrenceDays || []);
-            setAssignDueDate(task.dueDate || new Date().toISOString().split('T')[0]);
+            // Force TODAY always, ignoring old template dates
+            setAssignDueDate(new Date().toISOString().split('T')[0]);
 
             // Auto-select first child if none selected
             if (assignmentSelection.length === 0 && children.length > 0) {
@@ -96,7 +97,7 @@ export const AssignmentTab = () => {
     const handleBatchAssign = () => {
         if (selectedTemplateIds.length === 0 || assignmentSelection.length === 0) return;
 
-        const assignLogic = () => {
+        const assignLogic = async () => {
             let totalAssigned = 0;
             let totalSkipped = 0;
 
@@ -186,6 +187,10 @@ export const AssignmentTab = () => {
             setIsAssigningMode(false);
             setAssignmentSelection([]);
 
+            if (totalAssigned > 0) {
+                await refreshTasks();
+            }
+
             let message = "";
             if (totalAssigned > 0) message += t('assign.alert.assign_summary_1').replace('{count}', String(totalAssigned));
             if (totalSkipped > 0) message += t('assign.alert.assign_summary_2').replace('{skipped}', String(totalSkipped));
@@ -195,7 +200,7 @@ export const AssignmentTab = () => {
         };
 
         // Execute the assignment logic
-        assignLogic();
+        assignLogic().catch(console.error);
     };
 
 

@@ -1228,6 +1228,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 globalSettings,
                 updateGlobalSettings,
                 getLocalDateString: (d) => getLocalDateString(d),
+                refreshTasks: checkAndGenerateWeeklyTasks,
                 language,
                 setLanguage,
                 t,
