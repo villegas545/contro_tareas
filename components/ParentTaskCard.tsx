@@ -131,6 +131,17 @@ export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEd
                         })()}
 
                         <TaskTags task={task} showTime={true} />
+
+                        {/* Master vs Instance Tag */}
+                        {!task.originalTaskId && (task.frequency === 'daily' || task.frequency === 'weekly') ? (
+                            <View className="px-2 py-1 rounded bg-purple-100 border border-purple-200">
+                                <Text className="text-xs font-bold text-purple-700">🔄 Master</Text>
+                            </View>
+                        ) : task.originalTaskId ? (
+                            <View className="px-2 py-1 rounded bg-blue-50 border border-blue-100">
+                                <Text className="text-xs font-bold text-blue-600">📅 {task.dueDate?.split('-').slice(1).join('/')}</Text>
+                            </View>
+                        ) : null}
                     </View>
 
                     {task.evidenceUrl && task.evidenceUrl.startsWith('JUSTIFICADO:') && (
