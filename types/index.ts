@@ -124,6 +124,12 @@ export interface Task {
   originalTaskId?: string;
 }
 
+export interface TaskContextType {
+  updateGlobalSettings: (settings: Partial<GlobalSettings>) => Promise<void>;
+  getLocalDateString: (date?: Date) => string;
+  language: Language;
+}
+
 export interface Category {
   id: string;
   name: string;

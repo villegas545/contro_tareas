@@ -48,23 +48,18 @@ export const MonitoringTab = () => {
             ? tasks.filter(t => t.assignedTo === selectedChildId && t.assignedTo !== 'pool')
             : tasks.filter(t => t.assignedTo !== 'pool')
         ).filter(t => {
-            // Custom Date Filtering Logic
-            const isToday = filterDate.toDateString() === new Date().toDateString();
+            // Strict Date Filtering for Instance-Based Architecture
+            const targetDateStr = getLocalDateString(filterDate);
 
-            if (isToday) {
-                // For parents, we want to see EVERYTHING eligible for today, including masters if they exist
-                return isTaskActiveToday ? isTaskActiveToday(t, true) : true;
-            } else {
-                // Basic support for other days: 
-                if (t.dueDate) return new Date(t.dueDate).toDateString() === filterDate.toDateString();
-                if (t.frequency === 'daily') return true;
-                // For simplicity, recurrence logic for past dates might need more complex calculation, 
-                // but checking recurrenceDays matches the day of the week is a good proxy.
-                if (t.frequency === 'weekly' && t.recurrenceDays) {
-                    return t.recurrenceDays.includes(filterDate.getDay());
-                }
-                return false;
+            // 1. If task has a specific due date (All instances and one-time tasks should have this)
+            if (t.dueDate) {
+                return t.dueDate === targetDateStr;
             }
+
+            // 2. Legacy Fallback (Should not happen if migration ran, but safe to hide masters)
+            // Masters in 'schedules' are not in 'tasks' list anymore.
+            // If a task has no dueDate, it shouldn't show up in a daily view.
+            return false;
         })
             .filter(t => {
                 if (statusFilter !== 'all' && t.status !== statusFilter) return false;

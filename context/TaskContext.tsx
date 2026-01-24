@@ -1223,7 +1223,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 isTaskActiveToday,
                 globalSettings,
                 updateGlobalSettings,
-                getLocalDateString: () => getLocalDateString(),
+                getLocalDateString: (d) => getLocalDateString(d),
                 language,
                 setLanguage,
                 t,
