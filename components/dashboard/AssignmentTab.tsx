@@ -163,12 +163,6 @@ export const AssignmentTab = () => {
         assignLogic();
     };
 
-    const triggerBatchAssign = () => {
-        setConfirmationAction({ type: 'assign', payload: { count: selectedTemplateIds.length } });
-    };
-
-
-
 
     const confirmDeleteTemplate = (taskId: string) => {
         setConfirmationAction({ type: 'delete', taskId });

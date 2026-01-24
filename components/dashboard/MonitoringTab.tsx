@@ -150,20 +150,6 @@ export const MonitoringTab = () => {
     const filterDateStr = toDateString(filterDate);
     const isFutureDate = filterDateStr > todayStr;
 
-    const renderTask = ({ item }: { item: Task }) => (
-        <ParentTaskCard
-            task={item}
-            users={users}
-            onVerify={confirmVerify}
-            onReject={confirmReject}
-            onAssign={() => { }}
-            onEdit={(item) => navigation.navigate('CreateTask', { taskToEdit: item })}
-            onDelete={confirmUnassign}
-            className=""
-            isReadOnly={isFutureDate}
-        />
-    );
-
     return (
         <View className="flex-1 relative">
             <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
