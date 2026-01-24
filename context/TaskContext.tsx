@@ -837,26 +837,59 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 // OR if status is pending (which implies it's "leftover" from yesterday).
 
                 let shouldReset = false;
+                let shouldLogAsMissed = false;
 
                 if (task.status === 'verified' && task.verifiedAt) {
                     const verifiedDate = task.verifiedAt.split('T')[0];
                     if (verifiedDate < todayStr) shouldReset = true;
                 } else if (task.status === 'pending') {
-                    // It's pending. Is it a FRESH pending (created/reset today) or STALE pending?
-                    // We don't have 'lastResetAt'. But if we just ran the "Missed" check, we can safely reset it?
-                    // If we reset a pending task to pending, nothing changes, EXCEPT we might want to clear evidenceUrl if we allowed partial completion?
-                    // But effectively, 'pending' tasks for daily recur every day. So we assume it's "Available" for today.
-                    // We DO need to clear evidence if it was "completed" (waiting) but not verified yesterday?
-                    shouldReset = false; // Pending stays pending.
+                    // ⚠️ FIX: Pending tasks from previous days should be logged as missed
+                    // If there's no history entry for yesterday and the task was active, it was missed
+                    // Then we reset it to pending for today
+
+                    // Check if we already processed this task today by looking at existing history
+                    const hasHistoryForYesterday = history.some(h => h.taskId === task.id && h.date === yesterdayStr);
+
+                    if (wasActiveYesterday && !hasHistoryForYesterday) {
+                        // This pending task from yesterday was NOT completed - it was missed
+                        shouldLogAsMissed = true;
+                        // Note: We already logged it above in the "missed" check, so we just reset
+                    }
+
+                    // Clear any stale data and keep as pending for today
+                    // We reset to clear any partial data from previous days
+                    if (task.completedAt || task.evidenceUrl) {
+                        shouldReset = true;
+                    }
                 } else if (task.status === 'completed') {
-                    // Task is waiting for review.
-                    // If it was completed yesterday, and not verified...
-                    // User said: "Incomplete tasks should be failed".
-                    // If it's completed, the child claims they did it. 
-                    // We probably shouldn't auto-fail it? Or should we?
-                    // Let's leave 'completed' tasks alone so parents can verify late.
-                    // Once verified, the existing logic resets it next day.
-                    shouldReset = false;
+                    // ⚠️ FIX: Task is waiting for parent review from a PREVIOUS day
+                    // If it was completed yesterday, and not verified by now, it should be treated as missed
+                    // Parents had a chance to verify, but didn't
+
+                    if (task.completedAt) {
+                        const completedDate = task.completedAt.split('T')[0];
+                        if (completedDate < todayStr) {
+                            // This task was completed yesterday but never verified
+                            // Log it as missed and reset for today
+                            const alreadyLoggedForCompletedDate = history.some(
+                                h => h.taskId === task.id && h.date === completedDate
+                            );
+
+                            if (!alreadyLoggedForCompletedDate) {
+                                await addDoc(collection(db, "history"), {
+                                    taskId: task.id,
+                                    taskTitle: task.title,
+                                    assignedTo: task.assignedTo,
+                                    points: 0,
+                                    status: 'missed', // Treated as missed since parent didn't verify
+                                    isResponsibility: task.isResponsibility || false,
+                                    date: completedDate,
+                                });
+                            }
+
+                            shouldReset = true;
+                        }
+                    }
                 } else if (task.status === 'expired') {
                     // Daily tasks shouldn't really stay expired if they recur daily?
                     // Currently checking reuse. If it expired yesterday, today is a new day!
@@ -869,8 +902,6 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                         completedAt: deleteField(),
                         verifiedAt: deleteField(),
                         evidenceUrl: deleteField(),
-                        // Remove 'expired' status if present
-                        ...(task.status === 'expired' ? { status: 'pending' } : {})
                     });
                 }
             }
@@ -916,6 +947,40 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         const zDate = new Date(y, m - 1, d);
         const dayOfWeek = zDate.getDay(); // 0 = Sunday, 1 = Monday, ...
 
+        // 0. Hide Completed/Verified tasks from previous days
+        // If a task is done, it should only appear if it was done TODAY.
+        if (task.status === 'completed' || task.status === 'verified') {
+            const completionDate = task.completedAt || task.verifiedAt;
+            if (completionDate) {
+                const cDate = new Date(completionDate);
+                const cDateStr = getLocalDateString(cDate);
+                // If it wasn't done today, hide it from "Today's" dashboard
+                if (cDateStr !== dateStr) return false;
+            } else {
+                // If no date, maybe hide it? Or assume old.
+                return false;
+            }
+        }
+
+        // 0.5. ⚠️ FIX: Hide PENDING tasks from previous days
+        // For daily/weekly recurring tasks, we check if they were "created" for today
+        // The key insight: if a task is still pending and has no assignedDate, we must assume it's valid today
+        // But if we have tracking, we should use it.
+        // 
+        // NEW LOGIC: For recurring tasks (daily/weekly), if the task is PENDING,
+        // reset them at midnight. BUT since we don't have a cron job, we check:
+        // - If the task was marked 'pending' from a previous day's session, hide it
+        // - We use a simple heuristic: if the task has no 'lastResetDate' or a stale one, hide old pending tasks
+        //
+        // Simple solution: For daily tasks, if status is 'pending' or 'expired', check if it should be "today's instance"
+        // We'll rely on dueDate for one-time tasks, and for recurring tasks, we assume they're valid if frequency matches today
+        // This already works, but EXPIRED from yesterday should be hidden.
+
+        // Hide EXPIRED tasks - they should move to history, not show up again
+        if (task.status === 'expired') {
+            return false;
+        }
+
         // School Day Logic: Mon-Fri by default, overridden by nonSchoolDays setting
         let isSchoolDay = dayOfWeek >= 1 && dayOfWeek <= 5;
 
@@ -925,7 +990,15 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
 
         // 1. One Time: Visible if due today or past (or no date), BUT NOT FUTURE
         if (task.frequency === 'one-time') {
+            // If it has a due date in the future, hide it
             if (task.dueDate && task.dueDate > dateStr) return false;
+
+            // ⚠️ FIX: If it's a past one-time task that is still pending, HIDE IT
+            // One-time tasks from previous days should not carry over
+            if (task.dueDate && task.dueDate < dateStr && task.status === 'pending') {
+                return false;
+            }
+
             return true;
         }
 
@@ -942,9 +1015,17 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         // if (task.isResponsibility && !isSchoolDay) return false; // REMOVED per user request
 
         // 4. Specific Recurrence Check
-        if (task.recurrenceDays && task.recurrenceDays.length > 0) {
-            if (!task.recurrenceDays.includes(dayOfWeek)) return false;
+        if (task.frequency === 'weekly') {
+            if (task.recurrenceDays && task.recurrenceDays.length > 0) {
+                if (!task.recurrenceDays.includes(dayOfWeek)) return false;
+            } else {
+                // Weekly task without days? Treat as inactive or hidden to avoid preventing "every day" spam.
+                return false;
+            }
         }
+
+        // 5. Daily tasks: always visible today if not expired/completed
+        // (Already handled above, but this is the default fallthrough for 'daily' frequency)
 
         return true;
     };

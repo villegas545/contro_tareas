@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, Modal, TouchableOpacity, ScrollView, Platform, Alert } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, ScrollView, Platform, Alert, StatusBar } from 'react-native';
 import * as Print from 'expo-print';
 import { useTaskContext } from '../context/TaskContext';
 import { Button } from './ui/Button';
@@ -333,7 +333,7 @@ export const ScheduleModal = ({ visible, onClose }: ScheduleModalProps) => {
 
     return (
         <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-            <View className="flex-1 bg-white dark:bg-slate-900">
+            <View className="flex-1 bg-white dark:bg-slate-900" style={{ paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 }}>
                 <View className="p-4 border-b border-gray-100 dark:border-gray-800 flex-row justify-between items-center bg-gray-50 dark:bg-slate-800">
                     <Text className="text-xl font-bold text-gray-800 dark:text-white">{t('schedule.title')}</Text>
                     <View className="flex-row gap-2">
