@@ -21,7 +21,7 @@ export const AssignmentTab = () => {
 
     // State for Overrides
     const [assignRecurrenceDays, setAssignRecurrenceDays] = useState<number[]>([]);
-    const [assignDueDate, setAssignDueDate] = useState<string>('');
+    const [assignDueDate, setAssignDueDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
     // Filters
     const [assignmentSearch, setAssignmentSearch] = useState('');
@@ -57,7 +57,7 @@ export const AssignmentTab = () => {
             if (selectedTemplateIds.length === 1) {
                 // Reset overrides if untoggling the last one
                 setAssignRecurrenceDays([]);
-                setAssignDueDate('');
+                setAssignDueDate(new Date().toISOString().split('T')[0]);
             }
             return;
         }
@@ -82,7 +82,7 @@ export const AssignmentTab = () => {
         if (selectedTemplateIds.length === 0) {
             // First selection, initialize potential overrides defaults from this task
             setAssignRecurrenceDays(task.recurrenceDays || []);
-            setAssignDueDate(task.dueDate || '');
+            setAssignDueDate(task.dueDate || new Date().toISOString().split('T')[0]);
 
             // Auto-select first child if none selected
             if (assignmentSelection.length === 0 && children.length > 0) {
@@ -372,7 +372,7 @@ export const AssignmentTab = () => {
                             {/* Schedule Override */}
                             {(representativeTask.frequency === 'weekly' || representativeTask.frequency === 'one-time') && (
                                 <View className="mb-6">
-                                    <Text className="text-gray-700 font-bold mb-2">{t('assign.schedule_optional')}</Text>
+                                    <Text className="text-gray-700 font-bold mb-2">Fecha de Asignación:</Text>
 
                                     {(representativeTask.frequency === 'weekly') && (
                                         <View>

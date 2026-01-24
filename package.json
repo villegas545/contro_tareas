@@ -16,7 +16,9 @@
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "backup-db": "ts-node scripts/backup_db.ts",
     "cy:open": "cypress open",
-    "cy:run": "cypress run"
+    "cy:run": "cypress run",
+    "clean:tasks": "node scripts/wipeClean.js tasks",
+    "clean:history": "node scripts/wipeClean.js history"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
