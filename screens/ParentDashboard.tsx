@@ -12,9 +12,16 @@ import { ScheduleModal } from '../components/ScheduleModal';
 
 
 export default function ParentDashboard({ navigation }: any) {
-    const { currentUser, logout, tasks, redemptions, t } = useTaskContext();
+    const { currentUser, logout, tasks, redemptions, t, isTaskActiveToday } = useTaskContext();
     const [currentTab, setCurrentTab] = useState<'monitoring' | 'assignment' | 'messages' | 'family' | 'rewards' | 'settings'>('monitoring');
     const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
+
+    // Count tasks awaiting review that are active today (not pool templates)
+    const tasksAwaitingReview = tasks.filter(task =>
+        task.status === 'completed' &&
+        task.assignedTo !== 'pool' &&
+        isTaskActiveToday(task)
+    ).length;
 
     const confirmLogout = () => {
         logout();
@@ -75,9 +82,9 @@ export default function ParentDashboard({ navigation }: any) {
                             <Text className={`text-lg font-bold ${currentTab === 'monitoring' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
                                 {t('tabs.monitoring')}
                             </Text>
-                            {tasks.filter(t => t.status === 'completed').length > 0 && (
+                            {tasksAwaitingReview > 0 && (
                                 <View className="absolute -top-2 -right-3 bg-red-500 rounded-full w-5 h-5 justify-center items-center">
-                                    <Text className="text-white text-xs font-bold">{tasks.filter(t => t.status === 'completed').length}</Text>
+                                    <Text className="text-white text-xs font-bold">{tasksAwaitingReview}</Text>
                                 </View>
                             )}
                         </TouchableOpacity>
