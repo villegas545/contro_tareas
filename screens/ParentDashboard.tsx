@@ -117,7 +117,7 @@ export default function ParentDashboard({ navigation }: any) {
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setCurrentTab('wallet')}>
                             <Text className={`text-lg font-bold ${currentTab === 'wallet' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
-                                💰 {t('tabs.wallet') || 'Billetera'}
+                                Billetera
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setCurrentTab('settings')}>

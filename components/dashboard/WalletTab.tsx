@@ -40,20 +40,13 @@ export const WalletTab = () => {
     return (
         <ScrollView className="flex-1 bg-gray-50 dark:bg-slate-900 p-4">
             <Text className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-                💰 {t('wallet.title') || 'Billetera Electrónica'}
+                💰 Billetera Electrónica
             </Text>
 
             <View className="flex-row flex-wrap gap-4 justify-center">
                 {children.map(child => (
                     <Card key={child.id} className="bg-white dark:bg-slate-800 p-6 w-full md:w-5/12 border-t-4 border-t-emerald-500 shadow-md">
                         <View className="items-center mb-4">
-                            <View className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center mb-2 overflow-hidden border-2 border-indigo-200">
-                                {child.avatar ? (
-                                    <Text className="text-2xl">{child.avatar}</Text>
-                                ) : (
-                                    <Text className="text-2xl font-bold text-indigo-600">{child.name[0]}</Text>
-                                )}
-                            </View>
                             <Text className="text-xl font-bold text-gray-900 dark:text-white">{child.name}</Text>
                             <Text className="text-sm text-gray-500">Saldo Actual</Text>
                             <Text className="text-4xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
