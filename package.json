@@ -11,6 +11,8 @@
     "reset:inventory": "node reset_inventory.js",
     "seed:templates": "node seed_templates.js",
     "build:apk": "eas build -p android --profile preview",
+    "prebuild": "expo prebuild --platform android --clean",
+    "build:apk:local": "cd android && gradlew assembleRelease",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "backup-db": "ts-node scripts/backup_db.ts",
     "cy:open": "cypress open",
