@@ -1024,9 +1024,14 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     // Trigger Generation (Updated dep to schedules.length)
     useEffect(() => {
         if (currentUser && schedules.length > 0) {
+            // Only run generation if we have schedules and haven't run it recently?
+            // Or rely on the internal checks of the function which queries DB again.
+            // To be safe, we rely on the function's internal logic, but we MUST NOT depend on tasks.length
+            // otherwise creating a task triggers this again -> infinite loop -> quota exceeded.
             checkAndGenerateWeeklyTasks().catch(console.error);
         }
-    }, [currentUser?.id, schedules.length, tasks.length]); // include tasks.length to know what exists
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentUser?.id, schedules.length]); // REMOVED tasks.length to prevent infinite write loop
 
     // Migration Trigger
     useEffect(() => {
