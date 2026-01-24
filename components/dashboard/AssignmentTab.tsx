@@ -159,6 +159,8 @@ export const AssignmentTab = () => {
             else Alert.alert(t('assign.alert.assign_success'), message);
         };
 
+        // Execute the assignment logic
+        assignLogic();
     };
 
     const triggerBatchAssign = () => {
@@ -383,7 +385,7 @@ export const AssignmentTab = () => {
                             </Text>
 
                             <View className="gap-3">
-                                <Button title={t('assign.confirm_assign')} onPress={triggerBatchAssign} />
+                                <Button title={t('assign.confirm_assign')} onPress={handleBatchAssign} />
                                 <Button title={t('common.cancel')} variant="outline" onPress={() => setIsAssigningMode(false)} />
                             </View>
                         </View>
