@@ -8,12 +8,13 @@ import { FamilyTab } from '../components/dashboard/FamilyTab';
 import { MessagesTab } from '../components/dashboard/MessagesTab';
 import { RewardsTab } from '../components/dashboard/RewardsTab';
 import { SettingsTab } from '../components/dashboard/SettingsTab';
+import { WalletTab } from '../components/dashboard/WalletTab';
 import { ScheduleModal } from '../components/ScheduleModal';
 
 
 export default function ParentDashboard({ navigation }: any) {
     const { currentUser, logout, tasks, redemptions, t, isTaskActiveToday } = useTaskContext();
-    const [currentTab, setCurrentTab] = useState<'monitoring' | 'assignment' | 'messages' | 'family' | 'rewards' | 'settings'>('monitoring');
+    const [currentTab, setCurrentTab] = useState<'monitoring' | 'assignment' | 'messages' | 'family' | 'rewards' | 'settings' | 'wallet'>('monitoring');
     const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
 
     // Count tasks awaiting review that are active today (not pool templates)
@@ -114,6 +115,11 @@ export default function ParentDashboard({ navigation }: any) {
                                 </View>
                             )}
                         </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setCurrentTab('wallet')}>
+                            <Text className={`text-lg font-bold ${currentTab === 'wallet' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
+                                💰 {t('tabs.wallet') || 'Billetera'}
+                            </Text>
+                        </TouchableOpacity>
                         <TouchableOpacity onPress={() => setCurrentTab('settings')}>
                             <Text className={`text-lg font-bold ${currentTab === 'settings' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400'} `}>
                                 {t('tabs.settings')}
@@ -129,6 +135,7 @@ export default function ParentDashboard({ navigation }: any) {
                     {currentTab === 'family' && <FamilyTab />}
                     {currentTab === 'messages' && <MessagesTab />}
                     {currentTab === 'rewards' && <RewardsTab />}
+                    {currentTab === 'wallet' && <WalletTab />}
                     {currentTab === 'settings' && <SettingsTab />}
 
                 </View>

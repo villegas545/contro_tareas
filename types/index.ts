@@ -16,6 +16,17 @@ export interface User {
   avatar?: string;
   color?: string; // Hex color code for identifying the user
   pushToken?: string;
+  walletBalance?: number; // Electronic Wallet Balance
+}
+
+export interface WalletTransaction {
+  id: string;
+  childId: string;
+  amount: number;
+  type: 'deposit' | 'withdrawal';
+  description: string;
+  date: string;
+  createdBy: string;
 }
 
 export interface JustificationReason {

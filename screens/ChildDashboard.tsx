@@ -217,6 +217,9 @@ export default function ChildDashboard({ navigation }: any) {
                     <View>
                         <Text className="text-white text-lg font-medium opacity-90">{t('header.greeting')} {currentUser?.name} 👋</Text>
                         <Text className="text-white text-3xl font-bold mt-1">{myPoints} {t('stats.points')} ⭐️</Text>
+                        <Text className="text-emerald-300 text-lg font-bold mt-1">
+                            💰 ${(currentUser?.walletBalance || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                        </Text>
                     </View>
                 </View>
                 <Button title={t('header.logout')} variant="secondary" size="sm" onPress={confirmLogout} className="bg-white/20" />

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Task, User, TaskHistory, Reward, Redemption, GlobalSettings, Category, TaskTemplate, JustificationReason, Language, TaskSchedule } from '../types';
+import { Task, User, TaskHistory, Reward, Redemption, GlobalSettings, Category, TaskTemplate, JustificationReason, Language, TaskSchedule, WalletTransaction } from '../types';
 import { translations } from '../utils/translations';
 import { collection, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot, deleteField, writeBatch } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
@@ -73,6 +73,10 @@ interface TaskContextType {
     language: Language;
     setLanguage: (lang: Language) => void;
     t: (key: string) => string;
+
+    // Wallet
+    transactions: WalletTransaction[];
+    addTransaction: (childId: string, amount: number, type: 'deposit' | 'withdrawal', description: string) => void;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -92,6 +96,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
 
     const [rewards, setRewards] = useState<Reward[]>([]);
     const [redemptions, setRedemptions] = useState<Redemption[]>([]);
+    const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
     const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
     const [language, setLanguageState] = useState<Language>('es');
     const sessionChecked = React.useRef(false);
@@ -153,6 +158,13 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             setSchedules(list);
         });
 
+        const transactionsUnsub = onSnapshot(collection(db, "wallet_transactions"), (snapshot) => {
+            const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WalletTransaction));
+            // Sort by date desc
+            list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            setTransactions(list);
+        });
+
         const tasksUnsub = onSnapshot(collection(db, "tasks"), (snapshot) => {
             const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
             setRawTasks(list);
@@ -212,6 +224,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             usersUnsub();
             templatesUnsub();
             schedulesUnsub();
+            transactionsUnsub();
             tasksUnsub();
             historyUnsub();
             messagesUnsub();
@@ -1134,6 +1147,37 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         return translations[lang]?.[key] || translations['es'][key] || key;
     };
 
+    const addTransaction = async (childId: string, amount: number, type: 'deposit' | 'withdrawal', description: string) => {
+        const user = users.find(u => u.id === childId);
+        if (!user) return;
+
+        const currentBalance = user.walletBalance || 0;
+        const newBalance = type === 'deposit' ? currentBalance + amount : currentBalance - amount;
+
+        // 1. Update User Balance
+        await updateUser(childId, { walletBalance: newBalance });
+
+        // 2. Add Transaction Log
+        const tx: WalletTransaction = {
+            id: '', // Firestore auto-id
+            childId,
+            amount,
+            type,
+            description,
+            date: new Date().toISOString(),
+            createdBy: currentUser?.id || 'system'
+        };
+
+        if (isTestMode()) {
+            // @ts-ignore
+            setTransactions(prev => [{ ...tx, id: 'test-tx-' + Date.now() }, ...prev]);
+            return;
+        }
+
+        const newTxRef = doc(collection(db, "wallet_transactions"));
+        await setDoc(newTxRef, { ...tx, id: newTxRef.id });
+    };
+
     return (
         <TaskContext.Provider
             value={{
@@ -1182,7 +1226,9 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 getLocalDateString: () => getLocalDateString(),
                 language,
                 setLanguage,
-                t
+                t,
+                transactions,
+                addTransaction
             }}
         >
             {children}
