@@ -43,36 +43,74 @@ export interface TaskTemplate {
   categoryId?: string;
 }
 
+// 3-Table Architecture Interfaces
+
+// 1. Template (Defined above as TaskTemplate)
+
+// 2. Schedule (The Master Assignment)
+export interface TaskSchedule {
+  id: string;
+  templateId: string; // Link to Template
+  assignedTo: string; // Child ID
+  createdBy: string;
+
+  // Copied from Template but overrideable
+  title: string;
+  description?: string;
+  type: TaskType;
+  frequency: TaskFrequency;
+  points: number;
+  isResponsibility: boolean;
+  isSchool: boolean;
+  recurrenceDays?: number[]; // [1, 3, 5] for Mon,Wed,Fri
+  timeWindow?: {
+    start: string;
+    end: string;
+  };
+  shift?: 'morning' | 'afternoon' | 'night' | 'no-time';
+  categoryId?: string;
+
+  active: boolean; // Easier to pause assignments without deleting
+  createdAt: string;
+}
+
+// 3. Task (The Daily Instance)
 export interface Task {
   id: string;
-  title: string; // From Template or Override
-  description?: string; // From Template or Override
+  scheduleId?: string; // Link to Schedule (if recurring)
+  templateId?: string; // Link to Template (if one-off)
+
   assignedTo: string;
-  createdBy: string;
-  dueDate?: string;
-  dueTime?: string; // Specific to day
+  title: string;
+  description?: string;
+  points: number;
   status: TaskStatus;
-  type: TaskType; // From Template
-  frequency: TaskFrequency; // From Template
-  points?: number; // From Template
-  completedAt?: string;
-  verifiedAt?: string;
-  reminder?: boolean;
+
+  dueDate: string; // YYYY-MM-DD
+  dueTime?: string;
+
+  // Metadata
+  type: TaskType;
+  frequency: TaskFrequency;
+  isResponsibility?: boolean;
+  isSchool?: boolean;
+  categoryId?: string;
+  shift?: 'morning' | 'afternoon' | 'night' | 'no-time';
+
+  // Execution constraints
   timeWindow?: {
     start: string;
     end: string;
   };
   timeLimit?: number;
-  evidenceUrl?: string;
-  isResponsibility?: boolean;
-  isSchool?: boolean;
-  recurrenceDays?: number[];
-  shift?: 'morning' | 'afternoon' | 'night' | 'no-time';
 
-  // Relational Link
-  templateId?: string;
-  originalTaskId?: string; // DEPRECATED: Use templateId
-  categoryId?: string;
+  // Execution Data
+  completedAt?: string;
+  verifiedAt?: string;
+  evidenceUrl?: string;
+
+  // Legacy fields support (optional during migration)
+  originalTaskId?: string;
 }
 
 export interface Category {

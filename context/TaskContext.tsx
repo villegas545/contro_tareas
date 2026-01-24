@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Task, User, TaskHistory, Reward, Redemption, GlobalSettings, Category, TaskTemplate, JustificationReason, Language } from '../types';
+import { Task, User, TaskHistory, Reward, Redemption, GlobalSettings, Category, TaskTemplate, JustificationReason, Language, TaskSchedule } from '../types';
 import { translations } from '../utils/translations';
 import { collection, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot, deleteField, writeBatch } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
@@ -22,12 +22,15 @@ const isTestMode = () => {
 interface TaskContextType {
     currentUser: User | null;
     tasks: Task[];
+    schedules: TaskSchedule[];
     templates: TaskTemplate[];
     users: User[];
     history: TaskHistory[];
     login: (username: string, password?: string) => boolean;
     logout: () => void;
     addTask: (task: Omit<Task, 'id'>) => void;
+    addSchedule: (schedule: Omit<TaskSchedule, 'id'>) => void;
+    deleteSchedule: (scheduleId: string) => void;
     updateTask: (taskId: string, updates: Partial<Task>) => void;
     deleteTask: (taskId: string) => void;
     completeTask: (taskId: string, evidenceUrl?: string) => void;
@@ -77,6 +80,7 @@ const TaskContext = createContext<TaskContextType | undefined>(undefined);
 export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [tasks, setTasks] = useState<Task[]>([]);
+    const [schedules, setSchedules] = useState<TaskSchedule[]>([]);
     const [rawTasks, setRawTasks] = useState<Task[]>([]);
     const [templates, setTemplates] = useState<TaskTemplate[]>([]);
     const [users, setUsers] = useState<User[]>([]);
@@ -144,6 +148,11 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             setTemplates(list);
         });
 
+        const schedulesUnsub = onSnapshot(collection(db, "schedules"), (snapshot) => {
+            const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TaskSchedule));
+            setSchedules(list);
+        });
+
         const tasksUnsub = onSnapshot(collection(db, "tasks"), (snapshot) => {
             const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
             setRawTasks(list);
@@ -202,6 +211,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         return () => {
             usersUnsub();
             templatesUnsub();
+            schedulesUnsub();
             tasksUnsub();
             historyUnsub();
             messagesUnsub();
@@ -761,9 +771,9 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
-    // Recurring tasks check logic
+    // Recurring tasks check logic - Process Expirations
     const processDailyReset = async () => {
-        if (tasks.length === 0 || history.length === 0) return;
+        if (tasks.length === 0) return; // History might be empty initially, that's fine
 
         // Check Global Vacation Mode
         if (globalSettings?.isVacationMode) return;
@@ -771,25 +781,14 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         const now = new Date();
         const todayStr = getLocalDateString(now);
 
-        // Yesterday for checking missed daily tasks
-        const yesterday = new Date(now);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = getLocalDateString(yesterday);
-
-        // We need to iterate carefully. 
-        // Note: Running this on every client is risky for writes. 
-        // Ideally, we check "Has this been processed?" via a daily log doc or similar.
-        // For this local-first simpler scope, we check if the *result* exists (History entry).
-
+        // Iterate all active tasks to verify expiration
         for (const task of tasks) {
-            // 1. One Time Tasks: Check Expiration
-            if (task.frequency === 'one-time' && task.status === 'pending' && task.dueDate) {
-                // Check if due date is clearly in the past
-                // task.dueDate is YYYY-MM-DD
+            // Only care about tasks with Due Date that are pending
+            if (task.status === 'pending' && task.dueDate) {
                 if (task.dueDate < todayStr) {
-                    // Mark as expired and add missed history
-                    // Check if already logged?
-                    const alreadyLogged = history.some(h => h.taskId === task.id && h.status === 'missed' && h.date === task.dueDate);
+                    // It's missed!
+                    // Log to history
+                    const alreadyLogged = history.some(h => h.taskId === task.id && h.status === 'missed');
 
                     if (!alreadyLogged) {
                         await addDoc(collection(db, "history"), {
@@ -803,156 +802,19 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                         });
                     }
 
+                    // Expire it
                     await updateDoc(doc(db, "tasks", task.id), { status: 'expired' });
-                }
-            }
-
-            // 2. Daily Tasks: Reset and Log Misses
-            if (task.frequency === 'daily') {
-                // Determine if yesterday was a required day for this task
-                // If recurrenceDays is empty, assume every day.
-                // If not empty, check if yesterday's day index was in it.
-                const yesterdayDayIndex = yesterday.getDay();
-                let wasActiveYesterday = task.recurrenceDays?.length ? task.recurrenceDays.includes(yesterdayDayIndex) : true;
-
-                // School Check for Yesterday
-                if (task.isSchool) {
-                    let isSchoolDayYesterday = yesterdayDayIndex >= 1 && yesterdayDayIndex <= 5;
-                    if (globalSettings?.nonSchoolDays?.some(d => d.date === yesterdayStr)) {
-                        isSchoolDayYesterday = false;
-                    }
-                    if (!isSchoolDayYesterday) wasActiveYesterday = false;
-                }
-
-                if (wasActiveYesterday) {
-                    const hasHistoryForYesterday = history.some(h => h.taskId === task.id && h.date === yesterdayStr);
-
-                    if (!hasHistoryForYesterday) {
-                        // It was missed!
-                        await addDoc(collection(db, "history"), {
-                            taskId: task.id,
-                            taskTitle: task.title,
-                            assignedTo: task.assignedTo,
-                            points: 0,
-                            status: 'missed',
-                            isResponsibility: task.isResponsibility || false,
-                            date: yesterdayStr,
-                        });
-                    }
-                }
-
-                // Reset logic: If task is verified (from old days) or pending (from old days), reset to fresh pending for TODAY.
-                // We reset if verifyAt < today.
-                // OR if status is pending (which implies it's "leftover" from yesterday).
-
-                let shouldReset = false;
-                let shouldLogAsMissed = false;
-
-                if (task.status === 'verified' && task.verifiedAt) {
-                    const verifiedDate = task.verifiedAt.split('T')[0];
-                    if (verifiedDate < todayStr) shouldReset = true;
-                } else if (task.status === 'pending') {
-                    // ⚠️ FIX: Pending tasks from previous days should be logged as missed
-                    // If there's no history entry for yesterday and the task was active, it was missed
-                    // Then we reset it to pending for today
-
-                    // Check if we already processed this task today by looking at existing history
-                    const hasHistoryForYesterday = history.some(h => h.taskId === task.id && h.date === yesterdayStr);
-
-                    if (wasActiveYesterday && !hasHistoryForYesterday) {
-                        // This pending task from yesterday was NOT completed - it was missed
-                        shouldLogAsMissed = true;
-                        // Note: We already logged it above in the "missed" check, so we just reset
-                    }
-
-                    // Clear any stale data and keep as pending for today
-                    // We reset to clear any partial data from previous days
-                    if (task.completedAt || task.evidenceUrl) {
-                        shouldReset = true;
-                    }
-                } else if (task.status === 'completed') {
-                    // ⚠️ FIX: Task is waiting for parent review from a PREVIOUS day
-                    // If it was completed yesterday, and not verified by now, it should be treated as missed
-                    // Parents had a chance to verify, but didn't
-
-                    if (task.completedAt) {
-                        const completedDate = task.completedAt.split('T')[0];
-                        if (completedDate < todayStr) {
-                            // This task was completed yesterday but never verified
-                            // Log it as missed and reset for today
-                            const alreadyLoggedForCompletedDate = history.some(
-                                h => h.taskId === task.id && h.date === completedDate
-                            );
-
-                            if (!alreadyLoggedForCompletedDate) {
-                                await addDoc(collection(db, "history"), {
-                                    taskId: task.id,
-                                    taskTitle: task.title,
-                                    assignedTo: task.assignedTo,
-                                    points: 0,
-                                    status: 'missed', // Treated as missed since parent didn't verify
-                                    isResponsibility: task.isResponsibility || false,
-                                    date: completedDate,
-                                });
-                            }
-
-                            shouldReset = true;
-                        }
-                    }
-                } else if (task.status === 'expired') {
-                    // Daily tasks shouldn't really stay expired if they recur daily?
-                    // Currently checking reuse. If it expired yesterday, today is a new day!
-                    shouldReset = true;
-                }
-
-                if (shouldReset) {
-                    // NEW LOGIC: With Weekly Generation, we do NOT reset/recycle tasks essentially.
-                    // If a daily task instance from yesterday wasn't done, it expires.
-                    // We rely on the generator to have created a NEW instance for today.
-
-                    if (task.originalTaskId) {
-                        // It's an instance. Expire it, don't reset it.
-                        if (task.status !== 'expired') {
-                            await updateDoc(doc(db, "tasks", task.id), { status: 'expired' });
-                        }
-                    } else {
-                        // It's a Master/Generator or old task.
-                        // If it's a generator, we shouldn't really touch it, but if it was legacy recycled,
-                        // we might want to reset it? No, generators should just stay distinct.
-                        // Safe bet: Do nothing or reset if strictly legacy.
-                        // Let's assume we migrated to instances.
-                        if (task.status !== 'expired') {
-                            // await updateDoc(doc(db, "tasks", task.id), { status: 'expired' }); 
-                            // Updating master to expired might stop generation? 
-                            // No, generation filters out expired.
-                            // But masters shouldn't ever "expire" day to day.
-                        }
-                    }
-                }
-            }
-
-            // 3. Weekly Tasks (Simple Reset)
-            if (task.status === 'verified' && task.frequency === 'weekly' && task.verifiedAt) {
-                const diffTime = Math.abs(now.getTime() - new Date(task.verifiedAt).getTime());
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                if (diffDays >= 7) {
-                    await updateDoc(doc(db, "tasks", task.id), {
-                        status: 'pending',
-                        completedAt: deleteField(),
-                        verifiedAt: deleteField(),
-                        evidenceUrl: deleteField(),
-                    });
                 }
             }
         }
     };
 
-    // Checking logic
+    // Auto-run reset check 
     useEffect(() => {
         if (tasks.length > 0) {
             processDailyReset();
         }
-    }, [tasks.length, history.length]); // Dependencies updated
+    }, [tasks.length, history.length]);
 
     // Schedule Reminders (Child only)
     useEffect(() => {
@@ -962,11 +824,36 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         }
     }, [tasks, currentUser]);
 
-    // Weekly Task Generation Logic
-    const checkAndGenerateWeeklyTasks = async () => {
-        if (!currentUser || tasks.length === 0) return;
+    const addSchedule = async (schedule: Omit<TaskSchedule, 'id'>) => {
+        if (isTestMode()) {
+            setSchedules(prev => [...prev, {
+                id: 'test-sched-' + Date.now(),
+                ...schedule,
+                active: schedule.active !== undefined ? schedule.active : true,
+                createdAt: schedule.createdAt || new Date().toISOString()
+            }]);
+            return;
+        }
+        await addDoc(collection(db, "schedules"), {
+            active: true,
+            createdAt: new Date().toISOString(),
+            ...schedule
+        });
+    };
 
-        console.log("[WeeklyGen] Checking for tasks to generate...");
+    const deleteSchedule = async (scheduleId: string) => {
+        if (isTestMode()) {
+            setSchedules(prev => prev.filter(s => s.id !== scheduleId));
+            return;
+        }
+        await deleteDoc(doc(db, "schedules", scheduleId));
+    };
+
+    // Weekly Task Generation Logic (From Schedules -> Tasks)
+    const checkAndGenerateWeeklyTasks = async () => {
+        if (!currentUser || schedules.length === 0) return;
+
+        console.log("[WeeklyGen] Checking for tasks to generate from Schedules...");
 
         const now = new Date();
         const currentYear = now.getFullYear();
@@ -975,12 +862,10 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         const currentDay = now.getDay(); // 0=Sun, 1=Mon...
 
         // Calculate start of week (Monday)
-        // If today is Sunday (0), we go back 6 days. If Mon (1), go back 0 days...
         const diff = currentDay === 0 ? 6 : currentDay - 1;
         const mondayDate = new Date(currentYear, currentMonth, currentDate - diff);
         mondayDate.setHours(0, 0, 0, 0);
 
-        // We will generate tasks for the whole week (Mon-Sun)
         const weekDates: string[] = [];
         for (let i = 0; i < 7; i++) {
             const d = new Date(mondayDate);
@@ -991,82 +876,78 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         const batch = writeBatch(db);
         let batchCount = 0;
 
-        // Find "Generator" Tasks: Recurring tasks that are NOT instances (no originalTaskId)
-        // and are actively assigned (not pool, though pool tasks are templates)
-        // actually we only care about tasks assigned to REAL users (active assignments)
-        const generators = tasks.filter(t =>
-            (t.frequency === 'daily' || t.frequency === 'weekly') &&
-            !t.originalTaskId &&
-            t.assignedTo !== 'pool' &&
-            t.status !== 'expired' // master tasks shouldn't be expired usually, but just in case
-        );
+        // Filter active schedules assigned to real users
+        const activeSchedules = schedules.filter(s => s.active && s.assignedTo !== 'pool');
 
-        console.log(`[WeeklyGen] Found ${generators.length} generators.`);
+        console.log(`[WeeklyGen] Found ${activeSchedules.length} active schedules.`);
 
-        for (const gen of generators) {
-            // Determine assumed recurrence days
-            // If weekly: use recurrenceDays. If daily: use recurrenceDays OR [1,2,3,4,5,6,0] (all)
+        for (const sched of activeSchedules) {
             let targetDays: number[] = [];
-            if (gen.frequency === 'weekly') {
-                targetDays = gen.recurrenceDays || [];
+
+            // Determine days
+            if (sched.frequency === 'weekly') {
+                targetDays = sched.recurrenceDays || [];
             } else {
-                // DAILY
-                if (gen.recurrenceDays && gen.recurrenceDays.length > 0) {
-                    targetDays = gen.recurrenceDays;
+                // DAILY - default to all days if not specified
+                if (sched.recurrenceDays && sched.recurrenceDays.length > 0) {
+                    targetDays = sched.recurrenceDays;
                 } else {
-                    targetDays = [1, 2, 3, 4, 5, 6, 0]; // All days
+                    targetDays = [1, 2, 3, 4, 5, 6, 0];
                 }
             }
 
-            // For each target day in this week, check if instance exists
             for (let i = 0; i < 7; i++) {
-                const dateStr = weekDates[i]; // YYYY-MM-DD
+                const dateStr = weekDates[i];
                 // Convert dateStr to Day Index (0-6)
-                // We know weekDates[0] is Monday (1), ..., weekDates[6] is Sunday (0)
-                // Monday is index 0 in our loop, but Day 1.
-                // i=0 (Mon) -> 1
-                // i=1 (Tue) -> 2
-                // ...
-                // i=6 (Sun) -> 0
+                // i=0(Mon)->1, ..., i=6(Sun)->0
                 const dayIndex = i === 6 ? 0 : i + 1;
 
                 if (targetDays.includes(dayIndex)) {
-                    // Check if instance already exists for this date
+                    // Check if instance already exists linked to this schedule
                     const exists = tasks.some(t =>
-                        t.originalTaskId === gen.id &&
+                        t.scheduleId === sched.id &&
                         t.dueDate === dateStr
                     );
 
                     if (!exists) {
-                        // Create Instance
-                        // Exclude non-school days logic if applicable
+                        // Check exclusions
                         let shouldCreate = true;
-                        if (gen.isSchool) {
-                            // Check global settings for holidays
-                            if (globalSettings?.nonSchoolDays?.some(d => d.date === dateStr)) {
-                                shouldCreate = false;
-                            }
-                            // Also native school logic usually Mon-Fri, but targetDays handles that if set correctly.
-                            // However, if targetDays includes Sat/Sun for school task, we respect it?
-                            // Default school is usually Mon-Fri.
+                        if (sched.isSchool && globalSettings?.nonSchoolDays?.some(d => d.date === dateStr)) {
+                            shouldCreate = false;
                         }
 
                         if (shouldCreate) {
                             const newRef = doc(collection(db, "tasks"));
                             const newTaskData: any = {
-                                ...gen,
-                                id: newRef.id,
-                                originalTaskId: gen.id,
-                                dueDate: dateStr,
+                                // Core Data
+                                title: sched.title,
+                                description: sched.description || '',
+                                assignedTo: sched.assignedTo,
+                                createdBy: sched.createdBy || '',
+
+                                // Status & Type
                                 status: 'pending',
+                                type: sched.type,
+                                frequency: sched.frequency,
+                                points: sched.points,
+
+                                // Linkage
+                                scheduleId: sched.id,
+                                templateId: sched.templateId,
+
+                                // Instance Specifics
+                                dueDate: dateStr,
+
+                                // Metadata
+                                categoryId: sched.categoryId,
+                                isResponsibility: sched.isResponsibility,
+                                isSchool: sched.isSchool,
+                                shift: sched.shift,
+
                                 createdAt: new Date().toISOString(),
-                                // Reset fields that shouldn't be copied from master state
-                                completedAt: deleteField(),
-                                verifiedAt: deleteField(),
-                                evidenceUrl: deleteField(),
                             };
-                            // Remove ID from spread to avoid overwrite (handled by ...gen but safely explicitly set new ID)
-                            delete newTaskData.id;
+
+                            if (sched.timeWindow) newTaskData.timeWindow = sched.timeWindow;
 
                             batch.set(newRef, newTaskData);
                             batchCount++;
@@ -1077,113 +958,115 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         if (batchCount > 0) {
-            console.log(`[WeeklyGen] Creating ${batchCount} new task instances.`);
+            console.log(`[WeeklyGen] Creating ${batchCount} new task instances from schedules.`);
             await batch.commit();
         } else {
             console.log(`[WeeklyGen] No new tasks needed.`);
         }
     };
 
-    // Trigger Generation on Login / Init
+
+    // Trigger Generation (Updated dep to schedules.length)
     useEffect(() => {
-        if (currentUser && tasks.length > 0) {
+        if (currentUser && schedules.length > 0) {
             checkAndGenerateWeeklyTasks().catch(console.error);
         }
-    }, [currentUser?.id, tasks.length]); // tasks.length dep ensures we retry if tasks load late
+    }, [currentUser?.id, schedules.length, tasks.length]); // include tasks.length to know what exists
+
+    // Migration Trigger
+    useEffect(() => {
+        if (tasks.length > 0 && currentUser?.role === 'parent') {
+            (async () => {
+                if (!isTestMode()) {
+                    // Only parent triggers migration to avoid conflicts
+                    const legacyMasters = tasks.filter(t =>
+                        !t.originalTaskId && !t.scheduleId &&
+                        (t.frequency === 'daily' || t.frequency === 'weekly') &&
+                        t.assignedTo !== 'pool'
+                    );
+
+                    if (legacyMasters.length > 0) {
+                        const batch = writeBatch(db);
+                        let hasMigration = false;
+
+                        legacyMasters.forEach(t => {
+                            // 3-Table Migration Logic: Legacy Master Tasks -> Schedules
+                            if (!t.originalTaskId && !t.scheduleId && (t.frequency === 'daily' || t.frequency === 'weekly')) {
+                                console.log(`[Migration] Migrating legacy task ${t.title} to Schedule...`);
+                                const scheduleData: any = {
+                                    active: true,
+                                    templateId: t.templateId || 'legacy',
+                                    assignedTo: t.assignedTo,
+                                    createdBy: (t as any).createdBy || 'system',
+                                    title: t.title,
+                                    description: t.description || '',
+                                    type: t.type,
+                                    frequency: t.frequency,
+                                    points: t.points || 0,
+                                    isResponsibility: t.isResponsibility || false,
+                                    isSchool: t.isSchool || false,
+                                    recurrenceDays: (t as any).recurrenceDays || [],
+                                    categoryId: t.categoryId,
+                                    shift: t.shift,
+                                    createdAt: new Date().toISOString()
+                                };
+
+                                if ((t as any).timeWindow) scheduleData.timeWindow = (t as any).timeWindow;
+
+                                // Create Schedule
+                                batch.set(doc(collection(db, "schedules")), scheduleData);
+                                // Delete Legacy Task
+                                batch.delete(doc(db, "tasks", t.id));
+                                hasMigration = true;
+                            }
+                        });
+
+
+                        if (hasMigration) {
+                            console.log("[Migration] Committing migration batch...");
+                            await batch.commit();
+                        }
+                    }
+                }
+            })();
+        }
+    }, [tasks.length, currentUser?.id]); // Run only when tasks loaded
 
     const isTaskActiveToday = (task: Task, includeGenerators: boolean = false) => {
+        // If includeGenerators is true, we simply ignore this check because we want to see everything
+        // But wait, with 3-table architecture, "Generators" are no longer in the 'tasks' list!
+        // So 'tasks' list ONLY contains instances or one-times.
+        // Thus, isTaskActiveToday just filters instances.
+
+        // However, MonitoringTab might want to see Schedules too?
+        // MonitoringTab should access 'schedules' context separately if it wants to show them.
+        // For 'tasks' filtering:
+
         const today = new Date();
         const dateStr = getLocalDateString(today);
 
-        // 0. Hide Generators from Daily View (Child)
-        // If a task is recurring (daily/weekly) AND has NO originalTaskId (it's a master)
-        // AND we are in a mode where instances are generated (we assume so now),
-        // THEN hide the master task to avoid duplication.
-        // UNLESS... includeGenerators is true (for Parent Monitoring)
-        if (!includeGenerators && (task.frequency === 'daily' || task.frequency === 'weekly') && !task.originalTaskId) {
-            return false;
-        }
-
-        // Calculate Day Of Week based on the Timezone-Adjusted Date
-        // Construct a date object from the string components to get the correct weekday for that date
-        const [y, m, d] = dateStr.split('-').map(Number);
-        const zDate = new Date(y, m - 1, d);
-        const dayOfWeek = zDate.getDay(); // 0 = Sunday, 1 = Monday, ...
-
-        // 0. Hide Completed/Verified tasks from previous days
-        // If a task is done, it should only appear if it was done TODAY.
-        if (task.status === 'completed' || task.status === 'verified') {
-            const completionDate = task.completedAt || task.verifiedAt;
-            if (completionDate) {
-                const cDate = new Date(completionDate);
-                const cDateStr = getLocalDateString(cDate);
-                // If it wasn't done today, hide it from "Today's" dashboard
-                if (cDateStr !== dateStr) return false;
-            } else {
-                // If no date, maybe hide it? Or assume old.
-                return false;
-            }
-        }
-
-        // Hide EXPIRED tasks - they should move to history, not show up again
-        if (task.status === 'expired') {
-            return false;
-        }
-
-        // School Day Logic: Mon-Fri by default, overridden by nonSchoolDays setting
-        let isSchoolDay = dayOfWeek >= 1 && dayOfWeek <= 5;
-
-        if (globalSettings?.nonSchoolDays?.some(d => d.date === dateStr)) {
-            isSchoolDay = false;
-        }
-
         // 1. One Time: Visible if due today or past (or no date), BUT NOT FUTURE
         if (task.frequency === 'one-time') {
-            // If it has a due date in the future, hide it
             if (task.dueDate && task.dueDate > dateStr) return false;
-
-            // ⚠️ FIX: If it's a past one-time task that is still pending, HIDE IT
-            // One-time tasks from previous days should not carry over
-            if (task.dueDate && task.dueDate < dateStr && task.status === 'pending') {
-                return false;
-            }
-
+            // Hide old pending one-times
+            if (task.dueDate && task.dueDate < dateStr && task.status === 'pending') return false;
             return true;
         }
 
-        // For instances (which have dueDate), show ONLY if due today
-        if (task.originalTaskId && task.dueDate) {
+        // 2. Instances (Standard)
+        // Should have dueDate.
+        if (task.dueDate) {
+            // Only show today's instances
             if (task.dueDate === dateStr) return true;
-            return false; // Hide instances for other days
+
+            // Optionally show PAST instances if they are not verified?
+            // No, requirement is "Only show tasks for today". 
+            // Unfinished past tasks should be expired or hidden.
+            return false;
         }
 
-        // Fallback for any legacy task (shouldn't happen with new logic, but safe to keep)
-        // Check Vacation Mode (Global)
-        const isVacationMode = globalSettings?.isVacationMode || false;
-
-        // 2. School Check
-        // If Vacation Mode is ON, school tasks are hidden regardless of day
-        if (task.isSchool && isVacationMode) return false;
-        // Regular School Day Check (only if not already hidden by vacation)
-        if (task.isSchool && !isSchoolDay) return false;
-
-        // 3. Responsibility Check - Does not restrict visibility, only counts for stats
-        // if (task.isResponsibility && !isSchoolDay) return false; // REMOVED per user request
-
-        // 4. Specific Recurrence Check
-        if (task.frequency === 'weekly') {
-            if (task.recurrenceDays && task.recurrenceDays.length > 0) {
-                if (!task.recurrenceDays.includes(dayOfWeek)) return false;
-            } else {
-                // Weekly task without days? Treat as inactive or hidden to avoid preventing "every day" spam.
-                return false;
-            }
-        }
-
-        // 5. Daily tasks: always visible today if not expired/completed
-        // (Already handled above, but this is the default fallthrough for 'daily' frequency)
-
-        return true;
+        // Fallback for weird data
+        return false;
     };
 
     const addCategory = async (category: Omit<Category, 'id'>) => {
@@ -1261,6 +1144,9 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 login,
                 categories,
                 templates,
+                schedules,
+                addSchedule,
+                deleteSchedule,
                 addCategory,
                 updateCategory,
                 deleteCategory,

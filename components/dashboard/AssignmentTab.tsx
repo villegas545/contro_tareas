@@ -10,25 +10,28 @@ import { Task } from '../../types';
 
 export const AssignmentTab = () => {
     const navigation = useNavigation<any>();
-    const { tasks, currentUser, users, categories, addTask, deleteTask, t } = useTaskContext();
+    const { users, tasks, schedules, currentUser, categories, addTask, deleteTask, addSchedule, t } = useTaskContext();
+
     const children = users.filter(u => u.role === 'child');
 
-    const [assignmentSearch, setAssignmentSearch] = useState('');
-    const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
+    // State for assignment mode
     const [isAssigningMode, setIsAssigningMode] = useState(false);
     const [assignmentSelection, setAssignmentSelection] = useState<string[]>([]);
-    const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+    const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
 
-    // Custom Confirmation Modal State
-    const [confirmationAction, setConfirmationAction] = useState<{ type: 'assign' | 'delete', taskId?: string, payload?: any } | null>(null);
-
-    // Assignment Override State
+    // State for Overrides
     const [assignRecurrenceDays, setAssignRecurrenceDays] = useState<number[]>([]);
     const [assignDueDate, setAssignDueDate] = useState<string>('');
 
+    // Filters
+    const [assignmentSearch, setAssignmentSearch] = useState('');
     const [typeFilter, setTypeFilter] = useState<'all' | 'responsibility' | 'extra' | 'school'>('all');
     const [frequencyFilter, setFrequencyFilter] = useState<'all' | 'daily' | 'weekly' | 'one-time'>('all');
     const [showFilters, setShowFilters] = useState(false);
+    const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+
+    // Confirmation Modal
+    const [confirmationAction, setConfirmationAction] = useState<{ type: 'delete', taskId: string } | null>(null);
 
     const poolTasks = tasks.filter(t => t.assignedTo === 'pool');
 
@@ -102,47 +105,79 @@ export const AssignmentTab = () => {
                 if (!template) return;
 
                 assignmentSelection.forEach(childId => {
+                    const isRecurring = template.frequency === 'daily' || template.frequency === 'weekly';
+
                     // Check duplicate
-                    const isDuplicate = tasks.some(t =>
-                        t.assignedTo === childId &&
-                        t.title === template.title &&
-                        t.status !== 'verified' && t.status !== 'completed'
-                    );
+                    // If recurring, check Schedules. If one-time, check Tasks.
+                    let isDuplicate = false;
+
+                    if (isRecurring) {
+                        // Check in schedules
+                        isDuplicate = schedules.some(s =>
+                            s.assignedTo === childId &&
+                            s.title === template.title &&
+                            s.active // Check active schedules only
+                        );
+                    } else {
+                        // Check in tasks (pending)
+                        isDuplicate = tasks.some(t =>
+                            t.assignedTo === childId &&
+                            t.title === template.title &&
+                            t.status !== 'verified' && t.status !== 'completed' && t.status !== 'expired'
+                        );
+                    }
 
                     if (isDuplicate) {
                         totalSkipped++;
                         return;
                     }
 
-                    const newTask: any = {
+                    // Common Data
+                    const commonData: any = {
                         title: template.title,
                         description: template.description,
                         assignedTo: childId,
                         createdBy: currentUser?.id || '',
-                        status: 'pending',
                         type: template.type,
                         frequency: template.frequency,
                         isResponsibility: template.isResponsibility,
                         isSchool: template.isSchool,
                         shift: template.shift,
                         categoryId: template.categoryId,
-                        originalTaskId: template.id, // Link for updates
                     };
 
-                    if (template.points) newTask.points = template.points;
-                    if (template.timeWindow) newTask.timeWindow = template.timeWindow;
-                    if (template.dueTime) newTask.dueTime = template.dueTime;
+                    if (template.points) commonData.points = template.points;
+                    if (template.timeWindow) commonData.timeWindow = template.timeWindow;
+                    if (template.dueTime) commonData.dueTime = template.dueTime; // This might be schedule property or task
 
-                    // Apply Overrides
-                    if (template.frequency === 'weekly') {
-                        // Always applying recurrence for weekly tasks to respect user selection (even if empty/subset)
-                        newTask.recurrenceDays = assignRecurrenceDays;
-                    } else if (assignRecurrenceDays && assignRecurrenceDays.length > 0) {
-                        newTask.recurrenceDays = assignRecurrenceDays;
+                    if (isRecurring) {
+                        // Create SCHEDULE
+                        const newSchedule: any = {
+                            ...commonData,
+                            templateId: template.id,
+                            active: true
+                        };
+
+                        // Apply Recurrence Overrides
+                        if (template.frequency === 'weekly') {
+                            newSchedule.recurrenceDays = assignRecurrenceDays;
+                        } else if (assignRecurrenceDays && assignRecurrenceDays.length > 0) {
+                            newSchedule.recurrenceDays = assignRecurrenceDays;
+                        }
+
+                        addSchedule(newSchedule);
+                    } else {
+                        // Create One-Time TASK
+                        const newTask: any = {
+                            ...commonData,
+                            status: 'pending',
+                            templateId: template.id,
+                            dueDate: assignDueDate || new Date().toISOString().split('T')[0], // Default today if missing
+                        };
+                        // one-time typically doesn't have recurrenceDays
+                        addTask(newTask);
                     }
-                    if (assignDueDate) newTask.dueDate = assignDueDate;
 
-                    addTask(newTask);
                     totalAssigned++;
                 });
             });
