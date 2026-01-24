@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Switch, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, Switch, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTaskContext } from '../../context/TaskContext';
 import { Card } from '../ui/Card';
@@ -7,7 +7,7 @@ import { Card } from '../ui/Card';
 export const SettingsTab = () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const navigation = useNavigation<any>();
-    const { globalSettings, updateGlobalSettings, language, setLanguage, t } = useTaskContext();
+    const { globalSettings, updateGlobalSettings, language, setLanguage, t, regenerateWeek } = useTaskContext();
 
     return (
         <ScrollView className="flex-1 bg-gray-50 dark:bg-slate-900 p-4">
@@ -192,6 +192,39 @@ export const SettingsTab = () => {
                     ))}
                 </View>
                 <Text className="text-xs text-gray-400 mt-2">Configuración actual: {globalSettings?.timezone || 'America/Chicago'}</Text>
+            </Card>
+
+            {/* Maintenance Section */}
+            <Card className="mb-4 border-2 border-red-100 bg-red-50 dark:bg-red-900/20 dark:border-red-900">
+                <View className="flex-row items-center gap-2 mb-4">
+                    <Text className="text-2xl">🚨</Text>
+                    <View>
+                        <Text className="text-lg font-bold text-red-900 dark:text-red-300">Zona de Mantenimiento</Text>
+                        <Text className="text-red-700 dark:text-red-400 text-xs">Herramientas para corregir errores</Text>
+                    </View>
+                </View>
+
+                <TouchableOpacity
+                    onPress={() => {
+                        if (Platform.OS === 'web') {
+                            if (window.confirm("¿Estás seguro? Esto borrará todas las tareas pendientes de esta semana y las volverá a generar basándose en tus horarios actuales. Úsalo si ves tareas duplicadas o incorrectas.")) {
+                                regenerateWeek();
+                            }
+                        } else {
+                            Alert.alert(
+                                "Regenerar Semana",
+                                "¿Estás seguro? Esto borrará todas las tareas pendientes de esta semana y las volverá a generar. Úsalo si ves errores.",
+                                [
+                                    { text: "Cancelar", style: "cancel" },
+                                    { text: "Sí, Reparar", onPress: regenerateWeek, style: "destructive" }
+                                ]
+                            );
+                        }
+                    }}
+                    className="flex-row items-center justify-center bg-red-600 p-4 rounded-xl shadow-sm active:bg-red-700"
+                >
+                    <Text className="text-white font-bold text-lg">⚠️ Regenerar Tareas Semanales</Text>
+                </TouchableOpacity>
             </Card>
 
             {/* Future Settings Placeholders */}

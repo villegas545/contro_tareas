@@ -127,6 +127,7 @@ export interface Task {
 export interface TaskContextType {
   updateGlobalSettings: (settings: Partial<GlobalSettings>) => Promise<void>;
   getLocalDateString: (date?: Date) => string;
+  regenerateWeek: () => Promise<void>;
   language: Language;
 }
 
