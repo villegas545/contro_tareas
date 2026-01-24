@@ -52,7 +52,8 @@ export const MonitoringTab = () => {
             const isToday = filterDate.toDateString() === new Date().toDateString();
 
             if (isToday) {
-                return isTaskActiveToday ? isTaskActiveToday(t) : true;
+                // For parents, we want to see EVERYTHING eligible for today, including masters if they exist
+                return isTaskActiveToday ? isTaskActiveToday(t, true) : true;
             } else {
                 // Basic support for other days: 
                 if (t.dueDate) return new Date(t.dueDate).toDateString() === filterDate.toDateString();

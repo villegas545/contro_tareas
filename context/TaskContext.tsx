@@ -50,7 +50,7 @@ interface TaskContextType {
     redeemReward: (redemption: Omit<Redemption, 'id' | 'requestDate' | 'status'>) => void;
     approveRedemption: (redemptionId: string) => void;
     rejectRedemption: (redemptionId: string) => void;
-    isTaskActiveToday: (task: Task) => boolean;
+    isTaskActiveToday: (task: Task, includeGenerators?: boolean) => boolean;
     globalSettings: GlobalSettings | null;
     updateGlobalSettings: (settings: Partial<GlobalSettings>) => void;
     getLocalDateString: () => string;
@@ -1091,17 +1091,16 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         }
     }, [currentUser?.id, tasks.length]); // tasks.length dep ensures we retry if tasks load late
 
-    const isTaskActiveToday = (task: Task) => {
+    const isTaskActiveToday = (task: Task, includeGenerators: boolean = false) => {
         const today = new Date();
         const dateStr = getLocalDateString(today);
 
-        // 0. Hide Generators from Daily View
+        // 0. Hide Generators from Daily View (Child)
         // If a task is recurring (daily/weekly) AND has NO originalTaskId (it's a master)
         // AND we are in a mode where instances are generated (we assume so now),
         // THEN hide the master task to avoid duplication.
-        // UNLESS... it was just created and instances haven't generated yet? 
-        // But the generation runs fast.
-        if ((task.frequency === 'daily' || task.frequency === 'weekly') && !task.originalTaskId) {
+        // UNLESS... includeGenerators is true (for Parent Monitoring)
+        if (!includeGenerators && (task.frequency === 'daily' || task.frequency === 'weekly') && !task.originalTaskId) {
             return false;
         }
 
