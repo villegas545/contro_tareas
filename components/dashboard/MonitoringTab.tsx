@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Platform, Alert, Modal } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Pressable, Platform, Alert, Modal, StatusBar, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTaskContext } from '../../context/TaskContext';
 import { ParentTaskCard } from '../ParentTaskCard';
@@ -29,7 +29,11 @@ export const MonitoringTab = () => {
 
 
     // Custom Confirmation Modal State
-    const [confirmationAction, setConfirmationAction] = useState<{ type: 'verify' | 'reject' | 'delete' | 'batch_verify', taskId?: string } | null>(null);
+    const [confirmationAction, setConfirmationAction] = useState<{ type: 'verify' | 'reject' | 'delete' | 'batch_verify', taskId?: string, count?: number } | null>(null);
+
+    // Loading state for batch operations
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [processingProgress, setProcessingProgress] = useState({ current: 0, total: 0 });
 
     // Helper to format date for DatePicker "YYYY-MM-DD"
     const toDateString = (date: Date) => {
@@ -39,64 +43,89 @@ export const MonitoringTab = () => {
         return `${year}-${month}-${day}`;
     };
 
-    const activeTasks = (selectedChildId
-        ? tasks.filter(t => t.assignedTo === selectedChildId && t.assignedTo !== 'pool')
-        : tasks.filter(t => t.assignedTo !== 'pool')
-    ).filter(t => {
-        // Custom Date Filtering Logic
-        const isToday = filterDate.toDateString() === new Date().toDateString();
+    const activeTasks = useMemo(() => {
+        return (selectedChildId
+            ? tasks.filter(t => t.assignedTo === selectedChildId && t.assignedTo !== 'pool')
+            : tasks.filter(t => t.assignedTo !== 'pool')
+        ).filter(t => {
+            // Custom Date Filtering Logic
+            const isToday = filterDate.toDateString() === new Date().toDateString();
 
-        if (isToday) {
-            return isTaskActiveToday ? isTaskActiveToday(t) : true;
-        } else {
-            // Basic support for other days: 
-            if (t.dueDate) return new Date(t.dueDate).toDateString() === filterDate.toDateString();
-            if (t.frequency === 'daily') return true;
-            // For simplicity, recurrence logic for past dates might need more complex calculation, 
-            // but checking recurrenceDays matches the day of the week is a good proxy.
-            if (t.frequency === 'weekly' && t.recurrenceDays) {
-                return t.recurrenceDays.includes(filterDate.getDay());
+            if (isToday) {
+                return isTaskActiveToday ? isTaskActiveToday(t) : true;
+            } else {
+                // Basic support for other days: 
+                if (t.dueDate) return new Date(t.dueDate).toDateString() === filterDate.toDateString();
+                if (t.frequency === 'daily') return true;
+                // For simplicity, recurrence logic for past dates might need more complex calculation, 
+                // but checking recurrenceDays matches the day of the week is a good proxy.
+                if (t.frequency === 'weekly' && t.recurrenceDays) {
+                    return t.recurrenceDays.includes(filterDate.getDay());
+                }
+                return false;
             }
-            return false;
-        }
-    })
-        .filter(t => {
-            if (statusFilter !== 'all' && t.status !== statusFilter) return false;
-            // Filter expired logic if needed specially, but handled by general status check above
-
-            if (typeFilter === 'responsibility') return t.type === 'obligatory';
-            if (typeFilter === 'extra') return t.type === 'additional';
-            if (typeFilter === 'school') return t.isSchool;
-
-            // Text Search Filter
-            if (searchText) {
-                const searchLower = searchText.toLowerCase();
-                const matchesTitle = t.title.toLowerCase().includes(searchLower);
-                // Can extend to description or user name if needed
-                return matchesTitle;
-            }
-
-            return true;
         })
-        .sort((a, b) => {
-            // Priority: Completed (Waiting Verify) > Pending > Verified > Expired
-            const statusPriority: any = { 'completed': 1, 'pending': 2, 'verified': 3, 'expired': 4, 'missed': 4 };
-            const pA = statusPriority[a.status] || 99;
-            const pB = statusPriority[b.status] || 99;
+            .filter(t => {
+                if (statusFilter !== 'all' && t.status !== statusFilter) return false;
+                // Filter expired logic if needed specially, but handled by general status check above
 
-            if (pA !== pB) return pA - pB;
+                if (typeFilter === 'responsibility') return t.type === 'obligatory';
+                if (typeFilter === 'extra') return t.type === 'additional';
+                if (typeFilter === 'school') return t.isSchool;
 
-            return a.title.localeCompare(b.title);
-        });
+                // Text Search Filter
+                if (searchText) {
+                    const searchLower = searchText.toLowerCase();
+                    const matchesTitle = t.title.toLowerCase().includes(searchLower);
+                    // Can extend to description or user name if needed
+                    return matchesTitle;
+                }
 
-    const handleToggleSelection = (task: Task) => {
+                return true;
+            })
+            .sort((a, b) => {
+                // Priority: Completed (Waiting Verify) > Pending > Verified > Expired
+                const statusPriority: any = { 'completed': 1, 'pending': 2, 'verified': 3, 'expired': 4, 'missed': 4 };
+                const pA = statusPriority[a.status] || 99;
+                const pB = statusPriority[b.status] || 99;
+
+                if (pA !== pB) return pA - pB;
+
+                return a.title.localeCompare(b.title);
+            });
+    }, [tasks, selectedChildId, filterDate, isTaskActiveToday, statusFilter, typeFilter, searchText]);
+
+    // Optimized selection toggle with useCallback to prevent stale closures
+    const handleToggleSelection = React.useCallback((task: Task) => {
         if (task.status === 'verified') return;
 
-        if (selectedTaskIds.includes(task.id)) {
-            setSelectedTaskIds(prev => prev.filter(id => id !== task.id));
-        } else {
-            setSelectedTaskIds(prev => [...prev, task.id]);
+        setSelectedTaskIds(prev => {
+            // Use functional update to always have the latest state
+            const isCurrentlySelected = prev.includes(task.id);
+            if (isCurrentlySelected) {
+                return prev.filter(id => id !== task.id);
+            } else {
+                return [...prev, task.id];
+            }
+        });
+    }, []); // Empty deps - we use functional update so we don't need selectedTaskIds
+
+    // New function for verifying all active (filtered) tasks
+    const handleVerifyFilter = () => {
+        // We only want to verify visible filtered tasks that are pending or in review (completed)
+        // We exclude verified, expired or missed tasks typically, though current sorting puts verified/expired at end.
+        // Let's filter 'activeTasks' for valid statuses.
+        const verifyableTaskIds = activeTasks
+            .filter(t => t.status !== 'verified') // ensure we don't re-verify
+            .map(t => t.id);
+
+        if (verifyableTaskIds.length === 0) {
+            Alert.alert(t('common.info'), t('monitoring.no_tasks_to_verify'));
+            return;
         }
+
+        setSelectedTaskIds(verifyableTaskIds);
+        setConfirmationAction({ type: 'batch_verify', count: verifyableTaskIds.length });
     };
 
     const handleBatchVerify = () => {
@@ -212,29 +241,44 @@ export const MonitoringTab = () => {
                         {t('monitoring.tip_select')}
                     </Text>
 
+                    {/* Action Button for Filter Results */}
+                    {activeTasks.some(t => t.status !== 'verified') && (
+                        <View className="mb-4 items-end">
+                            <TouchableOpacity
+                                onPress={handleVerifyFilter}
+                                className="bg-indigo-100 dark:bg-indigo-900 px-4 py-2 rounded-lg flex-row items-center"
+                            >
+                                <Text className="text-indigo-700 dark:text-indigo-300 font-bold text-xs">{t('monitoring.verify_all_filtered')}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
                     {activeTasks.length === 0 ? (
                         <Text className="text-gray-400 text-center py-8">{t('monitoring.no_active_tasks')}</Text>
                     ) : (
                         (() => {
-                            const categorySections = categories.map(cat => ({
-                                id: cat.id,
-                                title: `${cat.icon} ${cat.name}`,
-                                bg: 'bg-white',
-                                border: 'border-gray-200',
-                                text: 'text-gray-800'
-                            }));
-
-                            categorySections.push({
-                                id: 'uncategorized',
-                                title: '📂 General',
-                                bg: 'bg-gray-50',
-                                border: 'border-gray-200',
-                                text: 'text-gray-600'
-                            });
+                            const categorySections = [
+                                ...categories.map(cat => ({
+                                    id: cat.id,
+                                    title: `${cat.icon} ${cat.name}`,
+                                    bg: 'bg-white',
+                                    border: 'border-gray-200',
+                                    text: 'text-gray-800',
+                                    isUncategorized: false
+                                })),
+                                {
+                                    id: 'uncategorized',
+                                    title: '📂 General',
+                                    bg: 'bg-gray-50',
+                                    border: 'border-gray-200',
+                                    text: 'text-gray-600',
+                                    isUncategorized: true
+                                }
+                            ];
 
                             return categorySections.map(section => {
                                 const sectionTasks = activeTasks.filter(t =>
-                                    section.id === 'uncategorized'
+                                    section.isUncategorized
                                         ? !t.categoryId || !categories.find(c => c.id === t.categoryId)
                                         : t.categoryId === section.id
                                 );
@@ -279,32 +323,38 @@ export const MonitoringTab = () => {
                                             <View className="gap-0">
                                                 {sectionTasks.map(item => {
                                                     const isSelected = selectedTaskIds.includes(item.id);
-                                                    const Wrapper = ({ children }: { children: React.ReactNode }) => (
-                                                        <View className={`mb-4 rounded-xl border-4 overflow-hidden relative ${isSelected ? 'border-green-500 bg-green-50 transform scale-[1.02]' : 'border-transparent'}`}>
-                                                            {isSelected && (
-                                                                <View className="absolute top-2 right-2 z-10 bg-green-600 rounded-full w-6 h-6 items-center justify-center">
-                                                                    <Text className="text-white font-bold">✓</Text>
-                                                                </View>
-                                                            )}
-                                                            {children}
-                                                        </View>
-                                                    );
-
+                                                    const canSelect = item.status !== 'verified';
                                                     return (
-                                                        <Wrapper key={item.id}>
-                                                            <ParentTaskCard
-                                                                task={item}
-                                                                users={users}
-                                                                onVerify={confirmVerify}
-                                                                onReject={confirmReject}
-                                                                onAssign={() => { }}
-                                                                onEdit={(item) => navigation.navigate('CreateTask', { taskToEdit: item })}
-                                                                onDelete={confirmUnassign}
-                                                                className=""
-                                                                isReadOnly={isFutureDate}
-                                                                onPress={() => item.status !== 'verified' && handleToggleSelection(item)}
-                                                            />
-                                                        </Wrapper>
+                                                        <Pressable
+                                                            key={item.id}
+                                                            onPress={() => canSelect && handleToggleSelection(item)}
+                                                            disabled={!canSelect}
+                                                            style={({ pressed }) => ({
+                                                                opacity: pressed && canSelect ? 0.8 : 1,
+                                                            })}
+                                                        >
+                                                            <View
+                                                                className={`mb-4 rounded-xl border-4 overflow-hidden relative ${isSelected ? 'border-green-500 bg-green-50' : 'border-transparent'}`}
+                                                            >
+                                                                {isSelected && (
+                                                                    <View className="absolute top-2 right-2 z-10 bg-green-600 rounded-full w-6 h-6 items-center justify-center">
+                                                                        <Text className="text-white font-bold">✓</Text>
+                                                                    </View>
+                                                                )}
+                                                                <ParentTaskCard
+                                                                    task={item}
+                                                                    users={users}
+                                                                    onVerify={confirmVerify}
+                                                                    onReject={confirmReject}
+                                                                    onAssign={() => { }}
+                                                                    onEdit={(item) => navigation.navigate('CreateTask', { taskToEdit: item })}
+                                                                    onDelete={confirmUnassign}
+                                                                    className=""
+                                                                    isReadOnly={isFutureDate}
+                                                                    onPress={canSelect ? () => handleToggleSelection(item) : undefined}
+                                                                />
+                                                            </View>
+                                                        </Pressable>
                                                     );
                                                 })}
                                             </View>
@@ -330,53 +380,116 @@ export const MonitoringTab = () => {
                 )
             }
 
-            {/* Generic Confirmation Modal */}
+            {/* Generic Confirmation Modal with Loading State */}
             <Modal
                 visible={!!confirmationAction}
                 transparent={true}
                 animationType="fade"
-                onRequestClose={() => setConfirmationAction(null)}
+                onRequestClose={() => !isProcessing && setConfirmationAction(null)}
             >
                 <View className="flex-1 bg-black/50 justify-center items-center p-6">
                     <View className="bg-white p-6 rounded-2xl w-full max-w-sm">
-                        <Text className="text-xl font-bold mb-4 text-center">
-                            {confirmationAction?.type === 'batch_verify'
-                                ? t('monitoring.batch_verify')
-                                : confirmationAction ? t(`monitoring.confirm_${confirmationAction.type}`) : ''}
-                        </Text>
-                        <Text className="text-gray-600 text-center mb-6">
-                            {confirmationAction?.type === 'batch_verify'
-                                ? `${t('monitoring.batch_verify_confirm')} ${selectedTaskIds.length} ${t('monitoring.selected_tasks')}?`
-                                : confirmationAction ? t(`monitoring.confirm_${confirmationAction.type}_msg`) : ''}
-                        </Text>
-                        <View className="flex-col gap-3">
-                            <Button
-                                title={confirmationAction?.type === 'batch_verify'
-                                    ? t('monitoring.verify_all')
-                                    : confirmationAction ? t(`monitoring.yes_${confirmationAction.type}`) : ''}
-                                onPress={async () => {
-                                    if (confirmationAction) {
-                                        if (confirmationAction.type === 'verify' && confirmationAction.taskId) verifyTask(confirmationAction.taskId);
-                                        if (confirmationAction.type === 'reject' && confirmationAction.taskId) rejectTask(confirmationAction.taskId);
-                                        if (confirmationAction.type === 'delete' && confirmationAction.taskId) deleteTask(confirmationAction.taskId);
+                        {/* Show Loading State */}
+                        {isProcessing ? (
+                            <View className="items-center py-4">
+                                <ActivityIndicator size="large" color="#22c55e" />
+                                <Text className="text-lg font-bold text-gray-700 mt-4 text-center">
+                                    Verificando tareas...
+                                </Text>
+                                <Text className="text-2xl font-bold text-green-600 mt-2">
+                                    {processingProgress.current} / {processingProgress.total}
+                                </Text>
+                                <Text className="text-gray-400 text-sm mt-2">
+                                    Por favor espera...
+                                </Text>
+                            </View>
+                        ) : (
+                            <>
+                                <Text className="text-xl font-bold mb-4 text-center">
+                                    {confirmationAction?.type === 'batch_verify'
+                                        ? t('monitoring.batch_verify')
+                                        : confirmationAction ? t(`monitoring.confirm_${confirmationAction.type}`) : ''}
+                                </Text>
+                                <Text className="text-gray-600 text-center mb-6">
+                                    {confirmationAction?.type === 'batch_verify'
+                                        ? `${t('monitoring.batch_verify_confirm')} ${confirmationAction.count || selectedTaskIds.length} ${t('monitoring.selected_tasks')}?`
+                                        : confirmationAction ? t(`monitoring.confirm_${confirmationAction.type}_msg`) : ''}
+                                </Text>
+                                <View className="flex-col gap-3">
+                                    <Button
+                                        title={confirmationAction?.type === 'batch_verify'
+                                            ? t('monitoring.verify_all')
+                                            : confirmationAction ? t(`monitoring.yes_${confirmationAction.type}`) : ''}
+                                        onPress={async () => {
+                                            if (confirmationAction) {
+                                                // Single task operations
+                                                if (confirmationAction.type === 'verify' && confirmationAction.taskId) {
+                                                    await verifyTask(confirmationAction.taskId);
+                                                    setConfirmationAction(null);
+                                                    return;
+                                                }
+                                                if (confirmationAction.type === 'reject' && confirmationAction.taskId) {
+                                                    await rejectTask(confirmationAction.taskId);
+                                                    setConfirmationAction(null);
+                                                    return;
+                                                }
+                                                if (confirmationAction.type === 'delete' && confirmationAction.taskId) {
+                                                    await deleteTask(confirmationAction.taskId);
+                                                    setConfirmationAction(null);
+                                                    return;
+                                                }
 
-                                        if (confirmationAction.type === 'batch_verify') {
-                                            for (const id of selectedTaskIds) {
-                                                await verifyTask(id);
+                                                // Batch verify - with loading state
+                                                if (confirmationAction.type === 'batch_verify') {
+                                                    const taskIdsToVerify = [...selectedTaskIds];
+                                                    const total = taskIdsToVerify.length;
+
+                                                    if (total === 0) {
+                                                        setConfirmationAction(null);
+                                                        return;
+                                                    }
+
+                                                    // Start processing
+                                                    setIsProcessing(true);
+                                                    setProcessingProgress({ current: 0, total });
+
+                                                    try {
+                                                        // Process tasks one by one with progress updates
+                                                        for (let i = 0; i < taskIdsToVerify.length; i++) {
+                                                            const id = taskIdsToVerify[i];
+                                                            await verifyTask(id);
+                                                            // Update progress after each verification
+                                                            setProcessingProgress({ current: i + 1, total });
+                                                        }
+
+                                                        // All done - clear selection
+                                                        setSelectedTaskIds([]);
+
+                                                        // Small delay to show completion
+                                                        await new Promise(resolve => setTimeout(resolve, 500));
+
+                                                    } catch (error) {
+                                                        console.error('Error during batch verify:', error);
+                                                        Alert.alert('Error', 'Hubo un error al verificar algunas tareas.');
+                                                    } finally {
+                                                        // End processing
+                                                        setIsProcessing(false);
+                                                        setProcessingProgress({ current: 0, total: 0 });
+                                                        setConfirmationAction(null);
+                                                    }
+                                                }
                                             }
-                                            setSelectedTaskIds([]);
-                                        }
-                                        setConfirmationAction(null);
-                                    }
-                                }}
-                                className={confirmationAction?.type === 'verify' || confirmationAction?.type === 'batch_verify' ? "bg-green-600" : "bg-rose-600"}
-                            />
-                            <Button
-                                title={t('common.cancel')}
-                                variant="outline"
-                                onPress={() => setConfirmationAction(null)}
-                            />
-                        </View>
+                                        }}
+                                        className={confirmationAction?.type === 'verify' || confirmationAction?.type === 'batch_verify' ? "bg-green-600" : "bg-rose-600"}
+                                    />
+                                    <Button
+                                        title={t('common.cancel')}
+                                        variant="outline"
+                                        onPress={() => setConfirmationAction(null)}
+                                    />
+                                </View>
+                            </>
+                        )}
                     </View>
                 </View>
             </Modal>
