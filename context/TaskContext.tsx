@@ -772,7 +772,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         // Ideally, we check "Has this been processed?" via a daily log doc or similar.
         // For this local-first simpler scope, we check if the *result* exists (History entry).
 
-        tasks.forEach(async (task) => {
+        for (const task of tasks) {
             // 1. One Time Tasks: Check Expiration
             if (task.frequency === 'one-time' && task.status === 'pending' && task.dueDate) {
                 // Check if due date is clearly in the past
@@ -919,7 +919,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                     });
                 }
             }
-        });
+        }
     };
 
     // Checking logic
