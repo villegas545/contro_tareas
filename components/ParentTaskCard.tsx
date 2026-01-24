@@ -90,7 +90,11 @@ export const ParentTaskCard = ({ task, users, onVerify, onReject, onAssign, onEd
     return (
         <>
             <Card className={`bg-white dark:bg-slate-800 border-l-4 border-l-indigo-500 ${className}`}>
-                <TouchableOpacity onPress={onPress} activeOpacity={onPress ? 0.7 : 1}>
+                <TouchableOpacity
+                    onPress={onPress}
+                    activeOpacity={onPress ? 0.7 : 1}
+                    delayPressIn={100} // Improves responsiveness on Android by avoiding scroll interference
+                >
                     <View className="flex-row justify-between items-start mb-2">
                         <View className="flex-1">
                             <Text className="text-lg font-bold text-gray-900 dark:text-white">
