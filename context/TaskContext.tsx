@@ -560,19 +560,24 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         const task = tasks.find(t => t.id === taskId);
-        if (task) {
-            await addDoc(collection(db, "history"), {
-                taskId: task.id,
-                taskTitle: task.title,
-                assignedTo: task.assignedTo,
-                points: task.points || 0,
-                status: 'verified',
-                isResponsibility: task.isResponsibility || false,
-                date: new Date().toISOString().split('T')[0],
-                completedAt: task.completedAt || new Date().toISOString(),
-            });
+        if (!task) {
+            console.warn(`[verifyTask] Task ${taskId} not found`);
+            return;
         }
 
+        // Add to history
+        await addDoc(collection(db, "history"), {
+            taskId: task.id,
+            taskTitle: task.title,
+            assignedTo: task.assignedTo,
+            points: task.points || 0,
+            status: 'verified',
+            isResponsibility: task.isResponsibility || false,
+            date: new Date().toISOString().split('T')[0],
+            completedAt: task.completedAt || new Date().toISOString(),
+        });
+
+        // Update task status
         await updateDoc(doc(db, "tasks", taskId), {
             status: 'verified',
             verifiedAt: new Date().toISOString(),
@@ -601,17 +606,21 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         const task = tasks.find(t => t.id === taskId);
-        if (task) {
-            await addDoc(collection(db, "history"), {
-                taskId: task.id,
-                taskTitle: task.title,
-                assignedTo: task.assignedTo,
-                points: 0,
-                status: 'missed',
-                isResponsibility: task.isResponsibility || false,
-                date: new Date().toISOString().split('T')[0],
-            });
+        if (!task) {
+            console.warn(`[failTask] Task ${taskId} not found`);
+            return;
         }
+
+        await addDoc(collection(db, "history"), {
+            taskId: task.id,
+            taskTitle: task.title,
+            assignedTo: task.assignedTo,
+            points: 0,
+            status: 'missed',
+            isResponsibility: task.isResponsibility || false,
+            date: new Date().toISOString().split('T')[0],
+        });
+
         await updateDoc(doc(db, "tasks", taskId), { status: 'expired' });
     };
 
