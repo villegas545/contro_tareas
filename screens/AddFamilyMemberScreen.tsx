@@ -26,7 +26,7 @@ export default function AddFamilyMemberScreen({ navigation, route }: any) {
         }
     }, [editingUser]);
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!name || !username || (!password && !editingUser)) {
             if (Platform.OS === 'web') window.alert(editingUser ? t('family_form.error_required') + " (password optional)" : t('family_form.error_required')); // Simplification for web alert
             else Alert.alert(t('common.error'), t('family_form.error_required'));
@@ -41,7 +41,7 @@ export default function AddFamilyMemberScreen({ navigation, route }: any) {
                 return;
             }
 
-            addUser({
+            await addUser({
                 name,
                 username,
                 password,
@@ -51,7 +51,7 @@ export default function AddFamilyMemberScreen({ navigation, route }: any) {
             });
             Alert.alert(t('common.success'), t('family_form.success_added'));
         } else {
-            updateUser(editingUser.id, {
+            await updateUser(editingUser.id, {
                 name,
                 username,
                 ...(password ? { password } : {}),

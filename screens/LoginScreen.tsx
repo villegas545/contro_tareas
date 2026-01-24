@@ -29,7 +29,7 @@ export default function LoginScreen() {
             if (token) {
                 const user = users.find(u => u.username === username);
                 if (user) {
-                    updateUser(user.id, { pushToken: token });
+                    await updateUser(user.id, { pushToken: token });
                 }
             }
         } else {
