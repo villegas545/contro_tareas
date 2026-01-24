@@ -29,9 +29,9 @@ export default function SchoolCalendarScreen({ navigation }: any) {
                 [
                     { text: "Cancelar", style: "cancel" },
                     {
-                        text: "Sí, Habilitar", onPress: () => {
+                        text: "Sí, Habilitar", onPress: async () => {
                             const newDays = nonSchoolDays.filter(d => d.date !== dateStr);
-                            updateGlobalSettings({ nonSchoolDays: newDays });
+                            await updateGlobalSettings({ nonSchoolDays: newDays });
                         }
                     }
                 ]
@@ -43,9 +43,9 @@ export default function SchoolCalendarScreen({ navigation }: any) {
                 [
                     { text: "Cancelar", style: "cancel" },
                     {
-                        text: "Sí, Sin Escuela", onPress: () => {
+                        text: "Sí, Sin Escuela", onPress: async () => {
                             const newDays = [...nonSchoolDays, { date: dateStr }];
-                            updateGlobalSettings({ nonSchoolDays: newDays });
+                            await updateGlobalSettings({ nonSchoolDays: newDays });
                         }
                     }
                 ]

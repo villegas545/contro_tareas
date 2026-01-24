@@ -91,9 +91,9 @@ export const FamilyTab = () => {
                         <View className="flex-col gap-3">
                             <Button
                                 title={t('common.delete')}
-                                onPress={() => {
+                                onPress={async () => {
                                     if (confirmationAction) {
-                                        deleteUser(confirmationAction.userId);
+                                        await deleteUser(confirmationAction.userId);
                                         setConfirmationAction(null);
                                     }
                                 }}

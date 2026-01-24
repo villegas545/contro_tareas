@@ -84,9 +84,9 @@ export const MessagesTab = () => {
                         <View className="flex-col gap-3">
                             <Button
                                 title={t('common.delete')}
-                                onPress={() => {
+                                onPress={async () => {
                                     if (confirmationAction) {
-                                        deleteMessage(confirmationAction.index);
+                                        await deleteMessage(confirmationAction.index);
                                         setConfirmationAction(null);
                                     }
                                 }}

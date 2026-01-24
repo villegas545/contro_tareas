@@ -30,16 +30,16 @@ export const ManageCategoriesScreen = () => {
         setModalVisible(true);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!name.trim()) {
             Alert.alert("Error", "El nombre es obligatorio");
             return;
         }
 
         if (editingCategory) {
-            updateCategory(editingCategory.id, { name, icon, color });
+            await updateCategory(editingCategory.id, { name, icon, color });
         } else {
-            addCategory({ name, icon, color, order: 999 });
+            await addCategory({ name, icon, color, order: 999 });
         }
         setModalVisible(false);
     };
@@ -53,13 +53,13 @@ export const ManageCategoriesScreen = () => {
                 {
                     text: "Eliminar",
                     style: "destructive",
-                    onPress: () => deleteCategory(cat.id)
+                    onPress: async () => await deleteCategory(cat.id)
                 }
             ]
         );
     };
 
-    const handleMove = (index: number, direction: 'up' | 'down') => {
+    const handleMove = async (index: number, direction: 'up' | 'down') => {
         if (direction === 'up' && index === 0) return;
         if (direction === 'down' && index === categories.length - 1) return;
 
@@ -69,7 +69,7 @@ export const ManageCategoriesScreen = () => {
         // Swap
         [newOrder[index], newOrder[swapIndex]] = [newOrder[swapIndex], newOrder[index]];
 
-        reorderCategories(newOrder);
+        await reorderCategories(newOrder);
     };
 
     const renderColorOption = (c: string) => (

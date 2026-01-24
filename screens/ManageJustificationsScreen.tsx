@@ -8,12 +8,12 @@ export const ManageJustificationsScreen = () => {
     const [text, setText] = useState('');
     const [modalVisible, setModalVisible] = useState(false);
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!text.trim()) {
             Alert.alert("Error", "El texto es obligatorio");
             return;
         }
-        addJustificationReason(text);
+        await addJustificationReason(text);
         setText('');
         setModalVisible(false);
     };
@@ -27,7 +27,7 @@ export const ManageJustificationsScreen = () => {
                 {
                     text: "Eliminar",
                     style: "destructive",
-                    onPress: () => deleteJustificationReason(id)
+                    onPress: async () => await deleteJustificationReason(id)
                 }
             ]
         );
