@@ -978,49 +978,6 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
-    // Force Regenerate Week (Maintenance Tool)
-    const regenerateWeek = async () => {
-        console.log("[Maintenance] Regenerating week...");
-
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth();
-        const currentDate = now.getDate();
-        const currentDay = now.getDay();
-
-        const diff = currentDay === 0 ? 6 : currentDay - 1;
-        const mondayDate = new Date(currentYear, currentMonth, currentDate - diff);
-        mondayDate.setHours(0, 0, 0, 0);
-
-        const weekDates: string[] = [];
-        for (let i = 0; i < 7; i++) {
-            const d = new Date(mondayDate);
-            d.setDate(mondayDate.getDate() + i);
-            weekDates.push(getLocalDateString(d));
-        }
-
-        const batch = writeBatch(db);
-        let deletedCount = 0;
-
-        tasks.forEach(t => {
-            // Delete pending/expired tasks that fall within this week
-            // Only if they have a dueDate (instances)
-            if ((t.status === 'pending' || t.status === 'expired') && t.dueDate && weekDates.includes(t.dueDate)) {
-                batch.delete(doc(db, "tasks", t.id));
-                deletedCount++;
-            }
-        });
-
-        if (deletedCount > 0) {
-            await batch.commit();
-            console.log(`[Maintenance] Deleted ${deletedCount} stale tasks.`);
-        }
-
-        // Re-run Generator to fill gaps
-        await checkAndGenerateWeeklyTasks();
-        console.log("[Maintenance] Week regenerated.");
-    };
-
     // Trigger Generation (Updated dep to schedules.length)
     useEffect(() => {
         if (currentUser && schedules.length > 0) {
@@ -1271,7 +1228,6 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 globalSettings,
                 updateGlobalSettings,
                 getLocalDateString: (d) => getLocalDateString(d),
-                regenerateWeek,
                 language,
                 setLanguage,
                 t,
