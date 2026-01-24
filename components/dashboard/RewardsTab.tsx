@@ -72,7 +72,7 @@ export const RewardsTab = () => {
                                 </View>
                                 <View className="flex-row gap-2">
                                     <Button title={t('rewards.approve_btn')} onPress={() => confirmApprove(req.id, req.cost)} className="flex-1 bg-green-600" size="sm" />
-                                    <Button title={t('rewards.reject_btn')} onPress={() => rejectRedemption(req.id)} variant="outline" className="flex-1 border-rose-200" textClassName="text-rose-600" size="sm" />
+                                    <Button title={t('rewards.reject_btn')} onPress={async () => await rejectRedemption(req.id)} variant="outline" className="flex-1 border-rose-200" textClassName="text-rose-600" size="sm" />
                                 </View>
                             </View>
                         );
@@ -165,10 +165,10 @@ export const RewardsTab = () => {
                         <View className="flex-col gap-3">
                             <Button
                                 title={confirmationAction?.type === 'delete' ? t('common.delete') : t('rewards.approve_btn')}
-                                onPress={() => {
+                                onPress={async () => {
                                     if (confirmationAction) {
-                                        if (confirmationAction.type === 'delete') deleteReward(confirmationAction.id);
-                                        if (confirmationAction.type === 'approve') approveRedemption(confirmationAction.id);
+                                        if (confirmationAction.type === 'delete') await deleteReward(confirmationAction.id);
+                                        if (confirmationAction.type === 'approve') await approveRedemption(confirmationAction.id);
                                         setConfirmationAction(null);
                                     }
                                 }}

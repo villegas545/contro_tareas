@@ -156,9 +156,9 @@ export const ScheduleModal = ({ visible, onClose }: ScheduleModalProps) => {
                             const newRecurrence = task.recurrenceDays?.filter(d => d !== day) || [];
                             if (newRecurrence.length === 0) {
                                 // If no days left, maybe delete entirely?
-                                deleteTask(task.id);
+                                await deleteTask(task.id);
                             } else {
-                                updateTask(task.id, { recurrenceDays: newRecurrence });
+                                await updateTask(task.id, { recurrenceDays: newRecurrence });
                             }
                             setTaskToManage(null);
                         }
@@ -166,7 +166,7 @@ export const ScheduleModal = ({ visible, onClose }: ScheduleModalProps) => {
                     {
                         text: "Toda la tarea",
                         onPress: async () => {
-                            deleteTask(task.id);
+                            await deleteTask(task.id);
                             setTaskToManage(null);
                         },
                         style: 'destructive'
@@ -183,7 +183,7 @@ export const ScheduleModal = ({ visible, onClose }: ScheduleModalProps) => {
                     {
                         text: t('common.delete'),
                         onPress: async () => {
-                            deleteTask(task.id);
+                            await deleteTask(task.id);
                             setTaskToManage(null);
                         },
                         style: 'destructive'

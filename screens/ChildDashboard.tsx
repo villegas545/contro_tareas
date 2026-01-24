@@ -117,9 +117,9 @@ export default function ChildDashboard({ navigation }: any) {
             }
         }
 
-        const proceed = () => {
+        const proceed = async () => {
             try {
-                completeTask(task.id, evidenceUrl);
+                await completeTask(task.id, evidenceUrl);
             } catch (e: any) {
                 if (Platform.OS === 'web') window.alert(e.message);
                 else Alert.alert(t('common.error'), e.message);

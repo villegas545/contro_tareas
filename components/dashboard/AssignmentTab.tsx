@@ -409,10 +409,10 @@ export const AssignmentTab = () => {
                         <View className="flex-col gap-3">
                             <Button
                                 title={confirmationAction?.type === 'assign' ? t('assignment.assign_task') : t('common.delete')}
-                                onPress={() => {
+                                onPress={async () => {
                                     if (confirmationAction) {
                                         if (confirmationAction.type === 'assign') handleBatchAssign();
-                                        if (confirmationAction.type === 'delete' && confirmationAction.taskId) deleteTask(confirmationAction.taskId);
+                                        if (confirmationAction.type === 'delete' && confirmationAction.taskId) await deleteTask(confirmationAction.taskId);
                                         setConfirmationAction(null);
                                     }
                                 }}
