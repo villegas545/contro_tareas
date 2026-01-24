@@ -10,17 +10,17 @@ export default function AddMessageScreen({ navigation, route }: any) {
 
     const [text, setText] = useState(messageToEdit || '');
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!text.trim()) {
             Alert.alert("Error", "El mensaje no puede estar vacío");
             return;
         }
 
         if (isEditing) {
-            updateMessage(indexToEdit, text);
+            await updateMessage(indexToEdit, text);
             Alert.alert("Éxito", "Mensaje actualizado");
         } else {
-            addMessage(text);
+            await addMessage(text);
             Alert.alert("Éxito", "Mensaje agregado");
         }
         navigation.goBack();
