@@ -10,7 +10,7 @@ import { Task } from '../../types';
 
 export const AssignmentTab = () => {
     const navigation = useNavigation<any>();
-    const { users, tasks, schedules, currentUser, categories, addTask, deleteTask, addSchedule, t, refreshTasks } = useTaskContext();
+    const { users, tasks, schedules, currentUser, categories, addTask, deleteTask, addSchedule, t, refreshTasks, getLocalDateString } = useTaskContext();
 
     const children = users.filter(u => u.role === 'child');
 
@@ -21,7 +21,7 @@ export const AssignmentTab = () => {
 
     // State for Overrides
     const [assignRecurrenceDays, setAssignRecurrenceDays] = useState<number[]>([]);
-    const [assignDueDate, setAssignDueDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [assignDueDate, setAssignDueDate] = useState<string>(() => getLocalDateString());
 
     // Filters
     const [assignmentSearch, setAssignmentSearch] = useState('');
@@ -57,7 +57,7 @@ export const AssignmentTab = () => {
             if (selectedTemplateIds.length === 1) {
                 // Reset overrides if untoggling the last one
                 setAssignRecurrenceDays([]);
-                setAssignDueDate(new Date().toISOString().split('T')[0]);
+                setAssignDueDate(getLocalDateString());
             }
             return;
         }
@@ -83,7 +83,7 @@ export const AssignmentTab = () => {
             // First selection, initialize potential overrides defaults from this task
             setAssignRecurrenceDays(task.recurrenceDays || []);
             // Force TODAY always, ignoring old template dates
-            setAssignDueDate(new Date().toISOString().split('T')[0]);
+            setAssignDueDate(getLocalDateString());
 
             // Auto-select first child if none selected
             if (assignmentSelection.length === 0 && children.length > 0) {

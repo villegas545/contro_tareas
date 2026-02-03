@@ -171,4 +171,5 @@ export interface GlobalSettings {
   nonSchoolDays?: NonSchoolDay[];
   timezone?: string; // e.g. 'America/Chicago'
   language?: Language;
+  debugDate?: string | null; // YYYY-MM-DD format for testing, null = use system date
 }

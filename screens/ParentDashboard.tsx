@@ -13,7 +13,7 @@ import { ScheduleModal } from '../components/ScheduleModal';
 
 
 export default function ParentDashboard({ navigation }: any) {
-    const { currentUser, logout, tasks, redemptions, t, isTaskActiveToday } = useTaskContext();
+    const { currentUser, logout, tasks, redemptions, t, isTaskActiveToday, debugDate } = useTaskContext();
     const [currentTab, setCurrentTab] = useState<'monitoring' | 'assignment' | 'messages' | 'family' | 'rewards' | 'settings' | 'wallet'>('monitoring');
     const [scheduleModalVisible, setScheduleModalVisible] = useState(false);
 
@@ -75,6 +75,15 @@ export default function ParentDashboard({ navigation }: any) {
                         />
                     </View>
                 </View>
+
+                {/* Debug Date Banner */}
+                {debugDate && (
+                    <View className="bg-red-500 px-4 py-2">
+                        <Text className="text-white text-center text-sm font-bold">
+                            🐛 MODO DEBUG: Fecha simulada = {debugDate}
+                        </Text>
+                    </View>
+                )}
 
                 {/* Tab Switcher */}
                 <View className="border-b border-gray-200">

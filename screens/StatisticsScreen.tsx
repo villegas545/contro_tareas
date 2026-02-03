@@ -22,14 +22,14 @@ interface HistoryItem {
 }
 
 export default function StatisticsScreen({ navigation, route, embedded }: any) {
-    const { history, users, tasks, currentUser, t } = useTaskContext();
+    const { history, users, tasks, currentUser, t, getCurrentDate } = useTaskContext();
     const children = users.filter((u: any) => u.role === 'child');
 
     const isChildView = currentUser?.role === 'child';
     const isEmbedded = embedded || route?.params?.embedded;
 
-    // Week Navigation State
-    const [currentDate, setCurrentDate] = useState(new Date());
+    // Week Navigation State - respect debug date
+    const [currentDate, setCurrentDate] = useState(() => getCurrentDate());
     const [selectedChildId, setSelectedChildId] = useState<string | null>(isChildView ? currentUser?.id : null);
     const [viewMode, setViewMode] = useState<'week' | 'day'>('week');
 
@@ -79,18 +79,18 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
     };
 
     const isCurrentPeriod = useMemo(() => {
-        const today = new Date();
+        const today = getCurrentDate();
         if (viewMode === 'day') {
             return today.toDateString() === currentDate.toDateString();
         }
         return today >= startOfWeek && today <= endOfWeek;
-    }, [startOfWeek, endOfWeek, currentDate, viewMode]);
+    }, [startOfWeek, endOfWeek, currentDate, viewMode, getCurrentDate]);
 
     const filteredHistory = useMemo(() => {
         return history.filter((item: HistoryItem) => {
             let dateToCheck;
             if (item.date === 'Hoy') {
-                dateToCheck = new Date();
+                dateToCheck = getCurrentDate();
             } else if (typeof item.date === 'string' && item.date.includes('-')) {
                 const [y, m, d] = item.date.split('-').map(Number);
                 dateToCheck = new Date(y, m - 1, d);
@@ -160,10 +160,34 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
 
             // But if we are looking at Past Week, pending tasks aren't historically there, they are currently pending.
             // We'll show pending tasks only if viewing Current Week or Today.
-            const isLatest = new Date() <= endOfWeek;
+            const isLatest = getCurrentDate() <= endOfWeek;
 
-            const activePending = isLatest ? tasks.filter((t) => t.assignedTo === child.id && t.status === 'pending') : [];
-            const activeWaiting = isLatest ? tasks.filter((t) => t.assignedTo === child.id && t.status === 'completed') : [];
+            // Helper to check if task's dueDate is within the selected period
+            const isInPeriod = (taskDueDate: string | undefined) => {
+                if (!taskDueDate) return false;
+                const [y, m, d] = taskDueDate.split('-').map(Number);
+                const taskDate = new Date(y, m - 1, d);
+                return taskDate >= startOfWeek && taskDate <= endOfWeek;
+            };
+
+            // Filter tasks by assignment, status, AND date period
+            const activePending = isLatest ? tasks.filter((t) =>
+                t.assignedTo === child.id &&
+                t.status === 'pending' &&
+                isInPeriod(t.dueDate)
+            ) : [];
+            const activeWaiting = isLatest ? tasks.filter((t) =>
+                t.assignedTo === child.id &&
+                t.status === 'completed' &&
+                isInPeriod(t.dueDate)
+            ) : [];
+
+            // Also include verified tasks from tasks collection (not yet moved to history)
+            const activeVerified = tasks.filter((t) =>
+                t.assignedTo === child.id &&
+                t.status === 'verified' &&
+                isInPeriod(t.dueDate)
+            );
 
             // Filter active by date if Day Mode? 
             // If Day Mode is "Yesterday", active tasks (which are current) don't belong there usually, 
@@ -177,7 +201,7 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
                 taskId: t.id,
                 taskTitle: t.title,
                 status: 'pending',
-                date: 'Hoy',
+                date: t.dueDate || 'Hoy',
                 points: t.points || 0,
                 isResponsibility: t.isResponsibility,
                 shift: t.shift
@@ -188,13 +212,43 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
                 taskId: t.id,
                 taskTitle: t.title,
                 status: 'completed',
-                date: 'Hoy',
+                date: t.dueDate || 'Hoy',
                 points: t.points || 0,
                 isResponsibility: t.isResponsibility,
                 shift: t.shift
             })).filter(matchesFilters) : [];
 
-            const combinedActivity = [...childHistory, ...pendingAsHistory, ...waitingAsHistory];
+            // Map verified tasks from tasks collection
+            const verifiedAsHistory = activeVerified.map((t) => ({
+                id: t.id,
+                taskId: t.id,
+                taskTitle: t.title,
+                status: 'verified',
+                date: t.dueDate || 'Hoy',
+                points: t.points || 0,
+                isResponsibility: t.isResponsibility,
+                shift: t.shift
+            })).filter(matchesFilters);
+
+            // Combine all sources, then deduplicate
+            // Priority: tasks collection (pending/completed/verified) > history
+            // Use taskId first, then fall back to title+date to catch history duplicates
+            const allActivity = [...pendingAsHistory, ...waitingAsHistory, ...verifiedAsHistory, ...childHistory];
+            const seenIds = new Set<string>();
+            const seenTitleDate = new Set<string>();
+            const combinedActivity = allActivity.filter(item => {
+                // First try to dedupe by taskId
+                const taskIdKey = item.taskId;
+                if (taskIdKey && seenIds.has(taskIdKey)) return false;
+                if (taskIdKey) seenIds.add(taskIdKey);
+
+                // Also dedupe by title + date to catch history duplicates
+                const titleDateKey = `${item.taskTitle}|${item.date}`;
+                if (seenTitleDate.has(titleDateKey)) return false;
+                seenTitleDate.add(titleDateKey);
+
+                return true;
+            });
 
             // Re-calculate Stats based on Filtered Data?
             // Ideally stats should reflect what is SEEN.
@@ -519,7 +573,7 @@ export default function StatisticsScreen({ navigation, route, embedded }: any) {
                                     // 1. Sort by Date (Descending)
                                     // Normalize dates for comparison
                                     const getDate = (d: string) => {
-                                        if (d === 'Hoy') return new Date();
+                                        if (d === 'Hoy') return getCurrentDate();
                                         if (d.includes('-')) {
                                             const [y, m, day] = d.split('-').map(Number);
                                             return new Date(y, m - 1, day);

@@ -34,13 +34,13 @@ export const MonitoringTabMigrated = () => {
     const navigation = useNavigation<any>();
 
     // Still using TaskContext for data (gradual migration)
-    const { tasks, users, categories, verifyTask, rejectTask, deleteTask, isTaskActiveToday, t } = useTaskContext();
+    const { tasks, users, categories, verifyTask, rejectTask, deleteTask, isTaskActiveToday, t, getCurrentDate } = useTaskContext();
 
     // NEW: Using useDateUtils hook instead of duplicated functions
     const { toDateString, getLocalDateString: getLocalDate } = useDateUtils();
 
     // Date filter state
-    const [filterDate, setFilterDate] = useState<Date>(new Date());
+    const [filterDate, setFilterDate] = useState<Date>(() => getCurrentDate());
     const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed' | 'verified' | 'expired'>('all');
     const [typeFilter, setTypeFilter] = useState<'all' | 'responsibility' | 'extra' | 'school'>('all');
@@ -61,7 +61,7 @@ export const MonitoringTabMigrated = () => {
             ? tasks.filter(t => t.assignedTo === selectedChildId && t.assignedTo !== 'pool')
             : tasks.filter(t => t.assignedTo !== 'pool')
         ).filter(t => {
-            const isToday = filterDate.toDateString() === new Date().toDateString();
+            const isToday = filterDate.toDateString() === getCurrentDate().toDateString();
 
             if (isToday) {
                 return isTaskActiveToday ? isTaskActiveToday(t) : true;
@@ -210,7 +210,7 @@ export const MonitoringTabMigrated = () => {
                                         const [y, m, day] = d.split('-').map(Number);
                                         setFilterDate(new Date(y, m - 1, day));
                                     } else {
-                                        setFilterDate(new Date());
+                                        setFilterDate(getCurrentDate());
                                     }
                                 }}
                             />

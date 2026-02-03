@@ -12,11 +12,11 @@ import { AdvancedFilterControls } from '../ui/AdvancedFilterControls';
 
 export const MonitoringTab = () => {
     const navigation = useNavigation<any>();
-    const { tasks, users, categories, verifyTask, rejectTask, deleteTask, isTaskActiveToday, getLocalDateString, t } = useTaskContext();
+    const { tasks, users, categories, verifyTask, rejectTask, deleteTask, isTaskActiveToday, getLocalDateString, t, getCurrentDate } = useTaskContext();
     // const children = users.filter(u => u.role === 'child');
 
-    // Add date filter state - defaults to Current Date (Today)
-    const [filterDate, setFilterDate] = useState<Date>(new Date());
+    // Add date filter state - defaults to Current Date (respects debug date)
+    const [filterDate, setFilterDate] = useState<Date>(() => getCurrentDate());
 
     const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed' | 'verified' | 'expired'>('all');
@@ -177,7 +177,7 @@ export const MonitoringTab = () => {
                                         const [y, m, day] = d.split('-').map(Number);
                                         setFilterDate(new Date(y, m - 1, day));
                                     } else {
-                                        setFilterDate(new Date());
+                                        setFilterDate(getCurrentDate());
                                     }
                                 }}
                             />

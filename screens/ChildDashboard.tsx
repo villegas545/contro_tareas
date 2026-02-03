@@ -9,7 +9,7 @@ import { ChildTaskCard } from '../components/ChildTaskCard';
 import StatisticsScreen from './StatisticsScreen';
 
 export default function ChildDashboard({ navigation }: any) {
-    const { currentUser, tasks, history, completeTask, logout, messages, rewards, redeemReward, redemptions, isTaskActiveToday, categories, t } = useTaskContext();
+    const { currentUser, tasks, history, completeTask, logout, messages, rewards, redeemReward, redemptions, isTaskActiveToday, categories, t, debugDate, getCurrentDate } = useTaskContext();
     const [messageModalVisible, setMessageModalVisible] = useState(false);
     const [currentMessage, setCurrentMessage] = useState('');
     const [canClose, setCanClose] = useState(false);
@@ -107,7 +107,7 @@ export default function ChildDashboard({ navigation }: any) {
                 dueDate.setHours(23, 59, 59, 999);
             }
 
-            if (dueDate < new Date()) {
+            if (dueDate < getCurrentDate()) {
                 if (Platform.OS === 'web') {
                     window.alert(t('child_flow.expired_alert_msg'));
                 } else {
@@ -224,6 +224,15 @@ export default function ChildDashboard({ navigation }: any) {
                 </View>
                 <Button title={t('header.logout')} variant="secondary" size="sm" onPress={confirmLogout} className="bg-white/20" />
             </View>
+
+            {/* Debug Date Banner */}
+            {debugDate && (
+                <View className="bg-red-500 mx-6 px-4 py-2 rounded-lg mb-2">
+                    <Text className="text-white text-center text-xs font-bold">
+                        🐛 DEBUG: {debugDate}
+                    </Text>
+                </View>
+            )}
 
             {/* Tab Switcher */}
             <View className="flex-row mx-6 mb-4 bg-white dark:bg-gray-800 p-1 rounded-xl shadow-sm">
