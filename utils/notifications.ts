@@ -70,6 +70,11 @@ export async function sendPushNotification(expoPushToken: string, title: string,
 
 // Local Notifications Logic
 export async function scheduleRemindersForTasks(tasks: any[]) {
+    // Skip on web - notifications not supported
+    if (Platform.OS === 'web') {
+        return;
+    }
+
     // Cancel all existing to avoid duplicates
     await Notifications.cancelAllScheduledNotificationsAsync();
 
