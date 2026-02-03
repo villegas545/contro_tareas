@@ -88,12 +88,15 @@ export const ScheduleModal = ({ visible, onClose }: ScheduleModalProps) => {
             if (frequencyFilter !== task.frequency) return false;
         }
 
-        // Schedule Logic
-        if (task.frequency === 'daily') return true;
-        if (task.frequency === 'weekly') {
-            if (task.recurrenceDays && task.recurrenceDays.includes(day)) return true;
-            return false;
+        // Schedule Logic - For generated tasks, check if dueDate matches the day
+        if (task.dueDate) {
+            const taskDate = new Date(task.dueDate + 'T12:00:00'); // Add time to avoid timezone issues
+            const taskDayOfWeek = taskDate.getDay(); // 0=Sun, 1=Mon, etc.
+            return taskDayOfWeek === day;
         }
+
+        // Fallback for tasks without dueDate - show on all days for daily, hide for others
+        if (task.frequency === 'daily') return true;
         return false;
     };
 
@@ -142,56 +145,25 @@ export const ScheduleModal = ({ visible, onClose }: ScheduleModalProps) => {
 
     const handleDeleteTask = async () => {
         if (!taskToManage) return;
-        const { task, day } = taskToManage;
+        const { task } = taskToManage;
 
-        if (task.frequency === 'weekly' && task.recurrenceDays && task.recurrenceDays.includes(day)) {
-            // Ask if delete for this day or entirely
-            Alert.alert(
-                t('common.delete'),
-                t('task.delete_confirm'),
-                [
-                    {
-                        text: t('schedule.delete_day_option'),
-                        onPress: async () => {
-                            const newRecurrence = task.recurrenceDays?.filter(d => d !== day) || [];
-                            if (newRecurrence.length === 0) {
-                                // If no days left, maybe delete entirely?
-                                await deleteTask(task.id);
-                            } else {
-                                await updateTask(task.id, { recurrenceDays: newRecurrence });
-                            }
-                            setTaskToManage(null);
-                        }
+        // Each task is now an individual instance with its own dueDate
+        // Simply delete the task
+        Alert.alert(
+            t('common.delete'),
+            t('task.delete_confirm'),
+            [
+                {
+                    text: t('common.delete'),
+                    onPress: async () => {
+                        await deleteTask(task.id);
+                        setTaskToManage(null);
                     },
-                    {
-                        text: "Toda la tarea",
-                        onPress: async () => {
-                            await deleteTask(task.id);
-                            setTaskToManage(null);
-                        },
-                        style: 'destructive'
-                    },
-                    { text: t('common.cancel'), style: "cancel" }
-                ]
-            );
-        } else {
-            // Daily, One-time, or no recurrence logic -> Just delete
-            Alert.alert(
-                t('common.delete'),
-                t('task.delete_confirm'),
-                [
-                    {
-                        text: t('common.delete'),
-                        onPress: async () => {
-                            await deleteTask(task.id);
-                            setTaskToManage(null);
-                        },
-                        style: 'destructive'
-                    },
-                    { text: t('common.cancel'), style: "cancel" }
-                ]
-            );
-        }
+                    style: 'destructive'
+                },
+                { text: t('common.cancel'), style: "cancel" }
+            ]
+        );
     };
 
     const handlePrint = async () => {
