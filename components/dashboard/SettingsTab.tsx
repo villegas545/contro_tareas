@@ -7,7 +7,7 @@ import { Card } from '../ui/Card';
 export const SettingsTab = () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const navigation = useNavigation<any>();
-    const { globalSettings, updateGlobalSettings, language, setLanguage, t } = useTaskContext();
+    const { globalSettings, updateGlobalSettings, language, setLanguage, t, debugDate, setDebugDate } = useTaskContext();
 
     return (
         <ScrollView className="flex-1 bg-gray-50 dark:bg-slate-900 p-4">
@@ -192,6 +192,118 @@ export const SettingsTab = () => {
                     ))}
                 </View>
                 <Text className="text-xs text-gray-400 mt-2">Configuración actual: {globalSettings?.timezone || 'America/Chicago'}</Text>
+            </Card>
+            {/* Debug Date Override Section */}
+            <Card className="mb-4 border-2 border-red-300 bg-red-50">
+                <View className="flex-row items-center gap-2 mb-4">
+                    <Text className="text-2xl">🐛</Text>
+                    <View className="flex-1">
+                        <Text className="text-lg font-bold text-red-800">Debug: Fecha Simulada</Text>
+                        <Text className="text-red-600 text-xs">Solo para testing. Simula una fecha diferente.</Text>
+                    </View>
+                    <Switch
+                        value={debugDate !== null}
+                        onValueChange={(enabled) => {
+                            if (enabled) {
+                                // Set to today by default
+                                const today = new Date();
+                                const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                                setDebugDate(dateStr);
+                            } else {
+                                setDebugDate(null);
+                            }
+                        }}
+                        trackColor={{ false: "#fca5a5", true: "#f87171" }}
+                        thumbColor={debugDate !== null ? "#b91c1c" : "#f4f3f4"}
+                    />
+                </View>
+
+                {debugDate !== null && (
+                    <View className="bg-white rounded-xl p-4 border border-red-200">
+                        <Text className="text-sm text-red-700 mb-2 font-medium">Fecha simulada (YYYY-MM-DD):</Text>
+
+                        {/* Quick date buttons */}
+                        <View className="flex-row flex-wrap gap-2 mb-3">
+                            {[
+                                { label: 'Ayer', days: -1 },
+                                { label: 'Hoy', days: 0 },
+                                { label: 'Mañana', days: 1 },
+                                { label: '+7 días', days: 7 },
+                            ].map(opt => {
+                                const targetDate = new Date();
+                                targetDate.setDate(targetDate.getDate() + opt.days);
+                                const targetStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`;
+                                return (
+                                    <TouchableOpacity
+                                        key={opt.label}
+                                        onPress={() => setDebugDate(targetStr)}
+                                        className={`px-3 py-1 rounded-full border ${debugDate === targetStr ? 'bg-red-500 border-red-600' : 'bg-red-100 border-red-300'}`}
+                                    >
+                                        <Text className={`text-xs ${debugDate === targetStr ? 'text-white font-bold' : 'text-red-700'}`}>
+                                            {opt.label}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+
+                        {/* Manual date input */}
+                        <View className="flex-row items-center gap-2">
+                            <Text className="text-red-600 text-sm">📅</Text>
+                            {Platform.OS === 'web' ? (
+                                <input
+                                    type="date"
+                                    value={debugDate}
+                                    onChange={(e) => setDebugDate(e.target.value)}
+                                    style={{
+                                        padding: 8,
+                                        borderRadius: 8,
+                                        border: '1px solid #fca5a5',
+                                        backgroundColor: '#fff',
+                                        fontSize: 14,
+                                        color: '#b91c1c'
+                                    }}
+                                />
+                            ) : (
+                                <Text className="text-red-800 font-mono text-lg">{debugDate}</Text>
+                            )}
+                        </View>
+
+                        <View className="mt-3 p-2 bg-red-100 rounded-lg">
+                            <Text className="text-xs text-red-600">
+                                ⚠️ Con esta opción activa, la app creerá que "hoy" es {debugDate}.
+                                Las tareas y filtros usarán esta fecha.
+                            </Text>
+                        </View>
+                    </View>
+                )}
+            </Card>
+
+            {/* Debug Log Section */}
+            <Card className="mb-4 border-2 border-purple-300 bg-purple-50">
+                <View className="flex-row items-center gap-2 mb-4">
+                    <Text className="text-2xl">📋</Text>
+                    <View className="flex-1">
+                        <Text className="text-lg font-bold text-purple-800">Debug Log</Text>
+                        <Text className="text-purple-600 text-xs">Descargar registro de operaciones Firebase</Text>
+                    </View>
+                </View>
+
+                <TouchableOpacity
+                    onPress={() => {
+                        // Import dynamically to avoid issues
+                        import('../../utils/firebaseLogger').then(({ firebaseLogger }) => {
+                            const summary = firebaseLogger.getSummary();
+                            if (Platform.OS === 'web') {
+                                window.alert(`Total operaciones: ${summary.totalOperations}\nErrores: ${summary.errors}`);
+                            }
+                            firebaseLogger.downloadLog();
+                        });
+                    }}
+                    className="bg-purple-600 px-4 py-3 rounded-lg"
+                >
+                    <Text className="text-white font-bold text-center">📥 Descargar Log JSON</Text>
+                </TouchableOpacity>
             </Card>
 
             {/* Future Settings Placeholders */}
