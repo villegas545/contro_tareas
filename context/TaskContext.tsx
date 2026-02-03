@@ -2,10 +2,11 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Task, User, TaskHistory, Reward, Redemption, GlobalSettings, Category, TaskTemplate, JustificationReason, Language, TaskSchedule, WalletTransaction } from '../types';
 import { translations } from '../utils/translations';
-import { collection, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot, deleteField, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot, deleteField, writeBatch, getDocs, getDoc, query, where } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { sendPushNotification, scheduleRemindersForTasks } from '../utils/notifications';
 import { USERS, TASKS } from '../data/mockData';
+import { firebaseLogger } from '../utils/firebaseLogger';
 
 // Helper to check for Test Mode
 const isTestMode = () => {
@@ -56,7 +57,7 @@ interface TaskContextType {
     isTaskActiveToday: (task: Task, includeGenerators?: boolean) => boolean;
     globalSettings: GlobalSettings | null;
     updateGlobalSettings: (settings: Partial<GlobalSettings>) => void;
-    getLocalDateString: () => string;
+    getLocalDateString: (date?: Date) => string;
 
     // Categories
     categories: Category[];
@@ -77,6 +78,12 @@ interface TaskContextType {
     // Wallet
     transactions: WalletTransaction[];
     addTransaction: (childId: string, amount: number, type: 'deposit' | 'withdrawal', description: string) => void;
+
+    // Debug Date Override (for testing)
+    debugDate: string | null;  // YYYY-MM-DD format, null = use system date
+    setDebugDate: (date: string | null) => Promise<void>;  // Persists to Firebase
+    getCurrentDate: () => Date;  // Returns debug date or system date
+    refreshTasks: () => Promise<void>;  // Regenerate tasks from schedules
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -99,6 +106,9 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
     const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
     const [language, setLanguageState] = useState<Language>('es');
+
+    // Debug Date - computed from globalSettings (persisted in Firebase)
+    const debugDate = globalSettings?.debugDate || null;
     const sessionChecked = React.useRef(false);
 
     // Subscribe to Firestore collections OR Load Mocks
@@ -596,7 +606,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             points: task.points || 0,
             status: 'verified',
             isResponsibility: task.isResponsibility || false,
-            date: new Date().toISOString().split('T')[0],
+            date: task.dueDate || getLocalDateString(),
             completedAt: task.completedAt || new Date().toISOString(),
         });
 
@@ -622,7 +632,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                     points: 0,
                     status: 'missed',
                     isResponsibility: task.isResponsibility || false,
-                    date: new Date().toISOString().split('T')[0]
+                    date: task.dueDate || getLocalDateString()
                 }]);
             }
             return;
@@ -641,7 +651,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             points: 0,
             status: 'missed',
             isResponsibility: task.isResponsibility || false,
-            date: new Date().toISOString().split('T')[0],
+            date: task.dueDate || getLocalDateString(),
         });
 
         await updateDoc(doc(db, "tasks", taskId), { status: 'expired' });
@@ -723,7 +733,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                     assignedTo: r.childId,
                     points: -Math.abs(r.cost),
                     status: 'verified',
-                    date: new Date().toISOString().split('T')[0],
+                    date: getLocalDateString(),
                     completedAt: new Date().toISOString()
                 }]);
             }
@@ -744,7 +754,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             assignedTo: redemption.childId,
             points: -Math.abs(redemption.cost), // Negative points
             status: 'verified', // Automatically verified
-            date: new Date().toISOString().split('T')[0],
+            date: getLocalDateString(),
             completedAt: new Date().toISOString()
         });
 
@@ -765,8 +775,29 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     // Recurring tasks check logic - Adapted for centralized execution?
     // In a real app, this should be a backend function. 
     // Here, we can let ONLY the logged-in parent run this check to avoid conflicts, or just run it locally.
-    // Helper: Local Date String YYYY-MM-DD (Timezone Aware)
-    const getLocalDateString = (date: Date = new Date()) => {
+
+    // Helper: Get current date (respects debug date override from globalSettings)
+    const getCurrentDate = (): Date => {
+        const activeDebugDate = globalSettings?.debugDate;
+        if (activeDebugDate) {
+            // Parse debug date (YYYY-MM-DD) and return as Date object at current time
+            const [year, month, day] = activeDebugDate.split('-').map(Number);
+            const now = new Date();
+            return new Date(year, month - 1, day, now.getHours(), now.getMinutes(), now.getSeconds());
+        }
+        return new Date();
+    };
+
+    // Setter for debug date - persists to Firebase
+    const setDebugDate = async (date: string | null) => {
+        await updateGlobalSettings({ debugDate: date });
+    };
+
+    // Helper: Local Date String YYYY-MM-DD (Timezone Aware, respects debug date)
+    const getLocalDateString = (date?: Date): string => {
+        // If no date provided, use getCurrentDate (which may be debug date)
+        const targetDate = date || getCurrentDate();
+
         try {
             const timeZone = globalSettings?.timezone || 'America/Chicago';
             return new Intl.DateTimeFormat('en-CA', {
@@ -774,12 +805,12 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 month: '2-digit',
                 day: '2-digit',
                 timeZone
-            }).format(date);
+            }).format(targetDate);
         } catch (e) {
             // Fallback if timezone invalid or en-CA not supported
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
+            const year = targetDate.getFullYear();
+            const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+            const day = String(targetDate.getDate()).padStart(2, '0');
             return `${year}-${month}-${day}`;
         }
     };
@@ -791,12 +822,12 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         // Check Global Vacation Mode
         if (globalSettings?.isVacationMode) return;
 
-        const now = new Date();
+        const now = getCurrentDate();
         const todayStr = getLocalDateString(now);
 
         // Iterate all active tasks to verify expiration
         for (const task of tasks) {
-            // Only care about tasks with Due Date that are pending
+            // Handle pending tasks that expired
             if (task.status === 'pending' && task.dueDate) {
                 if (task.dueDate < todayStr) {
                     // It's missed!
@@ -815,8 +846,68 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                         });
                     }
 
-                    // Expire it
-                    await updateDoc(doc(db, "tasks", task.id), { status: 'expired' });
+                    // Expire it - wrap in try-catch in case task was deleted
+                    try {
+                        await updateDoc(doc(db, "tasks", task.id), { status: 'expired' });
+                    } catch (error: any) {
+                        if (error.code === 'not-found' || error.message?.includes('No document to update')) {
+                            console.log(`[processDailyReset] Task ${task.id} no longer exists, skipping update`);
+                        } else {
+                            throw error;
+                        }
+                    }
+                }
+            }
+
+            // Handle completed tasks (submitted by child but not verified) that passed their due date
+            // Auto-verify them to give the child credit
+            if (task.status === 'completed' && task.dueDate) {
+                if (task.dueDate < todayStr) {
+                    console.log(`[processDailyReset] Auto-verifying task ${task.id} (${task.title}) - was completed but not reviewed`);
+
+                    // Log to history as verified
+                    const alreadyLogged = history.some(h => h.taskId === task.id && (h.status === 'verified' || h.status === 'completed'));
+
+                    if (!alreadyLogged) {
+                        await addDoc(collection(db, "history"), {
+                            taskId: task.id,
+                            taskTitle: task.title,
+                            assignedTo: task.assignedTo,
+                            points: task.points || 0,
+                            status: 'verified',
+                            isResponsibility: task.isResponsibility || false,
+                            date: task.dueDate,
+                            completedAt: task.completedAt,
+                            autoVerified: true, // Mark as auto-verified
+                        });
+                    }
+
+                    // Verify the task
+                    try {
+                        await updateDoc(doc(db, "tasks", task.id), {
+                            status: 'verified',
+                            verifiedAt: new Date().toISOString(),
+                            autoVerified: true,
+                        });
+
+                        // Add points to child's wallet
+                        if (task.points && task.points > 0) {
+                            const childRef = doc(db, "users", task.assignedTo);
+                            const childSnap = await getDoc(childRef);
+                            if (childSnap.exists()) {
+                                const currentBalance = childSnap.data().walletBalance || 0;
+                                await updateDoc(childRef, {
+                                    walletBalance: currentBalance + task.points,
+                                });
+                            }
+                        }
+                    } catch (error: any) {
+                        if (error.code === 'not-found' || error.message?.includes('No document to update')) {
+                            console.log(`[processDailyReset] Task ${task.id} no longer exists, skipping update`);
+                        } else {
+                            throw error;
+                        }
+                    }
                 }
             }
         }
@@ -847,11 +938,18 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             }]);
             return;
         }
-        await addDoc(collection(db, "schedules"), {
+        const docRef = await addDoc(collection(db, "schedules"), {
             active: true,
             createdAt: new Date().toISOString(),
             ...schedule
         });
+
+        firebaseLogger.logOperation('CREATE', 'schedules', docRef.id, { title: schedule.title, frequency: schedule.frequency, recurrenceDays: schedule.recurrenceDays });
+
+        // Wait for Firestore to sync the new schedule, then generate tasks
+        setTimeout(() => {
+            checkAndGenerateWeeklyTasks().catch(console.error);
+        }, 1000);
     };
 
     const deleteSchedule = async (scheduleId: string) => {
@@ -864,11 +962,30 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Weekly Task Generation Logic (From Schedules -> Tasks)
     const checkAndGenerateWeeklyTasks = async () => {
-        if (!currentUser || schedules.length === 0) return;
+        if (!currentUser) {
+            firebaseLogger.logOperation('SKIP_GENERATION', 'tasks', undefined, { reason: 'No user' });
+            return;
+        }
 
+        // Query schedules directly from Firebase to ensure we have fresh data
+        // This is especially important when called right after creating a new schedule
+        const schedulesSnap = await getDocs(
+            query(collection(db, "schedules"), where("active", "==", true))
+        );
+        const freshSchedules = schedulesSnap.docs.map(d => ({
+            id: d.id,
+            ...d.data()
+        })) as TaskSchedule[];
+
+        if (freshSchedules.length === 0) {
+            firebaseLogger.logOperation('SKIP_GENERATION', 'tasks', undefined, { reason: 'No schedules in Firebase' });
+            return;
+        }
+
+        firebaseLogger.logOperation('START_GENERATION', 'tasks', undefined, { schedulesCount: freshSchedules.length });
         console.log("[WeeklyGen] Checking for tasks to generate from Schedules...");
 
-        const now = new Date();
+        const now = getCurrentDate();
         const currentYear = now.getFullYear();
         const currentMonth = now.getMonth();
         const currentDate = now.getDate();
@@ -890,9 +1007,24 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         let batchCount = 0;
 
         // Filter active schedules assigned to real users
-        const activeSchedules = schedules.filter(s => s.active && s.assignedTo !== 'pool');
+        const activeSchedules = freshSchedules.filter(s => s.active && s.assignedTo !== 'pool');
 
         console.log(`[WeeklyGen] Found ${activeSchedules.length} active schedules.`);
+
+        // Query Firebase directly for existing tasks in this week range to avoid duplicates
+        // This is more reliable than using local state which may be stale
+        const existingTasksSnap = await getDocs(
+            query(
+                collection(db, "tasks"),
+                where("dueDate", ">=", weekDates[0]),
+                where("dueDate", "<=", weekDates[6])
+            )
+        );
+        const existingTasks = existingTasksSnap.docs.map(d => ({
+            id: d.id,
+            ...d.data()
+        })) as Task[];
+        console.log(`[WeeklyGen] Found ${existingTasks.length} existing tasks in week range.`);
 
         for (const sched of activeSchedules) {
             let targetDays: number[] = [];
@@ -916,8 +1048,8 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 const dayIndex = i === 6 ? 0 : i + 1;
 
                 if (targetDays.includes(dayIndex)) {
-                    // Check if instance already exists linked to this schedule
-                    const exists = tasks.some(t =>
+                    // Check if instance already exists linked to this schedule (using Firebase data, not local state)
+                    const exists = existingTasks.some(t =>
                         t.scheduleId === sched.id &&
                         t.dueDate === dateStr
                     );
@@ -973,8 +1105,10 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         if (batchCount > 0) {
             console.log(`[WeeklyGen] Creating ${batchCount} new task instances from schedules.`);
             await batch.commit();
+            firebaseLogger.logOperation('BATCH_CREATE', 'tasks', undefined, { count: batchCount }, 'success');
         } else {
             console.log(`[WeeklyGen] No new tasks needed.`);
+            firebaseLogger.logOperation('NO_TASKS_NEEDED', 'tasks', undefined, { schedulesChecked: activeSchedules.length });
         }
     };
 
@@ -1059,14 +1193,16 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         // MonitoringTab should access 'schedules' context separately if it wants to show them.
         // For 'tasks' filtering:
 
-        const today = new Date();
+        const today = getCurrentDate();
         const dateStr = getLocalDateString(today);
 
-        // 1. One Time: Visible if due today or past (or no date), BUT NOT FUTURE
+        // 1. One Time: Only visible if due today (or no date = legacy)
         if (task.frequency === 'one-time') {
+            // Future one-times: hide
             if (task.dueDate && task.dueDate > dateStr) return false;
-            // Hide old pending one-times
-            if (task.dueDate && task.dueDate < dateStr && task.status === 'pending') return false;
+            // Past one-times: hide (regardless of status - they are history now)
+            if (task.dueDate && task.dueDate < dateStr) return false;
+            // Today or no date: show
             return true;
         }
 
@@ -1233,7 +1369,11 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 setLanguage,
                 t,
                 transactions,
-                addTransaction
+                addTransaction,
+                // Debug Date Override
+                debugDate,
+                setDebugDate,
+                getCurrentDate
             }}
         >
             {children}
