@@ -12,13 +12,13 @@ interface ScheduleModalProps {
 }
 
 export const ScheduleModal = ({ visible, onClose }: ScheduleModalProps) => {
-    const { users, tasks, categories, updateTask, deleteTask, t } = useTaskContext();
+    const { users, tasks, categories, updateTask, deleteTask, t, getCurrentDate } = useTaskContext();
     const children = users.filter((u: any) => u.role === 'child');
     const [selectedChildId, setSelectedChildId] = useState<string | null>(children.length > 0 ? children[0].id : null);
 
     // View Mode State: 'weekly' (default) or 'daily_compare'
     const [viewMode, setViewMode] = useState<'weekly' | 'daily_compare'>('weekly');
-    const [selectedCompareDay, setSelectedCompareDay] = useState<number>(new Date().getDay());
+    const [selectedCompareDay, setSelectedCompareDay] = useState<number>(getCurrentDate().getDay());
 
     // Filters State
     const [showFilters, setShowFilters] = useState(false);
@@ -88,11 +88,28 @@ export const ScheduleModal = ({ visible, onClose }: ScheduleModalProps) => {
             if (frequencyFilter !== task.frequency) return false;
         }
 
-        // Schedule Logic - For generated tasks, check if dueDate matches the day
+        // Schedule Logic - For generated tasks, check if dueDate matches the day AND is in current week
         if (task.dueDate) {
             const taskDate = new Date(task.dueDate + 'T12:00:00'); // Add time to avoid timezone issues
             const taskDayOfWeek = taskDate.getDay(); // 0=Sun, 1=Mon, etc.
-            return taskDayOfWeek === day;
+
+            // Must match the day of week
+            if (taskDayOfWeek !== day) return false;
+
+            // Also check if dueDate is within the current week
+            const today = getCurrentDate();
+            const currentDay = today.getDay(); // 0=Sun, 1=Mon...
+            const diff = currentDay === 0 ? 6 : currentDay - 1;
+            const mondayOfCurrentWeek = new Date(today);
+            mondayOfCurrentWeek.setDate(today.getDate() - diff);
+            mondayOfCurrentWeek.setHours(0, 0, 0, 0);
+
+            const sundayOfCurrentWeek = new Date(mondayOfCurrentWeek);
+            sundayOfCurrentWeek.setDate(mondayOfCurrentWeek.getDate() + 6);
+            sundayOfCurrentWeek.setHours(23, 59, 59, 999);
+
+            // Task dueDate must be within Monday-Sunday of current week
+            return taskDate >= mondayOfCurrentWeek && taskDate <= sundayOfCurrentWeek;
         }
 
         // Fallback for tasks without dueDate - show on all days for daily, hide for others
@@ -100,6 +117,25 @@ export const ScheduleModal = ({ visible, onClose }: ScheduleModalProps) => {
         return false;
     };
 
+    // Helper to deduplicate tasks (same title + dueDate = duplicate)
+    const deduplicateTasks = (taskList: Task[]): Task[] => {
+        const seen = new Set<string>();
+        const result: Task[] = [];
+        const duplicates: string[] = [];
+
+        taskList.forEach(task => {
+            // Use title + dueDate as the key to catch all duplicates
+            const key = `${task.title}-${task.dueDate}`;
+            if (seen.has(key)) {
+                // Skip duplicate
+            } else {
+                seen.add(key);
+                result.push(task);
+            }
+        });
+
+        return result;
+    };
 
     // DATA 1: Weekly Schedule for Selected Child
     const scheduleData = useMemo(() => {
@@ -110,7 +146,7 @@ export const ScheduleModal = ({ visible, onClose }: ScheduleModalProps) => {
 
         weekDays.forEach(day => {
             const filtered = childTasks.filter(task => filterTaskLogic(task, day));
-            schedule[day] = sortTasks(filtered);
+            schedule[day] = sortTasks(deduplicateTasks(filtered));
         });
 
         return schedule;
@@ -123,7 +159,7 @@ export const ScheduleModal = ({ visible, onClose }: ScheduleModalProps) => {
         children.forEach((child: any) => {
             const childTasks = tasks.filter(t => t.assignedTo === child.id);
             const filtered = childTasks.filter(task => filterTaskLogic(task, selectedCompareDay));
-            compareData[child.id] = sortTasks(filtered);
+            compareData[child.id] = sortTasks(deduplicateTasks(filtered));
         });
 
         return compareData;
