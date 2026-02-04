@@ -445,7 +445,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 // Create Template
                 // We use 'addDoc' but we need to match TaskTemplate type.
                 // Omit irrelevant fields for template if needed, or just cast.
-                const { id, ...templateData } = newTask as any;
+                const templateData = newTask as any;
                 await addDoc(collection(db, "templates"), templateData);
             } else {
                 // Create Assignment
@@ -590,7 +590,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             if (!entry) return;
 
             const count = entry.tasks.length;
-            let title = "Tareas Realizadas";
+            const title = "Tareas Realizadas";
             let body = "";
 
             if (count === 1) {
@@ -844,7 +844,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 day: '2-digit',
                 timeZone
             }).format(targetDate);
-        } catch (e) {
+        } catch (_e) {
             // Fallback if timezone invalid or en-CA not supported
             const year = targetDate.getFullYear();
             const month = String(targetDate.getMonth() + 1).padStart(2, '0');

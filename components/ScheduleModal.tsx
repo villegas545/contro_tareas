@@ -12,7 +12,7 @@ interface ScheduleModalProps {
 }
 
 export const ScheduleModal = ({ visible, onClose }: ScheduleModalProps) => {
-    const { users, tasks, categories, updateTask, deleteTask, t, getCurrentDate } = useTaskContext();
+    const { users, tasks, categories, deleteTask, t, getCurrentDate } = useTaskContext();
     const children = users.filter((u: any) => u.role === 'child');
     const [selectedChildId, setSelectedChildId] = useState<string | null>(children.length > 0 ? children[0].id : null);
 
@@ -121,7 +121,6 @@ export const ScheduleModal = ({ visible, onClose }: ScheduleModalProps) => {
     const deduplicateTasks = (taskList: Task[]): Task[] => {
         const seen = new Set<string>();
         const result: Task[] = [];
-        const duplicates: string[] = [];
 
         taskList.forEach(task => {
             // Use title + dueDate as the key to catch all duplicates
