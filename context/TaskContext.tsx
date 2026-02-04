@@ -84,6 +84,11 @@ interface TaskContextType {
     setDebugDate: (date: string | null) => Promise<void>;  // Persists to Firebase
     getCurrentDate: () => Date;  // Returns debug date or system date
     refreshTasks: () => Promise<void>;  // Regenerate tasks from schedules
+
+    // Global Loading State
+    isGlobalLoading: boolean;
+    globalLoadingMessage: string;
+    setGlobalLoading: (loading: boolean, message?: string) => void;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -106,6 +111,25 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
     const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
     const [language, setLanguageState] = useState<Language>('es');
+
+    // Global Loading State - blocks UI during critical Firebase operations
+    const [isGlobalLoading, setIsGlobalLoading] = useState(false);
+    const [globalLoadingMessage, setGlobalLoadingMessage] = useState('');
+
+    const setGlobalLoading = (loading: boolean, message?: string) => {
+        setIsGlobalLoading(loading);
+        setGlobalLoadingMessage(message || 'Procesando...');
+    };
+
+    // Helper to wrap Firebase operations with loading state
+    const withLoading = async <T,>(operation: () => Promise<T>, message?: string): Promise<T> => {
+        setGlobalLoading(true, message || 'Procesando...');
+        try {
+            return await operation();
+        } finally {
+            setGlobalLoading(false);
+        }
+    };
 
     // Debug Date - computed from globalSettings (persisted in Firebase)
     const debugDate = globalSettings?.debugDate || null;
@@ -416,31 +440,33 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             return;
         }
 
-        if (newTask.assignedTo === 'pool') {
-            // Create Template
-            // We use 'addDoc' but we need to match TaskTemplate type.
-            // Omit irrelevant fields for template if needed, or just cast.
-            const { id, ...templateData } = newTask as any;
-            await addDoc(collection(db, "templates"), templateData);
-        } else {
-            // Create Assignment
-            await addDoc(collection(db, "tasks"), newTask);
-
-            // Notify Child
-            const child = users.find(u => u.id === newTask.assignedTo);
-            console.log(`[Notification] Attempting to notify child selected for task: ${child?.name}`);
-
-            if (child && child.pushToken) {
-                if (child.id === currentUser?.id) {
-                    console.log("[Notification] Skipping notification: User assigned task to themselves.");
-                } else {
-                    console.log(`[Notification] Sending Push to token: ${child.pushToken.substring(0, 10)}...`);
-                    sendPushNotification(child.pushToken, "Nueva Tarea", `Tienes una nueva tarea: "${newTask.title}"`);
-                }
+        await withLoading(async () => {
+            if (newTask.assignedTo === 'pool') {
+                // Create Template
+                // We use 'addDoc' but we need to match TaskTemplate type.
+                // Omit irrelevant fields for template if needed, or just cast.
+                const { id, ...templateData } = newTask as any;
+                await addDoc(collection(db, "templates"), templateData);
             } else {
-                console.log("[Notification] Cannot notify: Child not found or has no Push Token.");
+                // Create Assignment
+                await addDoc(collection(db, "tasks"), newTask);
+
+                // Notify Child
+                const child = users.find(u => u.id === newTask.assignedTo);
+                console.log(`[Notification] Attempting to notify child selected for task: ${child?.name}`);
+
+                if (child && child.pushToken) {
+                    if (child.id === currentUser?.id) {
+                        console.log("[Notification] Skipping notification: User assigned task to themselves.");
+                    } else {
+                        console.log(`[Notification] Sending Push to token: ${child.pushToken.substring(0, 10)}...`);
+                        sendPushNotification(child.pushToken, "Nueva Tarea", `Tienes una nueva tarea: "${newTask.title}"`);
+                    }
+                } else {
+                    console.log("[Notification] Cannot notify: Child not found or has no Push Token.");
+                }
             }
-        }
+        }, 'Creando tarea...');
     };
 
     const updateTask = async (taskId: string, updates: Partial<Task>) => {
@@ -456,14 +482,15 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             return;
         }
 
-        if (isTemplate) {
-            console.log(`[Update] Updating Template ${taskId}`);
-            await updateDoc(doc(db, "templates", taskId), updates);
-            // No manual propagation needed - Hydration handles it!
-        } else {
-            console.log(`[Update] Updating Assignment ${taskId}`);
-            await updateDoc(doc(db, "tasks", taskId), updates);
-        }
+        await withLoading(async () => {
+            if (isTemplate) {
+                console.log(`[Update] Updating Template ${taskId}`);
+                await updateDoc(doc(db, "templates", taskId), updates);
+            } else {
+                console.log(`[Update] Updating Assignment ${taskId}`);
+                await updateDoc(doc(db, "tasks", taskId), updates);
+            }
+        }, 'Actualizando...');
     };
 
     const deleteTask = async (taskId: string) => {
@@ -478,21 +505,22 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             return;
         }
 
-        const isTemplate = templates.some(t => t.id === taskId);
+        await withLoading(async () => {
+            const isTemplate = templates.some(t => t.id === taskId);
 
-        if (isTemplate) {
-            console.log(`[Delete] Deleting Template ${taskId} and linked assignments`);
-            await deleteDoc(doc(db, "templates", taskId));
+            if (isTemplate) {
+                console.log(`[Delete] Deleting Template ${taskId} and linked assignments`);
+                await deleteDoc(doc(db, "templates", taskId));
 
-            // Cascade Delete Assignments linked to this template
-            // Use rawTasks to find them
-            const linked = rawTasks.filter(t => t.templateId === taskId || t.originalTaskId === taskId);
-            const promises = linked.map(t => deleteDoc(doc(db, "tasks", t.id)));
-            await Promise.all(promises);
-        } else {
-            console.log(`[Delete] Deleting Assignment ${taskId}`);
-            await deleteDoc(doc(db, "tasks", taskId));
-        }
+                // Cascade Delete Assignments linked to this template
+                const linked = rawTasks.filter(t => t.templateId === taskId || t.originalTaskId === taskId);
+                const promises = linked.map(t => deleteDoc(doc(db, "tasks", t.id)));
+                await Promise.all(promises);
+            } else {
+                console.log(`[Delete] Deleting Assignment ${taskId}`);
+                await deleteDoc(doc(db, "tasks", taskId));
+            }
+        }, 'Eliminando...');
     };
 
     const completeTask = async (taskId: string, evidenceUrl?: string) => {
@@ -523,19 +551,21 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             return;
         }
 
-        const updates: any = {
-            status: 'completed',
-            completedAt: new Date().toISOString()
-        };
-        if (evidenceUrl) updates.evidenceUrl = evidenceUrl;
+        await withLoading(async () => {
+            const updates: any = {
+                status: 'completed',
+                completedAt: new Date().toISOString()
+            };
+            if (evidenceUrl) updates.evidenceUrl = evidenceUrl;
 
-        await updateDoc(doc(db, "tasks", taskId), updates);
+            await updateDoc(doc(db, "tasks", taskId), updates);
 
-        // Notify Parents (Debounced)
-        const child = users.find(u => u.id === task.assignedTo);
-        if (child) {
-            queueTaskCompletionNotification(child.id, child.name, task.title);
-        }
+            // Notify Parents (Debounced)
+            const child = users.find(u => u.id === task.assignedTo);
+            if (child) {
+                queueTaskCompletionNotification(child.id, child.name, task.title);
+            }
+        }, 'Completando tarea...');
     };
 
     // Notification Queue Ref
@@ -598,23 +628,25 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             return;
         }
 
-        // Add to history
-        await addDoc(collection(db, "history"), {
-            taskId: task.id,
-            taskTitle: task.title,
-            assignedTo: task.assignedTo,
-            points: task.points || 0,
-            status: 'verified',
-            isResponsibility: task.isResponsibility || false,
-            date: task.dueDate || getLocalDateString(),
-            completedAt: task.completedAt || new Date().toISOString(),
-        });
+        await withLoading(async () => {
+            // Add to history
+            await addDoc(collection(db, "history"), {
+                taskId: task.id,
+                taskTitle: task.title,
+                assignedTo: task.assignedTo,
+                points: task.points || 0,
+                status: 'verified',
+                isResponsibility: task.isResponsibility || false,
+                date: task.dueDate || getLocalDateString(),
+                completedAt: task.completedAt || new Date().toISOString(),
+            });
 
-        // Update task status
-        await updateDoc(doc(db, "tasks", taskId), {
-            status: 'verified',
-            verifiedAt: new Date().toISOString(),
-        });
+            // Update task status
+            await updateDoc(doc(db, "tasks", taskId), {
+                status: 'verified',
+                verifiedAt: new Date().toISOString(),
+            });
+        }, 'Verificando...');
     };
 
     const failTask = async (taskId: string) => {
@@ -644,17 +676,19 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             return;
         }
 
-        await addDoc(collection(db, "history"), {
-            taskId: task.id,
-            taskTitle: task.title,
-            assignedTo: task.assignedTo,
-            points: 0,
-            status: 'missed',
-            isResponsibility: task.isResponsibility || false,
-            date: task.dueDate || getLocalDateString(),
-        });
+        await withLoading(async () => {
+            await addDoc(collection(db, "history"), {
+                taskId: task.id,
+                taskTitle: task.title,
+                assignedTo: task.assignedTo,
+                points: 0,
+                status: 'missed',
+                isResponsibility: task.isResponsibility || false,
+                date: task.dueDate || getLocalDateString(),
+            });
 
-        await updateDoc(doc(db, "tasks", taskId), { status: 'expired' });
+            await updateDoc(doc(db, "tasks", taskId), { status: 'expired' });
+        }, 'Procesando...');
     };
 
     const rejectTask = async (taskId: string) => {
@@ -667,18 +701,20 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             return;
         }
 
-        await updateDoc(doc(db, "tasks", taskId), {
-            status: 'pending',
-            completedAt: deleteField()
-        });
+        await withLoading(async () => {
+            await updateDoc(doc(db, "tasks", taskId), {
+                status: 'pending',
+                completedAt: deleteField()
+            });
 
-        const task = tasks.find(t => t.id === taskId);
-        if (task) {
-            const child = users.find(u => u.id === task.assignedTo);
-            if (child && child.pushToken) {
-                sendPushNotification(child.pushToken, "Tarea Rechazada", `Tu tarea "${task.title}" ha sido rechazada.`);
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                const child = users.find(u => u.id === task.assignedTo);
+                if (child && child.pushToken) {
+                    sendPushNotification(child.pushToken, "Tarea Rechazada", `Tu tarea "${task.title}" ha sido rechazada.`);
+                }
             }
-        }
+        }, 'Rechazando...');
     };
 
     // Rewards & Redemptions Logic
@@ -790,7 +826,9 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Setter for debug date - persists to Firebase
     const setDebugDate = async (date: string | null) => {
-        await updateGlobalSettings({ debugDate: date });
+        await withLoading(async () => {
+            await updateGlobalSettings({ debugDate: date });
+        }, 'Cambiando fecha...');
     };
 
     // Helper: Local Date String YYYY-MM-DD (Timezone Aware, respects debug date)
@@ -815,6 +853,9 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
+    // Track tasks that failed to update (no longer exist) to avoid repeated attempts
+    const failedTaskIds = React.useRef<Set<string>>(new Set());
+
     // Recurring tasks check logic - Process Expirations
     const processDailyReset = async () => {
         if (tasks.length === 0) return; // History might be empty initially, that's fine
@@ -827,6 +868,9 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
 
         // Iterate all active tasks to verify expiration
         for (const task of tasks) {
+            // Skip tasks that we already know don't exist anymore
+            if (failedTaskIds.current.has(task.id)) continue;
+
             // Handle pending tasks that expired
             if (task.status === 'pending' && task.dueDate) {
                 if (task.dueDate < todayStr) {
@@ -851,7 +895,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                         await updateDoc(doc(db, "tasks", task.id), { status: 'expired' });
                     } catch (error: any) {
                         if (error.code === 'not-found' || error.message?.includes('No document to update')) {
-                            console.log(`[processDailyReset] Task ${task.id} no longer exists, skipping update`);
+                            failedTaskIds.current.add(task.id); // Don't retry this task
                         } else {
                             throw error;
                         }
@@ -903,7 +947,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                         }
                     } catch (error: any) {
                         if (error.code === 'not-found' || error.message?.includes('No document to update')) {
-                            console.log(`[processDailyReset] Task ${task.id} no longer exists, skipping update`);
+                            failedTaskIds.current.add(task.id); // Don't retry this task
                         } else {
                             throw error;
                         }
@@ -938,18 +982,20 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             }]);
             return;
         }
-        const docRef = await addDoc(collection(db, "schedules"), {
-            active: true,
-            createdAt: new Date().toISOString(),
-            ...schedule
-        });
+        await withLoading(async () => {
+            const docRef = await addDoc(collection(db, "schedules"), {
+                active: true,
+                createdAt: new Date().toISOString(),
+                ...schedule
+            });
 
-        firebaseLogger.logOperation('CREATE', 'schedules', docRef.id, { title: schedule.title, frequency: schedule.frequency, recurrenceDays: schedule.recurrenceDays });
+            firebaseLogger.logOperation('CREATE', 'schedules', docRef.id, { title: schedule.title, frequency: schedule.frequency, recurrenceDays: schedule.recurrenceDays });
 
-        // Wait for Firestore to sync the new schedule, then generate tasks
-        setTimeout(() => {
-            checkAndGenerateWeeklyTasks().catch(console.error);
-        }, 1000);
+            // Wait for Firestore to sync the new schedule, then generate tasks
+            setTimeout(() => {
+                checkAndGenerateWeeklyTasks().catch(console.error);
+            }, 1000);
+        }, 'Creando horario...');
     };
 
     const deleteSchedule = async (scheduleId: string) => {
@@ -957,172 +1003,194 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             setSchedules(prev => prev.filter(s => s.id !== scheduleId));
             return;
         }
-        await deleteDoc(doc(db, "schedules", scheduleId));
+        await withLoading(async () => {
+            await deleteDoc(doc(db, "schedules", scheduleId));
+        }, 'Eliminando horario...');
     };
+
+    // Lock to prevent simultaneous task generation
+    const isGeneratingTasks = React.useRef(false);
 
     // Weekly Task Generation Logic (From Schedules -> Tasks)
     const checkAndGenerateWeeklyTasks = async () => {
+        // Prevent concurrent executions
+        if (isGeneratingTasks.current) {
+            console.log('[WeeklyGen] Already running, skipping...');
+            return;
+        }
+
         if (!currentUser) {
             firebaseLogger.logOperation('SKIP_GENERATION', 'tasks', undefined, { reason: 'No user' });
             return;
         }
 
-        // Query schedules directly from Firebase to ensure we have fresh data
-        // This is especially important when called right after creating a new schedule
-        const schedulesSnap = await getDocs(
-            query(collection(db, "schedules"), where("active", "==", true))
-        );
-        const freshSchedules = schedulesSnap.docs.map(d => ({
-            id: d.id,
-            ...d.data()
-        })) as TaskSchedule[];
+        isGeneratingTasks.current = true;
+        setGlobalLoading(true, 'Generando tareas...');
+        try {
 
-        if (freshSchedules.length === 0) {
-            firebaseLogger.logOperation('SKIP_GENERATION', 'tasks', undefined, { reason: 'No schedules in Firebase' });
-            return;
-        }
+            // Query schedules directly from Firebase to ensure we have fresh data
+            // This is especially important when called right after creating a new schedule
+            const schedulesSnap = await getDocs(
+                query(collection(db, "schedules"), where("active", "==", true))
+            );
+            const freshSchedules = schedulesSnap.docs.map(d => ({
+                id: d.id,
+                ...d.data()
+            })) as TaskSchedule[];
 
-        firebaseLogger.logOperation('START_GENERATION', 'tasks', undefined, { schedulesCount: freshSchedules.length });
-        console.log("[WeeklyGen] Checking for tasks to generate from Schedules...");
-
-        const now = getCurrentDate();
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth();
-        const currentDate = now.getDate();
-        const currentDay = now.getDay(); // 0=Sun, 1=Mon...
-
-        // Calculate start of week (Monday)
-        const diff = currentDay === 0 ? 6 : currentDay - 1;
-        const mondayDate = new Date(currentYear, currentMonth, currentDate - diff);
-        mondayDate.setHours(0, 0, 0, 0);
-
-        const weekDates: string[] = [];
-        for (let i = 0; i < 7; i++) {
-            const d = new Date(mondayDate);
-            d.setDate(mondayDate.getDate() + i);
-            weekDates.push(getLocalDateString(d));
-        }
-
-        const batch = writeBatch(db);
-        let batchCount = 0;
-
-        // Filter active schedules assigned to real users
-        const activeSchedules = freshSchedules.filter(s => s.active && s.assignedTo !== 'pool');
-
-        console.log(`[WeeklyGen] Found ${activeSchedules.length} active schedules.`);
-
-        // Query Firebase directly for existing tasks in this week range to avoid duplicates
-        // This is more reliable than using local state which may be stale
-        const existingTasksSnap = await getDocs(
-            query(
-                collection(db, "tasks"),
-                where("dueDate", ">=", weekDates[0]),
-                where("dueDate", "<=", weekDates[6])
-            )
-        );
-        const existingTasks = existingTasksSnap.docs.map(d => ({
-            id: d.id,
-            ...d.data()
-        })) as Task[];
-        console.log(`[WeeklyGen] Found ${existingTasks.length} existing tasks in week range.`);
-
-        for (const sched of activeSchedules) {
-            let targetDays: number[] = [];
-
-            // Determine days
-            if (sched.frequency === 'weekly') {
-                targetDays = sched.recurrenceDays || [];
-            } else {
-                // DAILY - default to all days if not specified
-                if (sched.recurrenceDays && sched.recurrenceDays.length > 0) {
-                    targetDays = sched.recurrenceDays;
-                } else {
-                    targetDays = [1, 2, 3, 4, 5, 6, 0];
-                }
+            if (freshSchedules.length === 0) {
+                firebaseLogger.logOperation('SKIP_GENERATION', 'tasks', undefined, { reason: 'No schedules in Firebase' });
+                return;
             }
 
+            firebaseLogger.logOperation('START_GENERATION', 'tasks', undefined, { schedulesCount: freshSchedules.length });
+            console.log("[WeeklyGen] Checking for tasks to generate from Schedules...");
+
+            const now = getCurrentDate();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth();
+            const currentDate = now.getDate();
+            const currentDay = now.getDay(); // 0=Sun, 1=Mon...
+
+            // Calculate start of week (Monday)
+            const diff = currentDay === 0 ? 6 : currentDay - 1;
+            const mondayDate = new Date(currentYear, currentMonth, currentDate - diff);
+            mondayDate.setHours(0, 0, 0, 0);
+
+            const weekDates: string[] = [];
             for (let i = 0; i < 7; i++) {
-                const dateStr = weekDates[i];
-                // Convert dateStr to Day Index (0-6)
-                // i=0(Mon)->1, ..., i=6(Sun)->0
-                const dayIndex = i === 6 ? 0 : i + 1;
+                const d = new Date(mondayDate);
+                d.setDate(mondayDate.getDate() + i);
+                weekDates.push(getLocalDateString(d));
+            }
 
-                if (targetDays.includes(dayIndex)) {
-                    // Check if instance already exists linked to this schedule (using Firebase data, not local state)
-                    const exists = existingTasks.some(t =>
-                        t.scheduleId === sched.id &&
-                        t.dueDate === dateStr
-                    );
+            const batch = writeBatch(db);
+            let batchCount = 0;
 
-                    if (!exists) {
-                        // Check exclusions
-                        let shouldCreate = true;
-                        if (sched.isSchool && globalSettings?.nonSchoolDays?.some(d => d.date === dateStr)) {
-                            shouldCreate = false;
-                        }
+            // Filter active schedules assigned to real users
+            const activeSchedules = freshSchedules.filter(s => s.active && s.assignedTo !== 'pool');
 
-                        if (shouldCreate) {
-                            const newRef = doc(collection(db, "tasks"));
-                            const newTaskData: any = {
-                                // Core Data
-                                title: sched.title,
-                                description: sched.description || '',
-                                assignedTo: sched.assignedTo,
-                                createdBy: sched.createdBy || '',
+            console.log(`[WeeklyGen] Current date: ${now.toISOString().split('T')[0]}`);
+            console.log(`[WeeklyGen] Week dates: ${weekDates.join(', ')}`);
+            console.log(`[WeeklyGen] Found ${activeSchedules.length} active schedules.`);
 
-                                // Status & Type
-                                status: 'pending',
-                                type: sched.type,
-                                frequency: sched.frequency,
-                                points: sched.points,
+            // Query Firebase directly for existing tasks in this week range to avoid duplicates
+            // This is more reliable than using local state which may be stale
+            const existingTasksSnap = await getDocs(
+                query(
+                    collection(db, "tasks"),
+                    where("dueDate", ">=", weekDates[0]),
+                    where("dueDate", "<=", weekDates[6])
+                )
+            );
+            const existingTasks = existingTasksSnap.docs.map(d => ({
+                id: d.id,
+                ...d.data()
+            })) as Task[];
+            console.log(`[WeeklyGen] Found ${existingTasks.length} existing tasks in week range.`);
 
-                                // Linkage
-                                scheduleId: sched.id,
-                                templateId: sched.templateId,
+            for (const sched of activeSchedules) {
+                let targetDays: number[] = [];
 
-                                // Instance Specifics
-                                dueDate: dateStr,
+                // Determine days
+                if (sched.frequency === 'weekly') {
+                    targetDays = sched.recurrenceDays || [];
+                } else {
+                    // DAILY - default to all days if not specified
+                    if (sched.recurrenceDays && sched.recurrenceDays.length > 0) {
+                        targetDays = sched.recurrenceDays;
+                    } else {
+                        targetDays = [1, 2, 3, 4, 5, 6, 0];
+                    }
+                }
 
-                                // Metadata
-                                categoryId: sched.categoryId,
-                                isResponsibility: sched.isResponsibility,
-                                isSchool: sched.isSchool,
-                                shift: sched.shift,
+                for (let i = 0; i < 7; i++) {
+                    const dateStr = weekDates[i];
+                    // Convert dateStr to Day Index (0-6)
+                    // i=0(Mon)->1, ..., i=6(Sun)->0
+                    const dayIndex = i === 6 ? 0 : i + 1;
 
-                                createdAt: new Date().toISOString(),
-                            };
+                    if (targetDays.includes(dayIndex)) {
+                        // Check if instance already exists linked to this schedule (using Firebase data, not local state)
+                        const exists = existingTasks.some(t =>
+                            t.scheduleId === sched.id &&
+                            t.dueDate === dateStr
+                        );
 
-                            if (sched.timeWindow) newTaskData.timeWindow = sched.timeWindow;
+                        if (!exists) {
+                            // Check exclusions
+                            let shouldCreate = true;
+                            if (sched.isSchool && globalSettings?.nonSchoolDays?.some(d => d.date === dateStr)) {
+                                shouldCreate = false;
+                            }
 
-                            batch.set(newRef, newTaskData);
-                            batchCount++;
+                            if (shouldCreate) {
+                                const newRef = doc(collection(db, "tasks"));
+                                const newTaskData: any = {
+                                    // Core Data
+                                    title: sched.title || 'Sin título',
+                                    description: sched.description || '',
+                                    assignedTo: sched.assignedTo,
+                                    createdBy: sched.createdBy || '',
+
+                                    // Status & Type
+                                    status: 'pending',
+                                    type: sched.type || 'additional',
+                                    frequency: sched.frequency || 'daily',
+                                    points: sched.points ?? 0, // Default to 0 if undefined
+
+                                    // Linkage
+                                    scheduleId: sched.id,
+                                    templateId: sched.templateId || null,
+
+                                    // Instance Specifics
+                                    dueDate: dateStr,
+
+                                    // Metadata
+                                    categoryId: sched.categoryId || null,
+                                    isResponsibility: sched.isResponsibility ?? false,
+                                    isSchool: sched.isSchool ?? false,
+                                    shift: sched.shift || 'no-time',
+
+                                    createdAt: new Date().toISOString(),
+                                };
+
+                                if (sched.timeWindow) newTaskData.timeWindow = sched.timeWindow;
+
+                                batch.set(newRef, newTaskData);
+                                batchCount++;
+                            }
                         }
                     }
                 }
             }
-        }
 
-        if (batchCount > 0) {
-            console.log(`[WeeklyGen] Creating ${batchCount} new task instances from schedules.`);
-            await batch.commit();
-            firebaseLogger.logOperation('BATCH_CREATE', 'tasks', undefined, { count: batchCount }, 'success');
-        } else {
-            console.log(`[WeeklyGen] No new tasks needed.`);
-            firebaseLogger.logOperation('NO_TASKS_NEEDED', 'tasks', undefined, { schedulesChecked: activeSchedules.length });
+            if (batchCount > 0) {
+                console.log(`[WeeklyGen] Creating ${batchCount} new task instances from schedules.`);
+                await batch.commit();
+                firebaseLogger.logOperation('BATCH_CREATE', 'tasks', undefined, { count: batchCount }, 'success');
+            } else {
+                console.log(`[WeeklyGen] No new tasks needed.`);
+                firebaseLogger.logOperation('NO_TASKS_NEEDED', 'tasks', undefined, { schedulesChecked: activeSchedules.length });
+            }
+        } finally {
+            setGlobalLoading(false);
+            isGeneratingTasks.current = false;
         }
     };
 
-    // Trigger Generation (Updated dep to schedules.length)
+    // Trigger Generation (Updated dep to schedules.length and debugDate)
     useEffect(() => {
         if (currentUser && schedules.length > 0) {
             // Only run generation if we have schedules and haven't run it recently?
             // Or rely on the internal checks of the function which queries DB again.
             // To be safe, we rely on the function's internal logic, but we MUST NOT depend on tasks.length
             // otherwise creating a task triggers this again -> infinite loop -> quota exceeded.
+            console.log('[TaskGen] Trigger: checking tasks for week of', debugDate || 'today');
             checkAndGenerateWeeklyTasks().catch(console.error);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentUser?.id, schedules.length]); // REMOVED tasks.length to prevent infinite write loop
+    }, [currentUser?.id, schedules.length, debugDate]); // Added debugDate to re-generate when date changes
 
     // Migration Trigger
     useEffect(() => {
@@ -1373,7 +1441,11 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 // Debug Date Override
                 debugDate,
                 setDebugDate,
-                getCurrentDate
+                getCurrentDate,
+                // Global Loading State
+                isGlobalLoading,
+                globalLoadingMessage,
+                setGlobalLoading,
             }}
         >
             {children}
