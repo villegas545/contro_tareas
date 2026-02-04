@@ -19,6 +19,7 @@ import SchoolCalendarScreen from './screens/SchoolCalendarScreen';
 import { ManageCategoriesScreen } from './screens/ManageCategoriesScreen';
 import { ManageJustificationsScreen } from './screens/ManageJustificationsScreen';
 import { StatusBar } from 'expo-status-bar';
+import { GlobalLoadingOverlay } from './components/GlobalLoadingOverlay';
 
 const Stack = createStackNavigator();
 
@@ -53,6 +54,28 @@ const MainNavigator = () => {
 
 import { useColorScheme } from 'nativewind';
 
+// Inner App Content that has access to TaskContext
+const AppContent = () => {
+  const { isGlobalLoading, globalLoadingMessage } = useTaskContext();
+
+  return (
+    <>
+      <View className="flex-1 w-full h-full bg-white overflow-hidden shadow-xl"
+        style={Platform.OS === 'web' ? { maxWidth: 480, maxHeight: 900 } : {}}>
+        <SafeAreaProvider>
+          <SafeAreaView className="flex-1 bg-white" edges={['top', 'left', 'right']}>
+            <NavigationContainer theme={DefaultTheme}>
+              <MainNavigator />
+              <StatusBar style="dark" />
+            </NavigationContainer>
+          </SafeAreaView>
+        </SafeAreaProvider>
+      </View>
+      <GlobalLoadingOverlay visible={isGlobalLoading} message={globalLoadingMessage} />
+    </>
+  );
+};
+
 export default function App() {
   const { setColorScheme } = useColorScheme();
 
@@ -68,19 +91,7 @@ export default function App() {
   return (
     <TaskProvider>
       <View className={`flex-1 items-center justify-center ${Platform.OS === 'web' ? 'bg-[#333]' : 'bg-white'}`}>
-        <View
-          className="flex-1 w-full h-full bg-white overflow-hidden shadow-xl"
-          style={Platform.OS === 'web' ? { maxWidth: 480, maxHeight: 900 } : {}}
-        >
-          <SafeAreaProvider>
-            <SafeAreaView className="flex-1 bg-white" edges={['top', 'left', 'right']}>
-              <NavigationContainer theme={DefaultTheme}>
-                <MainNavigator />
-                <StatusBar style="dark" />
-              </NavigationContainer>
-            </SafeAreaView>
-          </SafeAreaProvider>
-        </View>
+        <AppContent />
       </View>
     </TaskProvider>
   );
