@@ -972,6 +972,17 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
 
         } catch (error: any) {
             console.error('[processDailyReset] Error processing updates:', error);
+
+            // Extract and blacklist the ID of the missing document causing the batch failure
+            // Error message format example: "No document to update: projects/.../databases/(default)/documents/tasks/TASK_ID"
+            if (error.code === 'not-found' || (error.message && error.message.includes('No document to update'))) {
+                const match = error.message?.match(/tasks\/([a-zA-Z0-9]+)/);
+                if (match && match[1]) {
+                    const missingTaskId = match[1];
+                    console.warn(`[processDailyReset] Detected missing task ${missingTaskId}. Adding to ignore list.`);
+                    failedTaskIds.current.add(missingTaskId);
+                }
+            }
         } finally {
             setGlobalLoading(false);
             // Release lock after a delay to ensure Firestone/UI sync settles
