@@ -166,7 +166,7 @@ async function listTemplates() {
 async function listHistory(limit = 20) {
     await loadUsers();
     console.log(`\n=== TASK HISTORY (last ${limit}) ===\n`);
-    const snap = await db.collection('taskHistory').orderBy('completedAt', 'desc').limit(limit).get();
+    const snap = await db.collection('history').orderBy('date', 'desc').limit(limit).get();
 
     snap.docs.forEach(doc => {
         const h = doc.data();
@@ -265,6 +265,50 @@ async function findOrphans(fix = false) {
     }
 }
 
+async function resetSystem() {
+    console.log('\n⚠️  WARNING: This will delete ALL tasks, history, and schedules. Templates and Users will be preserved.');
+
+    console.log('Deleting Tasks...');
+    await deleteCollection('tasks');
+
+    console.log('Deleting History...');
+    await deleteCollection('history');
+
+    console.log('Deleting Schedules...');
+    await deleteCollection('schedules');
+
+    console.log('\n✅ System reset complete (Templates preserved).');
+}
+
+async function deleteCollection(collectionPath, batchSize = 100) {
+    const collectionRef = db.collection(collectionPath);
+    const query = collectionRef.orderBy('__name__').limit(batchSize);
+
+    return new Promise((resolve, reject) => {
+        deleteQueryBatch(db, query, resolve).catch(reject);
+    });
+}
+
+async function deleteQueryBatch(db, query, resolve) {
+    const snapshot = await query.get();
+
+    const batchSize = snapshot.size;
+    if (batchSize === 0) {
+        resolve();
+        return;
+    }
+
+    const batch = db.batch();
+    snapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+    });
+    await batch.commit();
+
+    process.nextTick(() => {
+        deleteQueryBatch(db, query, resolve);
+    });
+}
+
 // Main CLI handler
 async function main() {
     const args = process.argv.slice(2);
@@ -272,7 +316,7 @@ async function main() {
 
     if (!command) {
         console.log('Usage: node scripts/db_debug.js <command> [options]');
-        console.log('\nCommands: users, tasks, task, schedules, templates, history, query, delete-task, fix-orphans');
+        console.log('\nCommands: users, tasks, task, schedules, templates, history, query, delete-task, fix-orphans, reset-system');
         process.exit(0);
     }
 
@@ -318,6 +362,10 @@ async function main() {
 
             case 'fix-orphans':
                 await findOrphans(args.includes('--fix'));
+                break;
+
+            case 'reset-system':
+                await resetSystem();
                 break;
 
             default:
