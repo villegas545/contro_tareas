@@ -856,113 +856,139 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     // Track tasks that failed to update (no longer exist) to avoid repeated attempts
     const failedTaskIds = React.useRef<Set<string>>(new Set());
 
+
+    // Lock to prevent simultaneous daily resets
+    const isProcessingReset = React.useRef(false);
+
     // Recurring tasks check logic - Process Expirations
     const processDailyReset = async () => {
-        if (tasks.length === 0) return; // History might be empty initially, that's fine
-
-        // Check Global Vacation Mode
+        // Prevent concurrent execution or unnecessary runs
+        if (isProcessingReset.current) return;
+        if (tasks.length === 0) return;
         if (globalSettings?.isVacationMode) return;
 
         const now = getCurrentDate();
         const todayStr = getLocalDateString(now);
 
-        // Iterate all active tasks to verify expiration
-        for (const task of tasks) {
-            // Skip tasks that we already know don't exist anymore
-            if (failedTaskIds.current.has(task.id)) continue;
+        // 1. Identify tasks needing updates to avoid partial UI state issues
+        const tasksToExpire = tasks.filter(t =>
+            !failedTaskIds.current.has(t.id) &&
+            t.status === 'pending' &&
+            t.dueDate && t.dueDate < todayStr
+        );
 
-            // Handle pending tasks that expired
-            if (task.status === 'pending' && task.dueDate) {
-                if (task.dueDate < todayStr) {
-                    // It's missed!
-                    // Log to history
-                    const alreadyLogged = history.some(h => h.taskId === task.id && h.status === 'missed');
+        const tasksToVerify = tasks.filter(t =>
+            !failedTaskIds.current.has(t.id) &&
+            t.status === 'completed' &&
+            t.dueDate && t.dueDate < todayStr
+        );
 
-                    if (!alreadyLogged) {
-                        await addDoc(collection(db, "history"), {
-                            taskId: task.id,
-                            taskTitle: task.title,
-                            assignedTo: task.assignedTo,
-                            points: 0,
-                            status: 'missed',
-                            isResponsibility: task.isResponsibility || false,
-                            date: task.dueDate,
-                        });
-                    }
+        if (tasksToExpire.length === 0 && tasksToVerify.length === 0) return;
 
-                    // Expire it - wrap in try-catch in case task was deleted
+        // 2. Lock and Show Loading
+        isProcessingReset.current = true;
+        setGlobalLoading(true, 'Actualizando tareas diarias...');
+
+        console.log(`[processDailyReset] Starting update for ${tasksToExpire.length} expired and ${tasksToVerify.length} verified tasks.`);
+
+        try {
+            const batch = writeBatch(db);
+            let operationCount = 0;
+
+            // Process Expirations
+            for (const task of tasksToExpire) {
+                // Log to history
+                const alreadyLogged = history.some(h => h.taskId === task.id && h.status === 'missed');
+                if (!alreadyLogged) {
+                    const historyRef = doc(collection(db, "history"));
+                    batch.set(historyRef, {
+                        taskId: task.id,
+                        taskTitle: task.title,
+                        assignedTo: task.assignedTo,
+                        points: 0,
+                        status: 'missed',
+                        isResponsibility: task.isResponsibility || false,
+                        date: task.dueDate,
+                    });
+                }
+
+                // Update Task Status
+                const taskRef = doc(db, "tasks", task.id);
+                batch.update(taskRef, { status: 'expired' });
+                operationCount++;
+            }
+
+            // Process Auto-Verifications
+            for (const task of tasksToVerify) {
+                // Log to history
+                const alreadyLogged = history.some(h => h.taskId === task.id && (h.status === 'verified' || h.status === 'completed'));
+                if (!alreadyLogged) {
+                    const historyRef = doc(collection(db, "history"));
+                    batch.set(historyRef, {
+                        taskId: task.id,
+                        taskTitle: task.title,
+                        assignedTo: task.assignedTo,
+                        points: task.points || 0,
+                        status: 'verified',
+                        isResponsibility: task.isResponsibility || false,
+                        date: task.dueDate,
+                        completedAt: task.completedAt,
+                        autoVerified: true,
+                    });
+                }
+
+                // Update Task Status
+                const taskRef = doc(db, "tasks", task.id);
+                batch.update(taskRef, {
+                    status: 'verified',
+                    verifiedAt: new Date().toISOString(),
+                    autoVerified: true,
+                });
+                operationCount++;
+            }
+
+            // Commit Task/History changes first
+            if (operationCount > 0) {
+                await batch.commit();
+            }
+
+            // Handle Wallet Updates separately (requires reading current balance)
+            for (const task of tasksToVerify) {
+                if (task.points && task.points > 0) {
                     try {
-                        await updateDoc(doc(db, "tasks", task.id), { status: 'expired' });
-                    } catch (error: any) {
-                        if (error.code === 'not-found' || error.message?.includes('No document to update')) {
-                            failedTaskIds.current.add(task.id); // Don't retry this task
-                        } else {
-                            throw error;
+                        const childRef = doc(db, "users", task.assignedTo);
+                        const childSnap = await getDoc(childRef);
+                        if (childSnap.exists()) {
+                            const currentBalance = childSnap.data().walletBalance || 0;
+                            await updateDoc(childRef, {
+                                walletBalance: currentBalance + task.points,
+                            });
                         }
+                    } catch (err) {
+                        console.error(`Error updating wallet for task ${task.id}`, err);
                     }
                 }
             }
 
-            // Handle completed tasks (submitted by child but not verified) that passed their due date
-            // Auto-verify them to give the child credit
-            if (task.status === 'completed' && task.dueDate) {
-                if (task.dueDate < todayStr) {
-                    console.log(`[processDailyReset] Auto-verifying task ${task.id} (${task.title}) - was completed but not reviewed`);
-
-                    // Log to history as verified
-                    const alreadyLogged = history.some(h => h.taskId === task.id && (h.status === 'verified' || h.status === 'completed'));
-
-                    if (!alreadyLogged) {
-                        await addDoc(collection(db, "history"), {
-                            taskId: task.id,
-                            taskTitle: task.title,
-                            assignedTo: task.assignedTo,
-                            points: task.points || 0,
-                            status: 'verified',
-                            isResponsibility: task.isResponsibility || false,
-                            date: task.dueDate,
-                            completedAt: task.completedAt,
-                            autoVerified: true, // Mark as auto-verified
-                        });
-                    }
-
-                    // Verify the task
-                    try {
-                        await updateDoc(doc(db, "tasks", task.id), {
-                            status: 'verified',
-                            verifiedAt: new Date().toISOString(),
-                            autoVerified: true,
-                        });
-
-                        // Add points to child's wallet
-                        if (task.points && task.points > 0) {
-                            const childRef = doc(db, "users", task.assignedTo);
-                            const childSnap = await getDoc(childRef);
-                            if (childSnap.exists()) {
-                                const currentBalance = childSnap.data().walletBalance || 0;
-                                await updateDoc(childRef, {
-                                    walletBalance: currentBalance + task.points,
-                                });
-                            }
-                        }
-                    } catch (error: any) {
-                        if (error.code === 'not-found' || error.message?.includes('No document to update')) {
-                            failedTaskIds.current.add(task.id); // Don't retry this task
-                        } else {
-                            throw error;
-                        }
-                    }
-                }
-            }
+        } catch (error: any) {
+            console.error('[processDailyReset] Error processing updates:', error);
+        } finally {
+            setGlobalLoading(false);
+            // Release lock after a delay to ensure Firestone/UI sync settles
+            setTimeout(() => {
+                isProcessingReset.current = false;
+            }, 2000);
         }
     };
+
+
 
     // Auto-run reset check 
     useEffect(() => {
         if (tasks.length > 0) {
             processDailyReset();
         }
-    }, [tasks.length, history.length]);
+    }, [tasks.length]);
 
     // Schedule Reminders (Child only)
     useEffect(() => {
