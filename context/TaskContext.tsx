@@ -1011,11 +1011,12 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
 
     const addSchedule = async (schedule: Omit<TaskSchedule, 'id'>) => {
         if (isTestMode()) {
+            const { active, createdAt, ...rest } = schedule;
             setSchedules(prev => [...prev, {
                 id: 'test-sched-' + Date.now(),
-                ...schedule,
-                active: schedule.active !== undefined ? schedule.active : true,
-                createdAt: schedule.createdAt || new Date().toISOString()
+                ...rest,
+                active: active !== undefined ? active : true,
+                createdAt: createdAt || new Date().toISOString()
             }]);
             return;
         }
