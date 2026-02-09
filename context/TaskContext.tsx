@@ -89,6 +89,9 @@ interface TaskContextType {
     isGlobalLoading: boolean;
     globalLoadingMessage: string;
     setGlobalLoading: (loading: boolean, message?: string) => void;
+
+    // System Reset
+    resetSystemData: () => Promise<boolean>;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -1001,6 +1004,61 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         }
     }, [tasks.length]);
 
+    // ============================================================
+    // SYSTEM RESET FUNCTION - Called from Settings
+    // ============================================================
+    const resetSystemData = async () => {
+        console.log('🔴 [RESET] Starting system data cleanup...');
+        setGlobalLoading(true, 'Limpiando sistema...');
+
+        try {
+            // Delete all tasks
+            console.log('🔴 [RESET] Fetching tasks...');
+            const tasksSnap = await getDocs(collection(db, "tasks"));
+            console.log(`🔴 [RESET] Found ${tasksSnap.size} tasks to delete`);
+
+            if (tasksSnap.size > 0) {
+                const taskBatch = writeBatch(db);
+                tasksSnap.forEach(doc => taskBatch.delete(doc.ref));
+                await taskBatch.commit();
+                console.log('🔴 [RESET] Tasks deleted');
+            }
+
+            // Delete all history
+            console.log('🔴 [RESET] Fetching history...');
+            const histSnap = await getDocs(collection(db, "history"));
+            console.log(`🔴 [RESET] Found ${histSnap.size} history entries to delete`);
+
+            if (histSnap.size > 0) {
+                const histBatch = writeBatch(db);
+                histSnap.forEach(doc => histBatch.delete(doc.ref));
+                await histBatch.commit();
+                console.log('🔴 [RESET] History deleted');
+            }
+
+            // Delete all schedules
+            console.log('🔴 [RESET] Fetching schedules...');
+            const schedSnap = await getDocs(collection(db, "schedules"));
+            console.log(`🔴 [RESET] Found ${schedSnap.size} schedules to delete`);
+
+            if (schedSnap.size > 0) {
+                const schedBatch = writeBatch(db);
+                schedSnap.forEach(doc => schedBatch.delete(doc.ref));
+                await schedBatch.commit();
+                console.log('🔴 [RESET] Schedules deleted');
+            }
+
+            console.log('✅ [RESET] System cleanup complete! Templates and Users preserved.');
+            return true;
+
+        } catch (error) {
+            console.error('🔴 [RESET] Error during cleanup:', error);
+            throw error;
+        } finally {
+            setGlobalLoading(false);
+        }
+    };
+
     // Schedule Reminders (Child only)
     useEffect(() => {
         if (currentUser?.role === 'child') {
@@ -1484,6 +1542,8 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 isGlobalLoading,
                 globalLoadingMessage,
                 setGlobalLoading,
+                // System Reset
+                resetSystemData,
             }}
         >
             {children}

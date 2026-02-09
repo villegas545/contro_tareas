@@ -7,7 +7,7 @@ import { Card } from '../ui/Card';
 export const SettingsTab = () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const navigation = useNavigation<any>();
-    const { globalSettings, updateGlobalSettings, language, setLanguage, t, debugDate, setDebugDate } = useTaskContext();
+    const { globalSettings, updateGlobalSettings, language, setLanguage, t, debugDate, setDebugDate, resetSystemData } = useTaskContext();
 
     return (
         <ScrollView className="flex-1 bg-gray-50 dark:bg-slate-900 p-4">
@@ -304,6 +304,47 @@ export const SettingsTab = () => {
                 >
                     <Text className="text-white font-bold text-center">📥 Descargar Log JSON</Text>
                 </TouchableOpacity>
+            </Card>
+
+            {/* Danger Zone - System Reset */}
+            <Card className="mb-4 border-2 border-red-300 bg-red-50">
+                <View className="flex-row items-center gap-2 mb-4">
+                    <Text className="text-2xl">⚠️</Text>
+                    <View className="flex-1">
+                        <Text className="text-lg font-bold text-red-800">Zona de Peligro</Text>
+                        <Text className="text-red-600 text-xs">Acciones destructivas e irreversibles</Text>
+                    </View>
+                </View>
+
+                <TouchableOpacity
+                    onPress={() => {
+                        Alert.alert(
+                            '⚠️ Reiniciar Sistema',
+                            '¿Estás seguro de que deseas eliminar TODAS las tareas, historial y programaciones?\n\nLos templates y usuarios se conservarán.\n\n¡Esta acción NO se puede deshacer!',
+                            [
+                                { text: 'Cancelar', style: 'cancel' },
+                                {
+                                    text: 'Sí, Reiniciar',
+                                    style: 'destructive',
+                                    onPress: async () => {
+                                        try {
+                                            await resetSystemData();
+                                            Alert.alert('✅ Éxito', 'Sistema reiniciado correctamente. Todas las tareas, historial y programaciones han sido eliminados.');
+                                        } catch (e: any) {
+                                            Alert.alert('❌ Error', 'No se pudo reiniciar el sistema: ' + e.message);
+                                        }
+                                    }
+                                }
+                            ]
+                        );
+                    }}
+                    className="bg-red-600 px-4 py-3 rounded-lg"
+                >
+                    <Text className="text-white font-bold text-center">🗑️ Reiniciar Sistema (Borrar Todo)</Text>
+                </TouchableOpacity>
+                <Text className="text-red-400 text-xs mt-2 text-center">
+                    Elimina todas las tareas, historial y programaciones. Conserva templates y usuarios.
+                </Text>
             </Card>
 
             {/* Future Settings Placeholders */}
