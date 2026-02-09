@@ -1,5 +1,13 @@
 import { User, Task } from '../types';
 
+// Helper to get today's date in YYYY-MM-DD format
+const getToday = () => new Date().toISOString().split('T')[0];
+const getTomorrow = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+};
+
 export const USERS: User[] = [
     {
         id: 'parent1',
@@ -46,6 +54,8 @@ export const TASKS: Task[] = [
         status: 'pending',
         type: 'obligatory',
         frequency: 'daily',
+        points: 0,
+        dueDate: getToday(),
         dueTime: '09:00',
     },
     {
@@ -57,6 +67,8 @@ export const TASKS: Task[] = [
         status: 'pending',
         type: 'obligatory',
         frequency: 'daily',
+        points: 0,
+        dueDate: getToday(),
         dueTime: '09:00',
     },
     {
@@ -68,6 +80,8 @@ export const TASKS: Task[] = [
         status: 'pending',
         type: 'obligatory',
         frequency: 'daily',
+        points: 0,
+        dueDate: getToday(),
         dueTime: '15:00',
         timeWindow: {
             start: '13:00',
@@ -83,6 +97,8 @@ export const TASKS: Task[] = [
         status: 'pending',
         type: 'obligatory',
         frequency: 'daily',
+        points: 0,
+        dueDate: getToday(),
         dueTime: '15:00',
     },
     {
@@ -94,6 +110,8 @@ export const TASKS: Task[] = [
         status: 'pending',
         type: 'obligatory',
         frequency: 'daily',
+        points: 0,
+        dueDate: getToday(),
         dueTime: '21:00',
     },
     {
@@ -105,6 +123,8 @@ export const TASKS: Task[] = [
         status: 'pending',
         type: 'obligatory',
         frequency: 'daily',
+        points: 0,
+        dueDate: getToday(),
         dueTime: '21:00',
     },
     {
@@ -116,6 +136,8 @@ export const TASKS: Task[] = [
         status: 'pending',
         type: 'obligatory',
         frequency: 'daily',
+        points: 0,
+        dueDate: getToday(),
         dueTime: '20:00',
     },
     // Additional Tasks
@@ -129,7 +151,7 @@ export const TASKS: Task[] = [
         type: 'additional',
         frequency: 'one-time',
         points: 10,
-        dueDate: new Date(new Date().setDate(new Date().getDate() + 1)).toISOString(),
+        dueDate: getTomorrow(),
     },
     {
         id: '9',
@@ -141,6 +163,7 @@ export const TASKS: Task[] = [
         type: 'additional',
         frequency: 'weekly',
         points: 15,
+        dueDate: getToday(),
     },
     // Pool Tasks (Templates)
     {
@@ -153,6 +176,7 @@ export const TASKS: Task[] = [
         type: 'obligatory',
         frequency: 'daily',
         points: 5,
+        dueDate: '',
         dueTime: '10:00'
     },
     {
@@ -164,7 +188,8 @@ export const TASKS: Task[] = [
         status: 'pending',
         type: 'additional',
         frequency: 'weekly',
-        points: 20
+        points: 20,
+        dueDate: '',
     },
     {
         id: 'pool_3',
@@ -176,6 +201,7 @@ export const TASKS: Task[] = [
         type: 'obligatory',
         frequency: 'daily',
         points: 10,
+        dueDate: '',
         timeWindow: {
             start: '16:00',
             end: '20:00'
@@ -191,6 +217,7 @@ export const TASKS: Task[] = [
         type: 'obligatory',
         frequency: 'daily',
         points: 5,
+        dueDate: '',
         timeWindow: {
             start: '08:00',
             end: '09:00'
@@ -206,6 +233,7 @@ export const TASKS: Task[] = [
         type: 'obligatory',
         frequency: 'weekly',
         points: 25,
+        dueDate: '',
         dueTime: '18:00'
     },
     {
@@ -218,6 +246,7 @@ export const TASKS: Task[] = [
         type: 'additional',
         frequency: 'one-time',
         points: 15,
+        dueDate: '',
         timeWindow: {
             start: '19:00',
             end: '20:30'

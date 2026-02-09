@@ -1,0 +1,251 @@
+
+> control-de-tareas@1.0.1 lint
+> eslint . --ext .js,.jsx,.ts,.tsx
+
+
+C:\Users\ville\inventario - Copy\components\ChildTaskCard.tsx
+  78:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\components\ScheduleModal.tsx
+   15:39  error    'updateTask' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   16:39  warning  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  124:15  error    'duplicates' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  159:34  warning  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  211:45  warning  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  250:37  warning  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  374:59  warning  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  393:57  warning  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  461:87  warning  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\components\dashboard\AssignmentTab.tsx
+   12:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  137:39  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  156:44  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  172:40  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\components\dashboard\CategoriesTab.tsx
+  2:87  error  'FlatList' is defined but never used  @typescript-eslint/no-unused-vars
+  6:10  error  'Category' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\ville\inventario - Copy\components\dashboard\FamilyTab.tsx
+  2:22  error  'Platform' is defined but never used  @typescript-eslint/no-unused-vars
+  2:32  error  'Alert' is defined but never used     @typescript-eslint/no-unused-vars
+
+C:\Users\ville\inventario - Copy\components\dashboard\MessagesTab.tsx
+   2:22  error    'Platform' is defined but never used      @typescript-eslint/no-unused-vars
+   2:32  error    'Alert' is defined but never used         @typescript-eslint/no-unused-vars
+  10:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\components\dashboard\MonitoringTab.tsx
+   3:63  error    'Platform' is defined but never used      @typescript-eslint/no-unused-vars
+   3:87  error    'StatusBar' is defined but never used     @typescript-eslint/no-unused-vars
+  14:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  84:39  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\components\dashboard\RewardsTab.tsx
+  17:118  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\components\dashboard\SettingsTab.tsx
+    2:60  error    'Alert' is defined but never used                                @typescript-eslint/no-unused-vars
+   34:67  warning  Unexpected any. Specify a different type                         @typescript-eslint/no-explicit-any
+  274:78  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  274:82  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+C:\Users\ville\inventario - Copy\components\dashboard\WalletTab.tsx
+  9:20  error  'currentUser' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  9:63  error  't' is assigned a value but never used            @typescript-eslint/no-unused-vars
+
+C:\Users\ville\inventario - Copy\components\ui\AdvancedFilterControls.tsx
+  16:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  21:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  26:33  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\context\TaskContext.tsx
+    17:9   error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+   142:13  error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+   322:13  error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+   359:13  error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+   431:17  error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+   434:17  error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+   448:25  error    'id' is assigned a value but never used                                                                              @typescript-eslint/no-unused-vars
+   448:60  warning  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+   555:28  warning  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+   593:17  error    'title' is never reassigned. Use 'const' instead                                                                     prefer-const
+   658:17  error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+   723:13  error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+   740:13  error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+   764:17  error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+   847:18  error    'e' is defined but never used                                                                                        @typescript-eslint/no-unused-vars
+   896:37  warning  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+   948:37  warning  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  1129:52  warning  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  1192:9   error    Definition for rule 'react-hooks/exhaustive-deps' was not found                                                      react-hooks/exhaustive-deps
+  1215:53  warning  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  1219:54  warning  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  1227:59  warning  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  1233:43  warning  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  1233:92  warning  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  1254:44  error    'includeGenerators' is assigned a value but never used                                                               @typescript-eslint/no-unused-vars
+  1295:13  error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  1333:13  error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  1380:13  error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+
+C:\Users\ville\inventario - Copy\cypress.config.ts
+  7:25  error  'on' is defined but never used      @typescript-eslint/no-unused-vars
+  7:29  error  'config' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\ville\inventario - Copy\cypress\e2e\assignment_flow.cy.ts
+   9:32  warning  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+  71:32  warning  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+  75:45  warning  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+  76:13  error    Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+
+C:\Users\ville\inventario - Copy\cypress\e2e\child_actions.cy.ts
+  7:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\cypress\e2e\management.cy.ts
+  6:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\cypress\e2e\monitoring.cy.ts
+  6:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\cypress\e2e\redemption_flow.cy.ts
+  9:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\cypress\e2e\settings.cy.ts
+  5:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\cypress\e2e\settings_advanced.cy.ts
+  6:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\cypress\e2e\stats.cy.ts
+  5:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\cypress\support\e2e.ts
+   8:13  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  14:35  error  'err' is defined but never used                                                                                      @typescript-eslint/no-unused-vars
+  14:40  error  'runnable' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+
+C:\Users\ville\inventario - Copy\screens\AddFamilyMemberScreen.tsx
+  6:70  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\screens\AddMessageScreen.tsx
+  6:65  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\screens\ChildDashboard.tsx
+    2:36  error    'FlatList' is defined but never used             @typescript-eslint/no-unused-vars
+   11:56  warning  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  123:25  warning  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  183:11  error    'renderTask' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\ville\inventario - Copy\screens\CreateTaskScreen.tsx
+   5:10  error    'DatePicker' is defined but never used           @typescript-eslint/no-unused-vars
+   8:65  warning  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  23:19  error    'setShift' is assigned a value but never used    @typescript-eslint/no-unused-vars
+  24:21  error    'setDueDate' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  52:25  warning  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\screens\HistoryScreen.tsx
+  7:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\screens\ParentDashboard.tsx
+   2:66  error    'Alert' is defined but never used         @typescript-eslint/no-unused-vars
+   2:73  error    'Platform' is defined but never used      @typescript-eslint/no-unused-vars
+  15:57  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\screens\SchoolCalendarScreen.tsx
+  17:62  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  21:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  56:52  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\screens\StatisticsScreen.tsx
+   24:75  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   26:39  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  442:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  572:80  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  572:88  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  674:97  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\scripts\backup_db.ts
+  27:32  error    A `require()` style import is forbidden   @typescript-eslint/no-require-imports
+  63:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\scripts\check_all_tasks.js
+  11:11  error  'today' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\ville\inventario - Copy\scripts\db_debug.js
+  286:17  error  Unexpected lexical declaration in case block  no-case-declarations
+
+C:\Users\ville\inventario - Copy\scripts\debug_elmo_tasks.js
+  49:11  error  'problematicTasks' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  57:15  error  'isVerified' is assigned a value but never used        @typescript-eslint/no-unused-vars
+  58:15  error  'isForToday' is assigned a value but never used        @typescript-eslint/no-unused-vars
+  59:15  error  'isForPast' is assigned a value but never used         @typescript-eslint/no-unused-vars
+
+C:\Users\ville\inventario - Copy\scripts\debug_elmo_tasks.ts
+  11:24  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\ville\inventario - Copy\scripts\e2e_test.js
+  85:16  error  'deleteTask' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\ville\inventario - Copy\scripts\migrate_templates.ts
+  13:24  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\ville\inventario - Copy\scripts\wipe_assignments.ts
+  13:24  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\ville\inventario - Copy\src\components\dashboard\MonitoringTabMigrated.tsx
+  22:10  error    'Task' is defined but never used          @typescript-eslint/no-unused-vars
+  34:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\src\context\AppProviders.tsx
+    7:60  error  'useRef' is defined but never used                                                                                   @typescript-eslint/no-unused-vars
+    8:8   error  'AsyncStorage' is defined but never used                                                                             @typescript-eslint/no-unused-vars
+   42:9   error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  171:13  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  198:13  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  233:13  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  281:17  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  284:17  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  366:17  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  402:17  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  445:13  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  470:13  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  490:17  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  523:13  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  533:13  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+
+C:\Users\ville\inventario - Copy\src\context\RewardsContext.tsx
+  7:43  error  'User' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\ville\inventario - Copy\src\context\SettingsContext.tsx
+  8:21  error  'createTranslator' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\ville\inventario - Copy\src\context\TasksContext.tsx
+  6:57  error  'useMemo' is defined but never used  @typescript-eslint/no-unused-vars
+  7:59  error  'User' is defined but never used     @typescript-eslint/no-unused-vars
+
+C:\Users\ville\inventario - Copy\src\hooks\useTaskSort.ts
+   6:10  error  'useMemo' is defined but never used           @typescript-eslint/no-unused-vars
+  96:17  error  Unexpected lexical declaration in case block  no-case-declarations
+  97:17  error  Unexpected lexical declaration in case block  no-case-declarations
+
+C:\Users\ville\inventario - Copy\src\services\firebase\rewards.ts
+  16:30  error  'TaskHistory' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\ville\inventario - Copy\utils\firebaseLogger.ts
+   11:12  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   43:16  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   75:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   75:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   94:22  error    'e' is defined but never used             @typescript-eslint/no-unused-vars
+  153:12  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  160:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ville\inventario - Copy\utils\notifications.ts
+  51:102  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  72:56   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 149 problems (82 errors, 67 warnings)
+  1 error and 0 warnings potentially fixable with the `--fix` option.
+

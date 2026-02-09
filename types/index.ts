@@ -96,6 +96,7 @@ export interface Task {
   description?: string;
   points: number;
   status: TaskStatus;
+  createdBy?: string; // User who created the task
 
   dueDate: string; // YYYY-MM-DD
   dueTime?: string;
@@ -107,6 +108,7 @@ export interface Task {
   isSchool?: boolean;
   categoryId?: string;
   shift?: 'morning' | 'afternoon' | 'night' | 'no-time';
+  recurrenceDays?: number[]; // Days of week (0=Sun, 1=Mon, etc.)
 
   // Execution constraints
   timeWindow?: {

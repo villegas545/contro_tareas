@@ -268,6 +268,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             ...t,
             assignedTo: 'pool',
             status: 'pending',
+            dueDate: '', // Templates don't have specific due dates
         } as Task));
 
         const hydratedAssignments = rawTasks.map(assignment => {

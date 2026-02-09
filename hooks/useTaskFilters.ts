@@ -40,7 +40,8 @@ export const useTaskFilters = ({
     const matchesStatus = useCallback((task: Task): boolean => {
         if (statusFilter === 'all') return true;
         if (statusFilter === 'expired') {
-            return task.status === 'expired' || task.status === 'missed';
+            // 'missed' status only exists in history, tasks use 'expired'
+            return task.status === 'expired';
         }
         return task.status === statusFilter;
     }, [statusFilter]);

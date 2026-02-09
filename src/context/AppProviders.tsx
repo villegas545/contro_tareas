@@ -80,6 +80,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
             ...t,
             assignedTo: 'pool',
             status: 'pending',
+            dueDate: '', // Templates don't have specific due dates
         } as Task));
 
         // Hydrate Assignments

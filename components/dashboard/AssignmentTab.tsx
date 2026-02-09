@@ -31,7 +31,7 @@ export const AssignmentTab = () => {
     const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
 
     // Confirmation Modal
-    const [confirmationAction, setConfirmationAction] = useState<{ type: 'delete', taskId: string } | null>(null);
+    const [confirmationAction, setConfirmationAction] = useState<{ type: 'assign' | 'delete', taskId?: string } | null>(null);
 
     const poolTasks = tasks.filter(t => t.assignedTo === 'pool');
 
