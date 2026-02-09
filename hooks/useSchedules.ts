@@ -190,9 +190,9 @@ export const useSchedules = ({
         }
         await withLoading(async () => {
             const docRef = await addDoc(collection(db, "schedules"), {
-                active: true,
-                createdAt: new Date().toISOString(),
-                ...schedule
+                ...schedule,
+                active: schedule.active !== undefined ? schedule.active : true,
+                createdAt: schedule.createdAt || new Date().toISOString(),
             });
 
             firebaseLogger.logOperation('CREATE', 'schedules', docRef.id, { title: schedule.title, frequency: schedule.frequency, recurrenceDays: schedule.recurrenceDays });

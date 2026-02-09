@@ -195,19 +195,16 @@ export const useSettings = ({
         await updateDoc(doc(db, "users", childId), { walletBalance: newBalance });
 
         // Add transaction record
-        const tx: Omit<WalletTransaction, 'id'> = {
+        await addDoc(collection(db, "wallet_transactions"), {
             childId,
             type,
             amount,
             description,
             date: new Date().toISOString(),
-            previousBalance: currentBalance,
-            newBalance,
-        };
-
-        const newTxRef = doc(collection(db, "wallet_transactions"));
-        await setDoc(newTxRef, { ...tx, id: newTxRef.id });
+            createdBy: childId, // Self-created
+        });
     };
+
 
     return {
         // Global Settings

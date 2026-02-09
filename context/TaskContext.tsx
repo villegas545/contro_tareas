@@ -1,3 +1,7 @@
+/**
+ * TaskContext - Refactored
+ * Uses modular hooks for better maintainability
+ */
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Task, User, TaskHistory, Reward, Redemption, GlobalSettings, Category, TaskTemplate, JustificationReason, Language, TaskSchedule, WalletTransaction } from '../types';
@@ -8,17 +12,14 @@ import { sendPushNotification, scheduleRemindersForTasks } from '../utils/notifi
 import { USERS, TASKS } from '../data/mockData';
 import { firebaseLogger } from '../utils/firebaseLogger';
 
-// Helper to check for Test Mode
-const isTestMode = () => {
-    // Check for a specific window property set by Cypress or URL param
-    // Standard Cypress detection: window.Cypress exists
-    // Since we are inside the app, we check if window is defined
-    if (typeof window !== 'undefined') {
-        // @ts-ignore
-        return !!window.Cypress;
-    }
-    return false;
-};
+// Import hooks
+import { useAuth } from '../hooks/useAuth';
+import { useTasks } from '../hooks/useTasks';
+import { useRewards } from '../hooks/useRewards';
+import { useSchedules } from '../hooks/useSchedules';
+import { useSettings } from '../hooks/useSettings';
+import { useSystem } from '../hooks/useSystem';
+import { isTestMode } from '../hooks/types';
 
 interface TaskContextType {
     currentUser: User | null;
@@ -54,10 +55,6 @@ interface TaskContextType {
     redeemReward: (redemption: Omit<Redemption, 'id' | 'requestDate' | 'status'>) => void;
     approveRedemption: (redemptionId: string) => void;
     rejectRedemption: (redemptionId: string) => void;
-    isTaskActiveToday: (task: Task, includeGenerators?: boolean) => boolean;
-    globalSettings: GlobalSettings | null;
-    updateGlobalSettings: (settings: Partial<GlobalSettings>) => void;
-    getLocalDateString: (date?: Date) => string;
 
     // Categories
     categories: Category[];
@@ -65,25 +62,34 @@ interface TaskContextType {
     updateCategory: (categoryId: string, updates: Partial<Category>) => void;
     deleteCategory: (categoryId: string) => void;
     reorderCategories: (newOrder: Category[]) => void;
+
     // Justifications
     justificationReasons: JustificationReason[];
     addJustificationReason: (text: string) => void;
     deleteJustificationReason: (id: string) => void;
 
-    // I18n
+    // Global Settings
+    globalSettings: GlobalSettings | null;
+    updateGlobalSettings: (settings: Partial<GlobalSettings>) => void;
+
+    // Language
     language: Language;
     setLanguage: (lang: Language) => void;
     t: (key: string) => string;
 
-    // Wallet
+    // Transactions
     transactions: WalletTransaction[];
     addTransaction: (childId: string, amount: number, type: 'deposit' | 'withdrawal', description: string) => void;
 
-    // Debug Date Override (for testing)
-    debugDate: string | null;  // YYYY-MM-DD format, null = use system date
-    setDebugDate: (date: string | null) => Promise<void>;  // Persists to Firebase
-    getCurrentDate: () => Date;  // Returns debug date or system date
-    refreshTasks: () => Promise<void>;  // Regenerate tasks from schedules
+    // Utilities
+    isTaskActiveToday: (task: Task, includeGenerators?: boolean) => boolean;
+    getLocalDateString: (date?: Date) => string;
+
+    // Debug Date Override
+    debugDate: string | null;
+    setDebugDate: (date: string | null) => Promise<void>;
+    getCurrentDate: () => Date;
+    refreshTasks: () => Promise<void>;
 
     // Global Loading State
     isGlobalLoading: boolean;
@@ -97,6 +103,7 @@ interface TaskContextType {
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
 
 export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
+    // ==================== STATE ====================
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [tasks, setTasks] = useState<Task[]>([]);
     const [schedules, setSchedules] = useState<TaskSchedule[]>([]);
@@ -107,15 +114,14 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     const [justificationReasons, setJustificationReasons] = useState<JustificationReason[]>([]);
     const [history, setHistory] = useState<TaskHistory[]>([]);
     const [messages, setMessages] = useState<string[]>([]);
-    const [messageIds, setMessageIds] = useState<string[]>([]); // To track IDs for deletion
-
+    const [messageIds, setMessageIds] = useState<string[]>([]);
     const [rewards, setRewards] = useState<Reward[]>([]);
     const [redemptions, setRedemptions] = useState<Redemption[]>([]);
     const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
     const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
     const [language, setLanguageState] = useState<Language>('es');
 
-    // Global Loading State - blocks UI during critical Firebase operations
+    // Global Loading State
     const [isGlobalLoading, setIsGlobalLoading] = useState(false);
     const [globalLoadingMessage, setGlobalLoadingMessage] = useState('');
 
@@ -124,7 +130,6 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         setGlobalLoadingMessage(message || 'Procesando...');
     };
 
-    // Helper to wrap Firebase operations with loading state
     const withLoading = async <T,>(operation: () => Promise<T>, message?: string): Promise<T> => {
         setGlobalLoading(true, message || 'Procesando...');
         try {
@@ -134,18 +139,12 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
-    // Debug Date - computed from globalSettings (persisted in Firebase)
-    const debugDate = globalSettings?.debugDate || null;
-    const sessionChecked = React.useRef(false);
-
-    // Subscribe to Firestore collections OR Load Mocks
-    // Expose Context for Testing (Refresh when state changes)
+    // ==================== EXPOSE FOR TESTING ====================
     useEffect(() => {
         if (isTestMode() && typeof window !== 'undefined') {
             // @ts-ignore
             window.testContext = {
                 reset: () => {
-                    // Resets to initial Mocks
                     setUsers(USERS);
                     setRawTasks(TASKS);
                     setRewards([]);
@@ -167,9 +166,7 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         }
     }, [users, rawTasks, rewards, redemptions, messages, templates]);
 
-
-
-    // Subscribe to Firestore collections OR Load Mocks (Initial Load)
+    // ==================== FIRESTORE SUBSCRIPTIONS ====================
     useEffect(() => {
         if (isTestMode()) {
             console.log("⚠️ Running in TEST MODE - Using Mock Data");
@@ -197,7 +194,6 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
 
         const transactionsUnsub = onSnapshot(collection(db, "wallet_transactions"), (snapshot) => {
             const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WalletTransaction));
-            // Sort by date desc
             list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
             setTransactions(list);
         });
@@ -207,13 +203,11 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             setRawTasks(list);
         });
 
-        // History
         const historyUnsub = onSnapshot(collection(db, "history"), (snapshot) => {
             const historyList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TaskHistory));
             setHistory(historyList);
         });
 
-        // Messages
         const messagesUnsub = onSnapshot(collection(db, "messages"), (snapshot) => {
             const ids = snapshot.docs.map(doc => doc.id);
             const texts = snapshot.docs.map(doc => doc.data().text as string);
@@ -221,26 +215,22 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             setMessages(texts);
         });
 
-        // Rewards
         const rewardsUnsub = onSnapshot(collection(db, "rewards"), (snapshot) => {
             const rewardsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reward));
             setRewards(rewardsList);
         });
 
-        // Redemptions
         const redemptionsUnsub = onSnapshot(collection(db, "redemptions"), (snapshot) => {
             const redemptionsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Redemption));
             setRedemptions(redemptionsList);
         });
 
-        // Categories
         const categoriesUnsub = onSnapshot(collection(db, "categories"), (snapshot) => {
             const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
             list.sort((a, b) => (a.order || 0) - (b.order || 0));
             setCategories(list);
         });
 
-        // Settings
         const settingsUnsub = onSnapshot(doc(db, "settings", "general"), (docSnap) => {
             if (docSnap.exists()) {
                 const data = { id: docSnap.id, ...docSnap.data() } as GlobalSettings;
@@ -251,7 +241,6 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
             }
         });
 
-        // Justifications
         const justificationsUnsub = onSnapshot(collection(db, "justification_reasons"), (snapshot) => {
             const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as JustificationReason));
             setJustificationReasons(list);
@@ -273,18 +262,15 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         };
     }, []);
 
-    // HYDRATION: Merge Templates + RawTasks -> Public Tasks
+    // ==================== HYDRATION ====================
     useEffect(() => {
-        // 1. Convert Templates to "Pool Tasks" for UI compatibility
         const templateTasks = templates.map(t => ({
             ...t,
             assignedTo: 'pool',
             status: 'pending',
         } as Task));
 
-        // 2. Hydrate Assignments
         const hydratedAssignments = rawTasks.map(assignment => {
-            // Filter legacy pool tasks from rawTasks (we use templates collection now)
             if (assignment.assignedTo === 'pool') return null;
 
             const tId = assignment.templateId || assignment.originalTaskId;
@@ -292,25 +278,19 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
                 const template = templates.find(t => t.id === tId);
                 if (template) {
                     return {
-                        ...assignment, // Base
-                        ...template,   // Overwrite with Template Latest Data
-                        // Restore Assignment Specifics that might be overwritten if template has them undefined?
-                        // Template fields are: title, description, points, type, etc.
-                        // Assignment fields are: id, assignedTo, status, dates.
-                        // We want Template to Win for Title/Points.
-                        // We want Assignment to Win for Status/Dates.
+                        ...assignment,
+                        ...template,
                         id: assignment.id,
                         assignedTo: assignment.assignedTo,
                         status: assignment.status,
                         dueDate: assignment.dueDate,
-                        dueTime: assignment.dueTime || assignment.dueTime, // assignment wins
+                        dueTime: assignment.dueTime || assignment.dueTime,
                         completedAt: assignment.completedAt,
                         verifiedAt: assignment.verifiedAt,
                         evidenceUrl: assignment.evidenceUrl,
                         templateId: tId,
                         originalTaskId: tId,
-                        recurrenceDays: assignment.recurrenceDays, // Restore recurrenceDays override
-                        shift: assignment.shift, // Restore shift override if applicable
+                        shift: assignment.shift,
                     } as Task;
                 }
             }
@@ -320,1232 +300,188 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         setTasks([...templateTasks, ...hydratedAssignments]);
     }, [rawTasks, templates]);
 
-    const updateGlobalSettings = async (settings: Partial<GlobalSettings>) => {
-        if (isTestMode()) {
-            // @ts-ignore
-            setGlobalSettings(prev => ({ ...prev, ...settings }));
-            return;
-        }
-        await setDoc(doc(db, "settings", "general"), settings, { merge: true });
-    };
-
-    const addMessage = async (text: string) => {
-        if (isTestMode()) {
-            setMessages(prev => [...prev, text]);
-            setMessageIds(prev => [...prev, Date.now().toString()]);
-            return;
-        }
-        await addDoc(collection(db, "messages"), { text });
-    };
-
-    const updateMessage = async (index: number, newText: string) => {
-        if (isTestMode()) {
-            setMessages(prev => prev.map((msg, i) => i === index ? newText : msg));
-            return;
-        }
-        const idToUpdate = messageIds[index];
-        if (idToUpdate) await updateDoc(doc(db, "messages", idToUpdate), { text: newText });
-    };
-
-    const deleteMessage = async (index: number) => {
-        if (isTestMode()) {
-            setMessages(prev => prev.filter((_, i) => i !== index));
-            setMessageIds(prev => prev.filter((_, i) => i !== index));
-            return;
-        }
-        const idToDelete = messageIds[index];
-        if (idToDelete) await deleteDoc(doc(db, "messages", idToDelete));
-    };
-
-    const addUser = async (newUser: Omit<User, 'id'>) => {
-        if (isTestMode()) {
-            // @ts-ignore
-            setUsers(prev => [...prev, { id: Date.now().toString(), ...newUser }]);
-            return;
-        }
-        await addDoc(collection(db, "users"), newUser);
-    };
-
-    const updateUser = async (userId: string, updates: Partial<User>) => {
-        if (isTestMode()) {
-            setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updates } : u));
-            return;
-        }
-        await updateDoc(doc(db, "users", userId), updates);
-    };
-
-    const deleteUser = async (userId: string) => {
-        if (isTestMode()) {
-            setUsers(prev => prev.filter(u => u.id !== userId));
-            return;
-        }
-        await deleteDoc(doc(db, "users", userId));
-    };
-
-    // Sync currentUser with real-time updates from users collection
+    // Sync currentUser with real-time updates
     useEffect(() => {
         if (currentUser) {
             const updatedUser = users.find(u => u.id === currentUser.id);
-            // Update only if data changed to avoid infinite loops
             if (updatedUser && JSON.stringify(updatedUser) !== JSON.stringify(currentUser)) {
                 setCurrentUser(updatedUser);
             }
         }
     }, [users]);
 
-    // Restore Session on Mount
-    useEffect(() => {
-        if (!sessionChecked.current && users.length > 0) {
-            const restore = async () => {
-                try {
-                    const savedId = await AsyncStorage.getItem('loggedInUserId');
-                    if (savedId) {
-                        const user = users.find(u => u.id === savedId);
-                        if (user) setCurrentUser(user);
-                    }
-                } catch (e) {
-                    console.error("Failed to restore session", e);
-                } finally {
-                    sessionChecked.current = true;
-                }
-            };
-            restore();
-        }
-    }, [users]);
+    // ==================== SETTINGS HOOK ====================
+    const settingsHook = useSettings({
+        globalSettings,
+        setGlobalSettings,
+        categories,
+        setCategories,
+        justificationReasons,
+        setJustificationReasons,
+        messages,
+        setMessages,
+        messageIds,
+        setMessageIds,
+        users,
+        setUsers,
+        language,
+        setLanguageState,
+        transactions,
+        setTransactions,
+    });
 
-    const login = (username: string, password?: string) => {
-        const user = users.find((u) => u.username === username);
-        if (user && user.password === password) {
-            setCurrentUser(user);
-            AsyncStorage.setItem('loggedInUserId', user.id);
+    // ==================== SYSTEM HOOK ====================
+    const systemHook = useSystem({
+        tasks,
+        history,
+        users,
+        currentUser,
+        globalSettings,
+        setGlobalLoading,
+        withLoading,
+        updateGlobalSettings: settingsHook.updateGlobalSettings,
+    });
+
+    // ==================== AUTH HOOK ====================
+    const authHook = useAuth({
+        users,
+        currentUser,
+        setCurrentUser,
+    });
+
+    // ==================== TASKS HOOK ====================
+    const tasksHook = useTasks({
+        tasks,
+        rawTasks,
+        setRawTasks,
+        templates,
+        setTemplates,
+        users,
+        currentUser,
+        history,
+        setHistory,
+        withLoading,
+        getLocalDateString: systemHook.getLocalDateString,
+    });
+
+    // ==================== REWARDS HOOK ====================
+    const rewardsHook = useRewards({
+        rewards,
+        setRewards,
+        redemptions,
+        setRedemptions,
+        history,
+        setHistory,
+        getLocalDateString: systemHook.getLocalDateString,
+    });
+
+    // ==================== SCHEDULES HOOK ====================
+    const schedulesHook = useSchedules({
+        schedules,
+        setSchedules,
+        currentUser,
+        globalSettings,
+        debugDate: systemHook.debugDate,
+        withLoading,
+        setGlobalLoading,
+        getCurrentDate: systemHook.getCurrentDate,
+        getLocalDateString: systemHook.getLocalDateString,
+    });
+
+    // ==================== UTILITY FUNCTIONS ====================
+    const isTaskActiveToday = (task: Task, includeGenerators: boolean = false): boolean => {
+        if (!task.dueDate && !task.frequency) return true;
+
+        const todayStr = systemHook.getLocalDateString();
+
+        if (task.frequency === 'one-time' || !task.frequency) {
+            return task.dueDate === todayStr;
+        }
+
+        if (['daily', 'weekly'].includes(task.frequency)) {
+            if (!includeGenerators && task.assignedTo === 'pool') {
+                return true;
+            }
+
+            if (task.dueDate) {
+                return task.dueDate === todayStr;
+            }
+
+            const now = systemHook.getCurrentDate();
+            const dayOfWeek = now.getDay();
+            // Check recurrenceDays from linked schedule if available
+            const anyTask = task as any;
+            if (anyTask.recurrenceDays && anyTask.recurrenceDays.length > 0) {
+                return anyTask.recurrenceDays.includes(dayOfWeek);
+            }
             return true;
         }
+
         return false;
     };
 
-    const logout = () => {
-        setCurrentUser(null);
-        AsyncStorage.removeItem('loggedInUserId');
-    };
-
-    const addTask = async (newTask: Omit<Task, 'id'>) => {
-        if (isTestMode()) {
-            if (newTask.assignedTo === 'pool') {
-                // @ts-ignore
-                setTemplates(prev => [...prev, { id: Date.now().toString(), ...newTask }]);
-            } else {
-                // @ts-ignore
-                setRawTasks(prev => {
-                    const updated = [...prev, { id: Date.now().toString(), ...newTask }];
-                    return updated;
-                });
-            }
-            return;
-        }
-
-        await withLoading(async () => {
-            if (newTask.assignedTo === 'pool') {
-                // Create Template
-                // We use 'addDoc' but we need to match TaskTemplate type.
-                // Omit irrelevant fields for template if needed, or just cast.
-                const templateData = newTask as any;
-                await addDoc(collection(db, "templates"), templateData);
-            } else {
-                // Create Assignment
-                await addDoc(collection(db, "tasks"), newTask);
-
-                // Notify Child
-                const child = users.find(u => u.id === newTask.assignedTo);
-                console.log(`[Notification] Attempting to notify child selected for task: ${child?.name}`);
-
-                if (child && child.pushToken) {
-                    if (child.id === currentUser?.id) {
-                        console.log("[Notification] Skipping notification: User assigned task to themselves.");
-                    } else {
-                        console.log(`[Notification] Sending Push to token: ${child.pushToken.substring(0, 10)}...`);
-                        sendPushNotification(child.pushToken, "Nueva Tarea", `Tienes una nueva tarea: "${newTask.title}"`);
-                    }
-                } else {
-                    console.log("[Notification] Cannot notify: Child not found or has no Push Token.");
-                }
-            }
-        }, 'Creando tarea...');
-    };
-
-    const updateTask = async (taskId: string, updates: Partial<Task>) => {
-        // Check if it's a template
-        const isTemplate = templates.some(t => t.id === taskId);
-
-        if (isTestMode()) {
-            if (isTemplate) {
-                setTemplates(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t));
-            } else {
-                setRawTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t));
-            }
-            return;
-        }
-
-        await withLoading(async () => {
-            if (isTemplate) {
-                console.log(`[Update] Updating Template ${taskId}`);
-                await updateDoc(doc(db, "templates", taskId), updates);
-            } else {
-                console.log(`[Update] Updating Assignment ${taskId}`);
-                await updateDoc(doc(db, "tasks", taskId), updates);
-            }
-        }, 'Actualizando...');
-    };
-
-    const deleteTask = async (taskId: string) => {
-        if (isTestMode()) {
-            const isTemplate = templates.some(t => t.id === taskId);
-            if (isTemplate) {
-                setTemplates(prev => prev.filter(t => t.id !== taskId));
-                setRawTasks(prev => prev.filter(t => t.templateId !== taskId && t.originalTaskId !== taskId));
-            } else {
-                setRawTasks(prev => prev.filter(t => t.id !== taskId));
-            }
-            return;
-        }
-
-        await withLoading(async () => {
-            const isTemplate = templates.some(t => t.id === taskId);
-
-            if (isTemplate) {
-                console.log(`[Delete] Deleting Template ${taskId} and linked assignments`);
-                await deleteDoc(doc(db, "templates", taskId));
-
-                // Cascade Delete Assignments linked to this template
-                const linked = rawTasks.filter(t => t.templateId === taskId || t.originalTaskId === taskId);
-                const promises = linked.map(t => deleteDoc(doc(db, "tasks", t.id)));
-                await Promise.all(promises);
-            } else {
-                console.log(`[Delete] Deleting Assignment ${taskId}`);
-                await deleteDoc(doc(db, "tasks", taskId));
-            }
-        }, 'Eliminando...');
-    };
-
-    const completeTask = async (taskId: string, evidenceUrl?: string) => {
-        // Validation logic remains, but ensure we check hydrated tasks
-        const task = tasks.find(t => t.id === taskId); // Hydrated lookup
-        if (!task) return;
-
-        if (task.timeWindow) {
-            const now = new Date();
-            const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-            if (currentTime < task.timeWindow.start || currentTime > task.timeWindow.end) {
-                throw new Error(`Esta tarea solo se puede completar entre ${task.timeWindow.start} y ${task.timeWindow.end}`);
-            }
-        }
-
-        if (isTestMode()) {
-            setRawTasks(prev => prev.map(t => {
-                if (t.id === taskId) {
-                    return {
-                        ...t,
-                        status: 'completed',
-                        completedAt: new Date().toISOString(),
-                        evidenceUrl: evidenceUrl || t.evidenceUrl
-                    };
-                }
-                return t;
-            }));
-            return;
-        }
-
-        await withLoading(async () => {
-            const updates: any = {
-                status: 'completed',
-                completedAt: new Date().toISOString()
-            };
-            if (evidenceUrl) updates.evidenceUrl = evidenceUrl;
-
-            await updateDoc(doc(db, "tasks", taskId), updates);
-
-            // Notify Parents (Debounced)
-            const child = users.find(u => u.id === task.assignedTo);
-            if (child) {
-                queueTaskCompletionNotification(child.id, child.name, task.title);
-            }
-        }, 'Completando tarea...');
-    };
-
-    // Notification Queue Ref
-    const notificationQueue = React.useRef<Record<string, { childName: string, tasks: string[], timeout: NodeJS.Timeout }>>({});
-
-    const queueTaskCompletionNotification = (childId: string, childName: string, taskTitle: string) => {
-        // Clear existing timeout
-        if (notificationQueue.current[childId]) {
-            clearTimeout(notificationQueue.current[childId].timeout);
-            notificationQueue.current[childId].tasks.push(taskTitle);
-        } else {
-            notificationQueue.current[childId] = {
-                childName,
-                tasks: [taskTitle],
-                timeout: setTimeout(() => { }, 0) // Placeholder
-            };
-        }
-
-        // Set new timeout (60 seconds)
-        notificationQueue.current[childId].timeout = setTimeout(() => {
-            const entry = notificationQueue.current[childId];
-            if (!entry) return;
-
-            const count = entry.tasks.length;
-            const title = "Tareas Realizadas";
-            let body = "";
-
-            if (count === 1) {
-                body = `${entry.childName} completó: "${entry.tasks[0]}"`;
-            } else if (count <= 3) {
-                body = `${entry.childName} completó ${count} tareas: ${entry.tasks.join(", ")}`;
-            } else {
-                const firstTwo = entry.tasks.slice(0, 2).join(", ");
-                const remaining = count - 2;
-                body = `${entry.childName} completó ${count} tareas: ${firstTwo} y ${remaining} más.`;
-            }
-
-            // Send to all parents
-            const parents = users.filter(u => u.role === 'parent');
-            parents.forEach(parent => {
-                if (parent.pushToken) {
-                    sendPushNotification(parent.pushToken, title, body);
-                }
-            });
-
-            // Cleanup
-            delete notificationQueue.current[childId];
-        }, 60000); // 1 minute delay
-    };
-
-    const verifyTask = async (taskId: string) => {
-        if (isTestMode()) {
-            setRawTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'verified', verifiedAt: new Date().toISOString() } : t));
-            return;
-        }
-
-        const task = tasks.find(t => t.id === taskId);
-        if (!task) {
-            console.warn(`[verifyTask] Task ${taskId} not found`);
-            return;
-        }
-
-        await withLoading(async () => {
-            // Add to history
-            await addDoc(collection(db, "history"), {
-                taskId: task.id,
-                taskTitle: task.title,
-                assignedTo: task.assignedTo,
-                points: task.points || 0,
-                status: 'verified',
-                isResponsibility: task.isResponsibility || false,
-                date: task.dueDate || getLocalDateString(),
-                completedAt: task.completedAt || new Date().toISOString(),
-            });
-
-            // Update task status
-            await updateDoc(doc(db, "tasks", taskId), {
-                status: 'verified',
-                verifiedAt: new Date().toISOString(),
-            });
-        }, 'Verificando...');
-    };
-
-    const failTask = async (taskId: string) => {
-        if (isTestMode()) {
-            const task = tasks.find(t => t.id === taskId);
-            setRawTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'expired' } : t));
-
-            if (task) {
-                // @ts-ignore
-                setHistory(prev => [...prev, {
-                    id: Date.now().toString(),
-                    taskId: task.id,
-                    taskTitle: task.title,
-                    assignedTo: task.assignedTo,
-                    points: 0,
-                    status: 'missed',
-                    isResponsibility: task.isResponsibility || false,
-                    date: task.dueDate || getLocalDateString()
-                }]);
-            }
-            return;
-        }
-
-        const task = tasks.find(t => t.id === taskId);
-        if (!task) {
-            console.warn(`[failTask] Task ${taskId} not found`);
-            return;
-        }
-
-        await withLoading(async () => {
-            await addDoc(collection(db, "history"), {
-                taskId: task.id,
-                taskTitle: task.title,
-                assignedTo: task.assignedTo,
-                points: 0,
-                status: 'missed',
-                isResponsibility: task.isResponsibility || false,
-                date: task.dueDate || getLocalDateString(),
-            });
-
-            await updateDoc(doc(db, "tasks", taskId), { status: 'expired' });
-        }, 'Procesando...');
-    };
-
-    const rejectTask = async (taskId: string) => {
-        if (isTestMode()) {
-            setRawTasks(prev => prev.map(t => t.id === taskId ? {
-                ...t,
-                status: 'pending',
-                completedAt: undefined
-            } : t));
-            return;
-        }
-
-        await withLoading(async () => {
-            await updateDoc(doc(db, "tasks", taskId), {
-                status: 'pending',
-                completedAt: deleteField()
-            });
-
-            const task = tasks.find(t => t.id === taskId);
-            if (task) {
-                const child = users.find(u => u.id === task.assignedTo);
-                if (child && child.pushToken) {
-                    sendPushNotification(child.pushToken, "Tarea Rechazada", `Tu tarea "${task.title}" ha sido rechazada.`);
-                }
-            }
-        }, 'Rechazando...');
-    };
-
-    // Rewards & Redemptions Logic
-    const addReward = async (reward: Omit<Reward, 'id'>) => {
-        if (isTestMode()) {
-            // @ts-ignore
-            setRewards(prev => [...prev, { id: Date.now().toString(), ...reward }]);
-            return;
-        }
-        await addDoc(collection(db, "rewards"), reward);
-    };
-
-    const deleteReward = async (rewardId: string) => {
-        if (isTestMode()) {
-            setRewards(prev => prev.filter(r => r.id !== rewardId));
-            return;
-        }
-        await deleteDoc(doc(db, "rewards", rewardId));
-    };
-
-    const redeemReward = async (redemption: Omit<Redemption, 'id' | 'requestDate' | 'status'>) => {
-        if (isTestMode()) {
-            // @ts-ignore
-            setRedemptions(prev => [...prev, {
-                id: Date.now().toString(),
-                ...redemption,
-                status: 'pending',
-                requestDate: new Date().toISOString()
-            }]);
-            return;
-        }
-
-        // We do NOT deduct points yet. Only when approved.
-        await addDoc(collection(db, "redemptions"), {
-            ...redemption,
-            status: 'pending',
-            requestDate: new Date().toISOString()
-        });
-    };
-
-    const approveRedemption = async (redemptionId: string) => {
-        if (isTestMode()) {
-            setRedemptions(prev => prev.map(r => r.id === redemptionId ? { ...r, status: 'approved', redeemedDate: new Date().toISOString() } : r));
-            // Add negative history
-            const r = redemptions.find(x => x.id === redemptionId);
-            if (r) {
-                // @ts-ignore
-                setHistory(prev => [...prev, {
-                    id: Date.now().toString(),
-                    taskId: 'redemption-' + r.id,
-                    taskTitle: `Canje: ${r.rewardTitle}`,
-                    assignedTo: r.childId,
-                    points: -Math.abs(r.cost),
-                    status: 'verified',
-                    date: getLocalDateString(),
-                    completedAt: new Date().toISOString()
-                }]);
-            }
-            return;
-        }
-
-        const redemption = redemptions.find(r => r.id === redemptionId);
-        if (!redemption || redemption.status !== 'pending') return;
-
-        // Deduct points from history?
-        // Actually, we calculate points dynamically from history. 
-        // So we need to add a NEGATIVE entry to history to represent "Usage" or "Redemption".
-        // Let's create a special history type entry for this.
-
-        await addDoc(collection(db, "history"), {
-            taskId: 'redemption-' + redemptionId, // Fake ID
-            taskTitle: `Canje: ${redemption.rewardTitle}`,
-            assignedTo: redemption.childId,
-            points: -Math.abs(redemption.cost), // Negative points
-            status: 'verified', // Automatically verified
-            date: getLocalDateString(),
-            completedAt: new Date().toISOString()
-        });
-
-        await updateDoc(doc(db, "redemptions", redemptionId), {
-            status: 'approved',
-            redeemedDate: new Date().toISOString()
-        });
-    };
-
-    const rejectRedemption = async (redemptionId: string) => {
-        if (isTestMode()) {
-            setRedemptions(prev => prev.map(r => r.id === redemptionId ? { ...r, status: 'rejected' } : r));
-            return;
-        }
-        await updateDoc(doc(db, "redemptions", redemptionId), { status: 'rejected' });
-    };
-
-    // Recurring tasks check logic - Adapted for centralized execution?
-    // In a real app, this should be a backend function. 
-    // Here, we can let ONLY the logged-in parent run this check to avoid conflicts, or just run it locally.
-
-    // Helper: Get current date (respects debug date override from globalSettings)
-    const getCurrentDate = (): Date => {
-        const activeDebugDate = globalSettings?.debugDate;
-        if (activeDebugDate) {
-            // Parse debug date (YYYY-MM-DD) and return as Date object at current time
-            const [year, month, day] = activeDebugDate.split('-').map(Number);
-            const now = new Date();
-            return new Date(year, month - 1, day, now.getHours(), now.getMinutes(), now.getSeconds());
-        }
-        return new Date();
-    };
-
-    // Setter for debug date - persists to Firebase
-    const setDebugDate = async (date: string | null) => {
-        await withLoading(async () => {
-            await updateGlobalSettings({ debugDate: date });
-        }, 'Cambiando fecha...');
-    };
-
-    // Helper: Local Date String YYYY-MM-DD (Timezone Aware, respects debug date)
-    const getLocalDateString = (date?: Date): string => {
-        // If no date provided, use getCurrentDate (which may be debug date)
-        const targetDate = date || getCurrentDate();
-
-        try {
-            const timeZone = globalSettings?.timezone || 'America/Chicago';
-            return new Intl.DateTimeFormat('en-CA', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                timeZone
-            }).format(targetDate);
-        } catch (_e) {
-            // Fallback if timezone invalid or en-CA not supported
-            const year = targetDate.getFullYear();
-            const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-            const day = String(targetDate.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        }
-    };
-
-    // Track tasks that failed to update (no longer exist) to avoid repeated attempts
-    const failedTaskIds = React.useRef<Set<string>>(new Set());
-
-
-    // Lock to prevent simultaneous daily resets
-    const isProcessingReset = React.useRef(false);
-
-    // Recurring tasks check logic - Process Expirations
-    const processDailyReset = async () => {
-        // Prevent concurrent execution or unnecessary runs
-        if (isProcessingReset.current) return;
-        if (tasks.length === 0) return;
-        if (globalSettings?.isVacationMode) return;
-
-        const now = getCurrentDate();
-        const todayStr = getLocalDateString(now);
-
-        // 1. Identify tasks needing updates to avoid partial UI state issues
-        const tasksToExpire = tasks.filter(t =>
-            !failedTaskIds.current.has(t.id) &&
-            t.status === 'pending' &&
-            t.dueDate && t.dueDate < todayStr
-        );
-
-        const tasksToVerify = tasks.filter(t =>
-            !failedTaskIds.current.has(t.id) &&
-            t.status === 'completed' &&
-            t.dueDate && t.dueDate < todayStr
-        );
-
-        if (tasksToExpire.length === 0 && tasksToVerify.length === 0) return;
-
-        // 2. Lock and Show Loading
-        isProcessingReset.current = true;
-        setGlobalLoading(true, 'Actualizando tareas diarias...');
-
-        console.log(`[processDailyReset] Starting update for ${tasksToExpire.length} expired and ${tasksToVerify.length} verified tasks.`);
-
-        try {
-            const batch = writeBatch(db);
-            let operationCount = 0;
-
-            // Process Expirations
-            for (const task of tasksToExpire) {
-                // Log to history
-                const alreadyLogged = history.some(h => h.taskId === task.id && h.status === 'missed');
-                if (!alreadyLogged) {
-                    const historyRef = doc(collection(db, "history"));
-                    batch.set(historyRef, {
-                        taskId: task.id,
-                        taskTitle: task.title,
-                        assignedTo: task.assignedTo,
-                        points: 0,
-                        status: 'missed',
-                        isResponsibility: task.isResponsibility || false,
-                        date: task.dueDate,
-                    });
-                }
-
-                // Update Task Status
-                const taskRef = doc(db, "tasks", task.id);
-                batch.update(taskRef, { status: 'expired' });
-                operationCount++;
-            }
-
-            // Process Auto-Verifications
-            for (const task of tasksToVerify) {
-                // Log to history
-                const alreadyLogged = history.some(h => h.taskId === task.id && (h.status === 'verified' || h.status === 'completed'));
-                if (!alreadyLogged) {
-                    const historyRef = doc(collection(db, "history"));
-                    batch.set(historyRef, {
-                        taskId: task.id,
-                        taskTitle: task.title,
-                        assignedTo: task.assignedTo,
-                        points: task.points || 0,
-                        status: 'verified',
-                        isResponsibility: task.isResponsibility || false,
-                        date: task.dueDate,
-                        completedAt: task.completedAt,
-                        autoVerified: true,
-                    });
-                }
-
-                // Update Task Status
-                const taskRef = doc(db, "tasks", task.id);
-                batch.update(taskRef, {
-                    status: 'verified',
-                    verifiedAt: new Date().toISOString(),
-                    autoVerified: true,
-                });
-                operationCount++;
-            }
-
-            // Commit Task/History changes first
-            if (operationCount > 0) {
-                await batch.commit();
-            }
-
-            // Handle Wallet Updates separately (requires reading current balance)
-            for (const task of tasksToVerify) {
-                if (task.points && task.points > 0) {
-                    try {
-                        const childRef = doc(db, "users", task.assignedTo);
-                        const childSnap = await getDoc(childRef);
-                        if (childSnap.exists()) {
-                            const currentBalance = childSnap.data().walletBalance || 0;
-                            await updateDoc(childRef, {
-                                walletBalance: currentBalance + task.points,
-                            });
-                        }
-                    } catch (err) {
-                        console.error(`Error updating wallet for task ${task.id}`, err);
-                    }
-                }
-            }
-
-        } catch (error: any) {
-            console.error('[processDailyReset] Error processing updates:', error);
-
-            // Extract and blacklist the ID of the missing document causing the batch failure
-            // Error message format example: "No document to update: projects/.../databases/(default)/documents/tasks/TASK_ID"
-            if (error.code === 'not-found' || (error.message && error.message.includes('No document to update'))) {
-                const match = error.message?.match(/tasks\/([a-zA-Z0-9]+)/);
-                if (match && match[1]) {
-                    const missingTaskId = match[1];
-                    console.warn(`[processDailyReset] Detected missing task ${missingTaskId}. Adding to ignore list.`);
-                    failedTaskIds.current.add(missingTaskId);
-                }
-            }
-        } finally {
-            setGlobalLoading(false);
-            // Release lock after a delay to ensure Firestone/UI sync settles
-            setTimeout(() => {
-                isProcessingReset.current = false;
-            }, 2000);
-        }
-    };
-
-
-
-    // Auto-run reset check 
-    useEffect(() => {
-        if (tasks.length > 0) {
-            processDailyReset();
-        }
-    }, [tasks.length]);
-
-    // ============================================================
-    // SYSTEM RESET FUNCTION - Called from Settings
-    // ============================================================
-    const resetSystemData = async () => {
-        console.log('🔴 [RESET] Starting system data cleanup...');
-        setGlobalLoading(true, 'Limpiando sistema...');
-
-        try {
-            // Delete all tasks
-            console.log('🔴 [RESET] Fetching tasks...');
-            const tasksSnap = await getDocs(collection(db, "tasks"));
-            console.log(`🔴 [RESET] Found ${tasksSnap.size} tasks to delete`);
-
-            if (tasksSnap.size > 0) {
-                const taskBatch = writeBatch(db);
-                tasksSnap.forEach(doc => taskBatch.delete(doc.ref));
-                await taskBatch.commit();
-                console.log('🔴 [RESET] Tasks deleted');
-            }
-
-            // Delete all history
-            console.log('🔴 [RESET] Fetching history...');
-            const histSnap = await getDocs(collection(db, "history"));
-            console.log(`🔴 [RESET] Found ${histSnap.size} history entries to delete`);
-
-            if (histSnap.size > 0) {
-                const histBatch = writeBatch(db);
-                histSnap.forEach(doc => histBatch.delete(doc.ref));
-                await histBatch.commit();
-                console.log('🔴 [RESET] History deleted');
-            }
-
-            // Delete all schedules
-            console.log('🔴 [RESET] Fetching schedules...');
-            const schedSnap = await getDocs(collection(db, "schedules"));
-            console.log(`🔴 [RESET] Found ${schedSnap.size} schedules to delete`);
-
-            if (schedSnap.size > 0) {
-                const schedBatch = writeBatch(db);
-                schedSnap.forEach(doc => schedBatch.delete(doc.ref));
-                await schedBatch.commit();
-                console.log('🔴 [RESET] Schedules deleted');
-            }
-
-            console.log('✅ [RESET] System cleanup complete! Templates and Users preserved.');
-            return true;
-
-        } catch (error) {
-            console.error('🔴 [RESET] Error during cleanup:', error);
-            throw error;
-        } finally {
-            setGlobalLoading(false);
-        }
-    };
-
-    // Schedule Reminders (Child only)
-    useEffect(() => {
-        if (currentUser?.role === 'child') {
-            const pendingTasks = tasks.filter(t => t.assignedTo === currentUser.id && t.status === 'pending');
-            scheduleRemindersForTasks(pendingTasks);
-        }
-    }, [tasks, currentUser]);
-
-    const addSchedule = async (schedule: Omit<TaskSchedule, 'id'>) => {
-        if (isTestMode()) {
-            const { active, createdAt, ...rest } = schedule;
-            setSchedules(prev => [...prev, {
-                id: 'test-sched-' + Date.now(),
-                ...rest,
-                active: active !== undefined ? active : true,
-                createdAt: createdAt || new Date().toISOString()
-            }]);
-            return;
-        }
-        await withLoading(async () => {
-            const docRef = await addDoc(collection(db, "schedules"), {
-                active: true,
-                createdAt: new Date().toISOString(),
-                ...schedule
-            });
-
-            firebaseLogger.logOperation('CREATE', 'schedules', docRef.id, { title: schedule.title, frequency: schedule.frequency, recurrenceDays: schedule.recurrenceDays });
-
-            // Wait for Firestore to sync the new schedule, then generate tasks
-            setTimeout(() => {
-                checkAndGenerateWeeklyTasks().catch(console.error);
-            }, 1000);
-        }, 'Creando horario...');
-    };
-
-    const deleteSchedule = async (scheduleId: string) => {
-        if (isTestMode()) {
-            setSchedules(prev => prev.filter(s => s.id !== scheduleId));
-            return;
-        }
-        await withLoading(async () => {
-            await deleteDoc(doc(db, "schedules", scheduleId));
-        }, 'Eliminando horario...');
-    };
-
-    // Lock to prevent simultaneous task generation
-    const isGeneratingTasks = React.useRef(false);
-
-    // Weekly Task Generation Logic (From Schedules -> Tasks)
-    const checkAndGenerateWeeklyTasks = async () => {
-        // Prevent concurrent executions
-        if (isGeneratingTasks.current) {
-            console.log('[WeeklyGen] Already running, skipping...');
-            return;
-        }
-
-        if (!currentUser) {
-            firebaseLogger.logOperation('SKIP_GENERATION', 'tasks', undefined, { reason: 'No user' });
-            return;
-        }
-
-        isGeneratingTasks.current = true;
-        setGlobalLoading(true, 'Generando tareas...');
-        try {
-
-            // Query schedules directly from Firebase to ensure we have fresh data
-            // This is especially important when called right after creating a new schedule
-            const schedulesSnap = await getDocs(
-                query(collection(db, "schedules"), where("active", "==", true))
-            );
-            const freshSchedules = schedulesSnap.docs.map(d => ({
-                id: d.id,
-                ...d.data()
-            })) as TaskSchedule[];
-
-            if (freshSchedules.length === 0) {
-                firebaseLogger.logOperation('SKIP_GENERATION', 'tasks', undefined, { reason: 'No schedules in Firebase' });
-                return;
-            }
-
-            firebaseLogger.logOperation('START_GENERATION', 'tasks', undefined, { schedulesCount: freshSchedules.length });
-            console.log("[WeeklyGen] Checking for tasks to generate from Schedules...");
-
-            const now = getCurrentDate();
-            const currentYear = now.getFullYear();
-            const currentMonth = now.getMonth();
-            const currentDate = now.getDate();
-            const currentDay = now.getDay(); // 0=Sun, 1=Mon...
-
-            // Calculate start of week (Monday)
-            const diff = currentDay === 0 ? 6 : currentDay - 1;
-            const mondayDate = new Date(currentYear, currentMonth, currentDate - diff);
-            mondayDate.setHours(0, 0, 0, 0);
-
-            const weekDates: string[] = [];
-            for (let i = 0; i < 7; i++) {
-                const d = new Date(mondayDate);
-                d.setDate(mondayDate.getDate() + i);
-                weekDates.push(getLocalDateString(d));
-            }
-
-            const batch = writeBatch(db);
-            let batchCount = 0;
-
-            // Filter active schedules assigned to real users
-            const activeSchedules = freshSchedules.filter(s => s.active && s.assignedTo !== 'pool');
-
-            console.log(`[WeeklyGen] Current date: ${now.toISOString().split('T')[0]}`);
-            console.log(`[WeeklyGen] Week dates: ${weekDates.join(', ')}`);
-            console.log(`[WeeklyGen] Found ${activeSchedules.length} active schedules.`);
-
-            // Query Firebase directly for existing tasks in this week range to avoid duplicates
-            // This is more reliable than using local state which may be stale
-            const existingTasksSnap = await getDocs(
-                query(
-                    collection(db, "tasks"),
-                    where("dueDate", ">=", weekDates[0]),
-                    where("dueDate", "<=", weekDates[6])
-                )
-            );
-            const existingTasks = existingTasksSnap.docs.map(d => ({
-                id: d.id,
-                ...d.data()
-            })) as Task[];
-            console.log(`[WeeklyGen] Found ${existingTasks.length} existing tasks in week range.`);
-
-            for (const sched of activeSchedules) {
-                let targetDays: number[] = [];
-
-                // Determine days
-                if (sched.frequency === 'weekly') {
-                    targetDays = sched.recurrenceDays || [];
-                } else {
-                    // DAILY - default to all days if not specified
-                    if (sched.recurrenceDays && sched.recurrenceDays.length > 0) {
-                        targetDays = sched.recurrenceDays;
-                    } else {
-                        targetDays = [1, 2, 3, 4, 5, 6, 0];
-                    }
-                }
-
-                for (let i = 0; i < 7; i++) {
-                    const dateStr = weekDates[i];
-                    // Convert dateStr to Day Index (0-6)
-                    // i=0(Mon)->1, ..., i=6(Sun)->0
-                    const dayIndex = i === 6 ? 0 : i + 1;
-
-                    if (targetDays.includes(dayIndex)) {
-                        // Check if instance already exists linked to this schedule (using Firebase data, not local state)
-                        const exists = existingTasks.some(t =>
-                            t.scheduleId === sched.id &&
-                            t.dueDate === dateStr
-                        );
-
-                        if (!exists) {
-                            // Check exclusions
-                            let shouldCreate = true;
-                            if (sched.isSchool && globalSettings?.nonSchoolDays?.some(d => d.date === dateStr)) {
-                                shouldCreate = false;
-                            }
-
-                            if (shouldCreate) {
-                                const newRef = doc(collection(db, "tasks"));
-                                const newTaskData: any = {
-                                    // Core Data
-                                    title: sched.title || 'Sin título',
-                                    description: sched.description || '',
-                                    assignedTo: sched.assignedTo,
-                                    createdBy: sched.createdBy || '',
-
-                                    // Status & Type
-                                    status: 'pending',
-                                    type: sched.type || 'additional',
-                                    frequency: sched.frequency || 'daily',
-                                    points: sched.points ?? 0, // Default to 0 if undefined
-
-                                    // Linkage
-                                    scheduleId: sched.id,
-                                    templateId: sched.templateId || null,
-
-                                    // Instance Specifics
-                                    dueDate: dateStr,
-
-                                    // Metadata
-                                    categoryId: sched.categoryId || null,
-                                    isResponsibility: sched.isResponsibility ?? false,
-                                    isSchool: sched.isSchool ?? false,
-                                    shift: sched.shift || 'no-time',
-
-                                    createdAt: new Date().toISOString(),
-                                };
-
-                                if (sched.timeWindow) newTaskData.timeWindow = sched.timeWindow;
-
-                                batch.set(newRef, newTaskData);
-                                batchCount++;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (batchCount > 0) {
-                console.log(`[WeeklyGen] Creating ${batchCount} new task instances from schedules.`);
-                await batch.commit();
-                firebaseLogger.logOperation('BATCH_CREATE', 'tasks', undefined, { count: batchCount }, 'success');
-            } else {
-                console.log(`[WeeklyGen] No new tasks needed.`);
-                firebaseLogger.logOperation('NO_TASKS_NEEDED', 'tasks', undefined, { schedulesChecked: activeSchedules.length });
-            }
-        } finally {
-            setGlobalLoading(false);
-            isGeneratingTasks.current = false;
-        }
-    };
-
-    // Trigger Generation (Updated dep to schedules.length and debugDate)
-    useEffect(() => {
-        if (currentUser && schedules.length > 0) {
-            // Only run generation if we have schedules and haven't run it recently?
-            // Or rely on the internal checks of the function which queries DB again.
-            // To be safe, we rely on the function's internal logic, but we MUST NOT depend on tasks.length
-            // otherwise creating a task triggers this again -> infinite loop -> quota exceeded.
-            console.log('[TaskGen] Trigger: checking tasks for week of', debugDate || 'today');
-            checkAndGenerateWeeklyTasks().catch(console.error);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentUser?.id, schedules.length, debugDate]); // Added debugDate to re-generate when date changes
-
-    // Migration Trigger
-    useEffect(() => {
-        if (tasks.length > 0 && currentUser?.role === 'parent') {
-            (async () => {
-                if (!isTestMode()) {
-                    // Only parent triggers migration to avoid conflicts
-                    const legacyMasters = tasks.filter(t =>
-                        !t.originalTaskId && !t.scheduleId &&
-                        (t.frequency === 'daily' || t.frequency === 'weekly') &&
-                        t.assignedTo !== 'pool'
-                    );
-
-                    if (legacyMasters.length > 0) {
-                        const batch = writeBatch(db);
-                        let hasMigration = false;
-
-                        legacyMasters.forEach(t => {
-                            // 3-Table Migration Logic: Legacy Master Tasks -> Schedules
-                            if (!t.originalTaskId && !t.scheduleId && (t.frequency === 'daily' || t.frequency === 'weekly')) {
-                                console.log(`[Migration] Migrating legacy task ${t.title} to Schedule...`);
-                                const scheduleData: any = {
-                                    active: true,
-                                    templateId: t.templateId || 'legacy',
-                                    assignedTo: t.assignedTo,
-                                    createdBy: (t as any).createdBy || 'system',
-                                    title: t.title,
-                                    description: t.description || '',
-                                    type: t.type,
-                                    frequency: t.frequency,
-                                    points: t.points || 0,
-                                    isResponsibility: t.isResponsibility || false,
-                                    isSchool: t.isSchool || false,
-                                    recurrenceDays: (t as any).recurrenceDays || [],
-                                    categoryId: t.categoryId,
-                                    shift: t.shift,
-                                    createdAt: new Date().toISOString()
-                                };
-
-                                if ((t as any).timeWindow) scheduleData.timeWindow = (t as any).timeWindow;
-
-                                // Create Schedule
-                                batch.set(doc(collection(db, "schedules")), scheduleData);
-                                // Delete Legacy Task
-                                batch.delete(doc(db, "tasks", t.id));
-                                hasMigration = true;
-                            }
-                        });
-
-
-                        if (hasMigration) {
-                            console.log("[Migration] Committing migration batch...");
-                            await batch.commit();
-                        }
-                    }
-                }
-            })();
-        }
-    }, [tasks.length, currentUser?.id]); // Run only when tasks loaded
-
-    const isTaskActiveToday = (task: Task, includeGenerators: boolean = false) => {
-        // If includeGenerators is true, we simply ignore this check because we want to see everything
-        // But wait, with 3-table architecture, "Generators" are no longer in the 'tasks' list!
-        // So 'tasks' list ONLY contains instances or one-times.
-        // Thus, isTaskActiveToday just filters instances.
-
-        // However, MonitoringTab might want to see Schedules too?
-        // MonitoringTab should access 'schedules' context separately if it wants to show them.
-        // For 'tasks' filtering:
-
-        const today = getCurrentDate();
-        const dateStr = getLocalDateString(today);
-
-        // 1. One Time: Only visible if due today (or no date = legacy)
-        if (task.frequency === 'one-time') {
-            // Future one-times: hide
-            if (task.dueDate && task.dueDate > dateStr) return false;
-            // Past one-times: hide (regardless of status - they are history now)
-            if (task.dueDate && task.dueDate < dateStr) return false;
-            // Today or no date: show
-            return true;
-        }
-
-        // 2. Instances (Standard)
-        // Should have dueDate.
-        if (task.dueDate) {
-            // Only show today's instances
-            if (task.dueDate === dateStr) return true;
-
-            // Optionally show PAST instances if they are not verified?
-            // No, requirement is "Only show tasks for today". 
-            // Unfinished past tasks should be expired or hidden.
-            return false;
-        }
-
-        // Fallback for weird data
-        return false;
-    };
-
-    const addCategory = async (category: Omit<Category, 'id'>) => {
-        if (isTestMode()) {
-            // @ts-ignore
-            const maxOrder = Math.max(...categories.map(c => c.order || 0), -1);
-            setCategories(prev => [...prev, { id: Date.now().toString(), ...category, order: maxOrder + 1 }]);
-            return;
-        }
-        const maxOrder = Math.max(...categories.map(c => c.order || 0), -1);
-        await addDoc(collection(db, "categories"), { ...category, order: maxOrder + 1 });
-    };
-
-    const updateCategory = async (categoryId: string, updates: Partial<Category>) => {
-        if (isTestMode()) {
-            setCategories(prev => prev.map(c => c.id === categoryId ? { ...c, ...updates } : c));
-            return;
-        }
-        await updateDoc(doc(db, "categories", categoryId), updates);
-    };
-
-    const deleteCategory = async (categoryId: string) => {
-        if (isTestMode()) {
-            setCategories(prev => prev.filter(c => c.id !== categoryId));
-            return;
-        }
-        await deleteDoc(doc(db, "categories", categoryId));
-    };
-
-    const reorderCategories = async (newOrder: Category[]) => {
-        const batch = writeBatch(db);
-        newOrder.forEach((cat, index) => {
-            if (cat.order !== index) {
-                const ref = doc(db, "categories", cat.id);
-                batch.update(ref, { order: index });
-            }
-        });
-        await batch.commit();
-    };
-
-    const addJustificationReason = async (text: string) => {
-        if (isTestMode()) {
-            // @ts-ignore
-            setJustificationReasons(prev => [...prev, { id: Date.now().toString(), text }]);
-            return;
-        }
-        await addDoc(collection(db, "justification_reasons"), { text });
-    };
-
-    const deleteJustificationReason = async (id: string) => {
-        if (isTestMode()) {
-            setJustificationReasons(prev => prev.filter(j => j.id !== id));
-            return;
-        }
-        await deleteDoc(doc(db, "justification_reasons", id));
-    };
-
-    const setLanguage = async (lang: Language) => {
-        setLanguageState(lang);
-        await updateGlobalSettings({ language: lang });
-    };
-
-    const t = (key: string) => {
-        const lang = language || 'es';
-        return translations[lang]?.[key] || translations['es'][key] || key;
-    };
-
-    const addTransaction = async (childId: string, amount: number, type: 'deposit' | 'withdrawal', description: string) => {
-        const user = users.find(u => u.id === childId);
-        if (!user) return;
-
-        const currentBalance = user.walletBalance || 0;
-        const newBalance = type === 'deposit' ? currentBalance + amount : currentBalance - amount;
-
-        // 1. Update User Balance
-        await updateUser(childId, { walletBalance: newBalance });
-
-        // 2. Add Transaction Log
-        const tx: WalletTransaction = {
-            id: '', // Firestore auto-id
-            childId,
-            amount,
-            type,
-            description,
-            date: new Date().toISOString(),
-            createdBy: currentUser?.id || 'system'
-        };
-
-        if (isTestMode()) {
-            // @ts-ignore
-            setTransactions(prev => [{ ...tx, id: 'test-tx-' + Date.now() }, ...prev]);
-            return;
-        }
-
-        const newTxRef = doc(collection(db, "wallet_transactions"));
-        await setDoc(newTxRef, { ...tx, id: newTxRef.id });
+    // ==================== PROVIDER VALUE ====================
+    const value: TaskContextType = {
+        currentUser: authHook.currentUser,
+        tasks,
+        users,
+        history,
+        login: authHook.login,
+        logout: authHook.logout,
+        categories,
+        templates,
+        schedules,
+        addSchedule: schedulesHook.addSchedule,
+        deleteSchedule: schedulesHook.deleteSchedule,
+        addCategory: settingsHook.addCategory,
+        updateCategory: settingsHook.updateCategory,
+        deleteCategory: settingsHook.deleteCategory,
+        reorderCategories: settingsHook.reorderCategories,
+        justificationReasons,
+        addJustificationReason: settingsHook.addJustificationReason,
+        deleteJustificationReason: settingsHook.deleteJustificationReason,
+        addTask: tasksHook.addTask,
+        updateTask: tasksHook.updateTask,
+        deleteTask: tasksHook.deleteTask,
+        completeTask: tasksHook.completeTask,
+        verifyTask: tasksHook.verifyTask,
+        failTask: tasksHook.failTask,
+        rejectTask: tasksHook.rejectTask,
+        rewards,
+        redemptions,
+        addReward: rewardsHook.addReward,
+        deleteReward: rewardsHook.deleteReward,
+        redeemReward: rewardsHook.redeemReward,
+        approveRedemption: rewardsHook.approveRedemption,
+        rejectRedemption: rewardsHook.rejectRedemption,
+        messages,
+        addMessage: settingsHook.addMessage,
+        updateMessage: settingsHook.updateMessage,
+        deleteMessage: settingsHook.deleteMessage,
+        addUser: settingsHook.addUser,
+        updateUser: settingsHook.updateUser,
+        deleteUser: settingsHook.deleteUser,
+        globalSettings,
+        updateGlobalSettings: settingsHook.updateGlobalSettings,
+        isTaskActiveToday,
+        getLocalDateString: systemHook.getLocalDateString,
+        refreshTasks: schedulesHook.checkAndGenerateWeeklyTasks,
+        language,
+        setLanguage: settingsHook.setLanguage,
+        t: settingsHook.t,
+        transactions,
+        addTransaction: settingsHook.addTransaction,
+        debugDate: systemHook.debugDate,
+        setDebugDate: systemHook.setDebugDate,
+        getCurrentDate: systemHook.getCurrentDate,
+        isGlobalLoading,
+        globalLoadingMessage,
+        setGlobalLoading,
+        resetSystemData: systemHook.resetSystemData,
     };
 
     return (
-        <TaskContext.Provider
-            value={{
-                currentUser,
-                tasks,
-                users,
-                history,
-                login,
-                categories,
-                templates,
-                schedules,
-                addSchedule,
-                deleteSchedule,
-                addCategory,
-                updateCategory,
-                deleteCategory,
-                reorderCategories,
-                justificationReasons,
-                addJustificationReason,
-                deleteJustificationReason,
-                logout,
-                addTask,
-                updateTask,
-                deleteTask,
-                completeTask,
-                verifyTask,
-                failTask,
-                rejectTask,
-                messages,
-                addMessage,
-                updateMessage,
-                deleteMessage,
-                addUser,
-                updateUser,
-                deleteUser,
-                rewards,
-                redemptions,
-                addReward,
-                deleteReward,
-                redeemReward,
-                approveRedemption,
-                rejectRedemption,
-                isTaskActiveToday,
-                globalSettings,
-                updateGlobalSettings,
-                getLocalDateString: (d) => getLocalDateString(d),
-                refreshTasks: checkAndGenerateWeeklyTasks,
-                language,
-                setLanguage,
-                t,
-                transactions,
-                addTransaction,
-                // Debug Date Override
-                debugDate,
-                setDebugDate,
-                getCurrentDate,
-                // Global Loading State
-                isGlobalLoading,
-                globalLoadingMessage,
-                setGlobalLoading,
-                // System Reset
-                resetSystemData,
-            }}
-        >
+        <TaskContext.Provider value={value}>
             {children}
         </TaskContext.Provider>
     );
