@@ -1,4 +1,4 @@
-import { Text, TouchableOpacity, TouchableOpacityProps, View } from 'react-native';
+import { Text, TouchableOpacity, TouchableOpacityProps } from 'react-native';
 import { cssInterop } from "nativewind";
 
 cssInterop(TouchableOpacity, { className: "style" });
@@ -17,7 +17,7 @@ export const Button = ({ title, variant = 'primary', size = 'md', className, tex
         primary: "bg-brand-primary border border-transparent",
         secondary: "bg-brand-secondary border border-transparent",
         danger: "bg-brand-accent border border-transparent",
-        outline: "bg-transparent border border-gray-300 dark:border-gray-600",
+        outline: "bg-white border border-gray-300 dark:border-gray-600",
     };
 
     const sizes = {

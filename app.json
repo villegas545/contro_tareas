@@ -4,7 +4,7 @@
     "slug": "control-de-tareas-v2-fixed",
     "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "./assets/icon.jpg",
+    "icon": "./assets/task_logo_final.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -18,11 +18,15 @@
     "android": {
       "package": "com.ville.controldetareas",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.jpg",
+        "foregroundImage": "./assets/task_logo_final.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "googleServicesFile": "./google-services.json"
     },
     "plugins": [
       [
@@ -31,6 +35,13 @@
           "photosPermission": "La app necesita acceso a tus fotos para adjuntar evidencia de tus tareas.",
           "cameraPermission": "La app necesita acceso a tu cámara para tomar fotos de tus tareas completadas."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/task_logo_final.png",
+          "color": "#ffffff"
+        }
       ]
     ],
     "web": {
@@ -38,8 +49,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "6bd2a0e3-4145-44a1-925f-034a318a65ac"
+        "projectId": "b13f414c-340a-4f37-81a2-25f32c77d98c"
       }
-    }
+    },
+    "owner": "ville545"
   }
 }

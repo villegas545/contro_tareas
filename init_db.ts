@@ -292,7 +292,7 @@ const seedDatabase = async () => {
         console.log('Creating users...');
         USERS.forEach((user) => {
             const userRef = doc(db, 'users', user.id);
-            const { id, ...userData } = user;
+            const { id: _id, ...userData } = user; // eslint-disable-line @typescript-eslint/no-unused-vars
             batch.set(userRef, userData);
         });
 
@@ -300,7 +300,7 @@ const seedDatabase = async () => {
         console.log('Creating tasks...');
         TASKS.forEach((task) => {
             const taskRef = doc(db, 'tasks', task.id);
-            const { id, ...taskData } = task;
+            const { id: _id, ...taskData } = task; // eslint-disable-line @typescript-eslint/no-unused-vars
             batch.set(taskRef, taskData);
         });
 

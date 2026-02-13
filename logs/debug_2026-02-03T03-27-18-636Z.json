@@ -1,0 +1,287 @@
+{
+  "generatedAt": "2026-02-03T03:27:18.639Z",
+  "collections": {
+    "tasks": {
+      "count": 4,
+      "documents": [
+        {
+          "id": "AN4reto9zV9avwoZCLJP",
+          "title": "Limpieza general cuarto",
+          "description": "Pasar trapo por escritorios, barrer y trfapear debajo de camas, recoger juguetes, escritorio, ropa tirada",
+          "assignedTo": "45TDc7BbYdYk3TjnxBh8",
+          "createdBy": "8wlV5XjIMRB6Qs9IzHXz",
+          "type": "additional",
+          "frequency": "weekly",
+          "points": 10,
+          "scheduleId": "3HXATxUmfjIwobmAFqH9",
+          "templateId": "8tw5GaS1R1rbsyyl8SMf",
+          "dueDate": "2026-02-03",
+          "categoryId": "XclZ9um1MZ1vtLSG9hrD",
+          "isResponsibility": false,
+          "isSchool": false,
+          "shift": "no-time",
+          "createdAt": "2026-02-03T03:04:51.267Z",
+          "completedAt": "2026-02-03T03:12:28.390Z",
+          "verifiedAt": "2026-02-03T03:12:31.831Z",
+          "status": "verified"
+        },
+        {
+          "id": "EEFp3bkp60XFAANRxgFn",
+          "title": "Limpieza general cuarto",
+          "description": "Pasar trapo por escritorios, barrer y trfapear debajo de camas, recoger juguetes, escritorio, ropa tirada",
+          "assignedTo": "45TDc7BbYdYk3TjnxBh8",
+          "createdBy": "8wlV5XjIMRB6Qs9IzHXz",
+          "status": "pending",
+          "type": "additional",
+          "frequency": "weekly",
+          "points": 10,
+          "scheduleId": "3HXATxUmfjIwobmAFqH9",
+          "templateId": "8tw5GaS1R1rbsyyl8SMf",
+          "dueDate": "2026-02-04",
+          "categoryId": "XclZ9um1MZ1vtLSG9hrD",
+          "isResponsibility": false,
+          "isSchool": false,
+          "shift": "no-time",
+          "createdAt": "2026-02-03T03:04:51.267Z"
+        },
+        {
+          "id": "XFPqcFfNaMPEaePMgce9",
+          "title": "Limpieza general cuarto",
+          "description": "Pasar trapo por escritorios, barrer y trfapear debajo de camas, recoger juguetes, escritorio, ropa tirada",
+          "assignedTo": "45TDc7BbYdYk3TjnxBh8",
+          "createdBy": "8wlV5XjIMRB6Qs9IzHXz",
+          "type": "additional",
+          "frequency": "weekly",
+          "points": 10,
+          "scheduleId": "3HXATxUmfjIwobmAFqH9",
+          "templateId": "8tw5GaS1R1rbsyyl8SMf",
+          "dueDate": "2026-02-02",
+          "categoryId": "XclZ9um1MZ1vtLSG9hrD",
+          "isResponsibility": false,
+          "isSchool": false,
+          "shift": "no-time",
+          "createdAt": "2026-02-03T03:04:51.266Z",
+          "completedAt": "2026-02-03T03:05:05.732Z",
+          "verifiedAt": "2026-02-03T03:10:27.369Z",
+          "status": "verified"
+        },
+        {
+          "id": "ttGjxBzRsa5FElPdIgqI",
+          "title": "Lavar baño y regadera",
+          "description": "Lavar taza con liquido, recoger ropa sucia, lavar lavamanos, limpiar espejo, poner bolsa de basura nueva, lavar bote, lavar cortina y tina",
+          "assignedTo": "45TDc7BbYdYk3TjnxBh8",
+          "createdBy": "8wlV5XjIMRB6Qs9IzHXz",
+          "type": "additional",
+          "frequency": "one-time",
+          "isResponsibility": false,
+          "isSchool": false,
+          "shift": "no-time",
+          "categoryId": "XclZ9um1MZ1vtLSG9hrD",
+          "points": 10,
+          "templateId": "8aJ5N8Ev5qEToKouJ0CY",
+          "dueDate": "2026-02-03",
+          "completedAt": "2026-02-03T03:21:21.883Z",
+          "verifiedAt": "2026-02-03T03:21:26.268Z",
+          "status": "verified"
+        }
+      ]
+    },
+    "schedules": {
+      "count": 2,
+      "documents": [
+        {
+          "id": "3HXATxUmfjIwobmAFqH9",
+          "active": true,
+          "createdAt": "2026-02-03T03:04:49.072Z",
+          "title": "Limpieza general cuarto",
+          "description": "Pasar trapo por escritorios, barrer y trfapear debajo de camas, recoger juguetes, escritorio, ropa tirada",
+          "assignedTo": "45TDc7BbYdYk3TjnxBh8",
+          "createdBy": "8wlV5XjIMRB6Qs9IzHXz",
+          "type": "additional",
+          "frequency": "weekly",
+          "isResponsibility": false,
+          "isSchool": false,
+          "shift": "no-time",
+          "categoryId": "XclZ9um1MZ1vtLSG9hrD",
+          "points": 10,
+          "templateId": "8tw5GaS1R1rbsyyl8SMf",
+          "recurrenceDays": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "id": "daoF0fkjZ7oW2sbIdde8",
+          "active": true,
+          "createdAt": "2026-02-03T03:25:21.648Z",
+          "title": "Lavarse los dientes desayuno",
+          "description": "No durar unos cuantos segundos, lavarse bien incluyendo lengua",
+          "assignedTo": "45TDc7BbYdYk3TjnxBh8",
+          "createdBy": "8wlV5XjIMRB6Qs9IzHXz",
+          "type": "obligatory",
+          "frequency": "daily",
+          "isResponsibility": true,
+          "isSchool": false,
+          "shift": "no-time",
+          "categoryId": "XclZ9um1MZ1vtLSG9hrD",
+          "dueTime": "08:00",
+          "templateId": "KS1ekyjOGVAn1kEQnpsS"
+        }
+      ]
+    },
+    "history": {
+      "count": 4,
+      "documents": [
+        {
+          "id": "NDqmo6G3AH6TWHOUpFXf",
+          "taskId": "NkZHAgAHPJ3K1gHBVvIk",
+          "taskTitle": "Alistar lo de la escuela",
+          "assignedTo": "pool",
+          "points": 0,
+          "status": "missed",
+          "isResponsibility": true,
+          "date": "2026-01-05"
+        },
+        {
+          "id": "YkIAF6CF0BeKXf3D5a4S",
+          "taskId": "AN4reto9zV9avwoZCLJP",
+          "taskTitle": "Limpieza general cuarto",
+          "assignedTo": "45TDc7BbYdYk3TjnxBh8",
+          "points": 10,
+          "status": "verified",
+          "isResponsibility": false,
+          "date": "2026-02-03",
+          "completedAt": "2026-02-03T03:12:28.390Z"
+        },
+        {
+          "id": "jZ9iVZrzghWi1R137D0A",
+          "taskId": "ttGjxBzRsa5FElPdIgqI",
+          "taskTitle": "Lavar baño y regadera",
+          "assignedTo": "45TDc7BbYdYk3TjnxBh8",
+          "points": 10,
+          "status": "verified",
+          "isResponsibility": false,
+          "date": "2026-02-03",
+          "completedAt": "2026-02-03T03:21:21.883Z"
+        },
+        {
+          "id": "jn4MsaCjlWo0zNiVKOab",
+          "taskId": "XFPqcFfNaMPEaePMgce9",
+          "taskTitle": "Limpieza general cuarto",
+          "assignedTo": "45TDc7BbYdYk3TjnxBh8",
+          "points": 10,
+          "status": "verified",
+          "isResponsibility": false,
+          "date": "2026-02-02",
+          "completedAt": "2026-02-03T03:05:05.732Z"
+        }
+      ]
+    },
+    "taskHistory": {
+      "count": 0,
+      "documents": []
+    },
+    "users": {
+      "count": 6,
+      "documents": [
+        {
+          "id": "45TDc7BbYdYk3TjnxBh8",
+          "name": "Elmo Riyo",
+          "username": "elmoriyo",
+          "password": "123",
+          "role": "child",
+          "color": "#10b981",
+          "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=elmoriyo",
+          "pushToken": "ExponentPushToken[aCAy_yKYqd28DKGnipUyye]",
+          "walletBalance": 1
+        },
+        {
+          "id": "8wlV5XjIMRB6Qs9IzHXz",
+          "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=papi",
+          "role": "parent",
+          "username": "papi",
+          "password": "321",
+          "name": "Papi",
+          "color": "#3b82f6",
+          "pushToken": "ExponentPushToken[lUBRcbNL39PXFLcc1-XIhI]"
+        },
+        {
+          "id": "child1",
+          "color": "#FF0000",
+          "role": "child",
+          "password": "123",
+          "username": "yoshi",
+          "avatar": "https://api.dicebear.com/7.x/avataaars/png?seed=Aneka",
+          "name": "Yoshi",
+          "pushToken": "ExponentPushToken[lUBRcbNL39PXFLcc1-XIhI]"
+        },
+        {
+          "id": "child2",
+          "color": "#0000FF",
+          "role": "child",
+          "name": "Dylan",
+          "pushToken": "ExponentPushToken[aCAy_yKYqd28DKGnipUyye]",
+          "username": "dylan",
+          "avatar": "https://api.dicebear.com/7.x/avataaars/png?seed=Bob",
+          "password": "123"
+        },
+        {
+          "id": "child3",
+          "name": "Mike",
+          "role": "child",
+          "pushToken": "ExponentPushToken[tTt2VQAInWnBts0FnLHIoy]",
+          "color": "#FFA500",
+          "username": "miguel",
+          "avatar": "https://api.dicebear.com/7.x/avataaars/png?seed=Charlie",
+          "password": "123"
+        },
+        {
+          "id": "parent1",
+          "color": "#6366F1",
+          "isVacationMode": false,
+          "role": "parent",
+          "name": "Mami",
+          "avatar": "https://api.dicebear.com/7.x/avataaars/png?seed=Felix",
+          "pushToken": "ExponentPushToken[b2DC-fOSn1fvx_XlTBLA2p]",
+          "username": "mami",
+          "password": "321"
+        }
+      ]
+    },
+    "settings": {
+      "count": 1,
+      "documents": [
+        {
+          "id": "general",
+          "nonSchoolDays": [
+            {
+              "date": "2026-01-05"
+            }
+          ],
+          "isVacationMode": false,
+          "language": "es",
+          "debugDate": "2026-02-03"
+        }
+      ]
+    }
+  },
+  "summary": {
+    "tasks": {
+      "total": 4,
+      "byStatus": {
+        "verified": 3,
+        "pending": 1
+      },
+      "byDate": {
+        "2026-02-03": 2,
+        "2026-02-04": 1,
+        "2026-02-02": 1
+      }
+    },
+    "schedules": {
+      "total": 2,
+      "active": 2
+    }
+  }
+}

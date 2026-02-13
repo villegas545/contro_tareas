@@ -1,126 +1,61 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Platform, Alert } from 'react-native';
+import { View, Text, Platform, Alert, ScrollView, Modal } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useTaskContext } from '../../context/TaskContext';
 import { Button } from '../ui/Button';
 import { SearchInput } from '../ui/SearchInput';
 
 export const MessagesTab = () => {
-    const { messages, addMessage, updateMessage, deleteMessage } = useTaskContext();
-    const [newMessageText, setNewMessageText] = useState('');
-    const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(null);
+    const { messages, deleteMessage, t } = useTaskContext();
+    const navigation = useNavigation<any>();
     const [messagesSearch, setMessagesSearch] = useState('');
 
     const filteredMessages = messages.filter(m =>
         m.toLowerCase().includes(messagesSearch.toLowerCase())
     );
 
-    const handleAddMessage = () => {
-        if (!newMessageText.trim()) {
-            if (Platform.OS === 'web') window.alert("El mensaje no puede estar vacío");
-            else Alert.alert("Error", "El mensaje no puede estar vacío");
-            return;
-        }
-
-        if (editingMessageIndex !== null) {
-            updateMessage(editingMessageIndex, newMessageText);
-            setEditingMessageIndex(null);
-            setNewMessageText('');
-            if (Platform.OS === 'web') window.alert("Mensaje actualizado");
-            else Alert.alert("Éxito", "Mensaje actualizado");
-        } else {
-            if (Platform.OS === 'web') {
-                if (window.confirm("¿Deseas agregar este mensaje?")) {
-                    addMessage(newMessageText);
-                    setNewMessageText('');
-                    window.alert("Mensaje agregado");
-                }
-            } else {
-                Alert.alert(
-                    "Confirmar",
-                    "¿Deseas agregar este mensaje?",
-                    [
-                        { text: "Cancelar", style: "cancel" },
-                        {
-                            text: "Agregar",
-                            onPress: () => {
-                                addMessage(newMessageText);
-                                setNewMessageText('');
-                                Alert.alert("Éxito", "Mensaje agregado");
-                            }
-                        }
-                    ]
-                );
-            }
-        }
-    };
-
-    const startEditingMessage = (index: number, text: string) => {
-        setEditingMessageIndex(index);
-        setNewMessageText(text);
-    };
-
-    const cancelEditingMessage = () => {
-        setEditingMessageIndex(null);
-        setNewMessageText('');
-    };
+    // Custom Confirmation Modal State
+    const [confirmationAction, setConfirmationAction] = useState<{ type: 'delete', index: number } | null>(null);
 
     const confirmDeleteMessage = (index: number) => {
-        if (Platform.OS === 'web') {
-            if (window.confirm("¿Estás seguro de eliminar este mensaje?")) deleteMessage(index);
-        } else {
-            Alert.alert(
-                "Confirmar Eliminación",
-                "¿Estás seguro de eliminar este mensaje?",
-                [
-                    { text: "Cancelar", style: "cancel" },
-                    { text: "Eliminar", style: 'destructive', onPress: () => deleteMessage(index) }
-                ]
-            );
-        }
+        setConfirmationAction({ type: 'delete', index });
     };
 
     return (
-        <View className="flex-1 p-6 pb-24">
-            <View className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm mb-6">
-                <Text className="text-lg font-bold mb-2 text-brand-text-primary dark:text-brand-text-light">{editingMessageIndex !== null ? "Editar Mensaje" : "Nuevo Mensaje / Recordatorio"}</Text>
-                <TextInput
-                    value={newMessageText}
-                    onChangeText={setNewMessageText}
-                    placeholder="Escribe un mensaje aquí..."
-                    className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-3 text-base"
-                    multiline
+        <ScrollView className="flex-1" contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
+            <View className="flex-row justify-between items-center mb-6 flex-wrap gap-2">
+                <Text className="text-xl font-bold text-gray-800 dark:text-white shrink">{t('messages.title_full')}</Text>
+                <Button
+                    title={t('messages.new')}
+                    onPress={() => navigation.navigate('AddMessage')}
+                    size="sm"
                 />
-                <View className="flex-row gap-2">
-                    <Button title={editingMessageIndex !== null ? "Actualizar Mensaje" : "Agregar Mensaje"} onPress={handleAddMessage} className="flex-1" />
-                    {editingMessageIndex !== null && (
-                        <Button title="Cancelar" variant="outline" onPress={cancelEditingMessage} className="flex-1" />
-                    )}
-                </View>
             </View>
 
-            <Text className="text-lg font-bold mb-4 text-brand-text-primary dark:text-brand-text-light">Mensajes Actuales</Text>
-
             <SearchInput
-                placeholder="Buscar mensajes..."
+                placeholder={t('messages.search_placeholder')}
                 value={messagesSearch}
                 onChangeText={setMessagesSearch}
             />
 
             {filteredMessages.length === 0 ? (
-                <Text className="text-gray-400 text-center py-4">No se encontraron mensajes</Text>
+                <View className="py-10 items-center">
+                    <Text className="text-gray-400 text-center text-lg">{t('messages.no_messages_title')}</Text>
+                    <Text className="text-gray-400 text-center text-sm mt-2">{t('messages.no_messages_subtitle')}</Text>
+                </View>
             ) : (
                 filteredMessages.map((item, index) => (
                     <View key={index} className="bg-white dark:bg-gray-800 p-4 rounded-xl mb-3 flex-row justify-between items-center shadow-sm">
-                        <Text className="flex-1 text-gray-800 dark:text-gray-100 text-base mr-2">"{item}"</Text>
+                        <Text className="flex-1 text-gray-800 dark:text-gray-100 text-base mr-2" numberOfLines={2}>&quot;{item}&quot;</Text>
                         <View className="flex-row gap-2">
                             <Button
-                                title="Editar"
+                                title={t('common.edit')}
                                 variant="outline"
                                 size="sm"
-                                onPress={() => startEditingMessage(index, item)}
+                                onPress={() => navigation.navigate('AddMessage', { messageToEdit: item, indexToEdit: index })}
                             />
                             <Button
-                                title="Eliminar"
+                                title={t('common.delete')}
                                 variant="outline"
                                 size="sm"
                                 onPress={() => confirmDeleteMessage(index)}
@@ -131,6 +66,41 @@ export const MessagesTab = () => {
                     </View>
                 ))
             )}
-        </View>
+            {/* Confirmation Modal */}
+            <Modal
+                visible={!!confirmationAction}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setConfirmationAction(null)}
+            >
+                <View className="flex-1 bg-black/50 justify-center items-center p-6">
+                    <View className="bg-white p-6 rounded-2xl w-full max-w-sm">
+                        <Text className="text-xl font-bold mb-4 text-center">
+                            {t('messages.confirm_delete_title')}
+                        </Text>
+                        <Text className="text-gray-600 text-center mb-6">
+                            {t('messages.confirm_delete_msg')}
+                        </Text>
+                        <View className="flex-col gap-3">
+                            <Button
+                                title={t('common.delete')}
+                                onPress={async () => {
+                                    if (confirmationAction) {
+                                        await deleteMessage(confirmationAction.index);
+                                        setConfirmationAction(null);
+                                    }
+                                }}
+                                className="bg-rose-600"
+                            />
+                            <Button
+                                title={t('common.cancel')}
+                                variant="outline"
+                                onPress={() => setConfirmationAction(null)}
+                            />
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+        </ScrollView>
     );
 };

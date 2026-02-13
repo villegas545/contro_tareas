@@ -15,29 +15,128 @@ export interface User {
   password?: string; // In a real app this would be hashed, or handled by Firebase Auth
   avatar?: string;
   color?: string; // Hex color code for identifying the user
+  pushToken?: string;
+  walletBalance?: number; // Electronic Wallet Balance
 }
 
-export interface Task {
+export interface WalletTransaction {
+  id: string;
+  childId: string;
+  amount: number;
+  type: 'deposit' | 'withdrawal';
+  description: string;
+  date: string;
+  createdBy: string;
+}
+
+export interface JustificationReason {
+  id: string;
+  text: string;
+}
+
+export interface TaskTemplate {
   id: string;
   title: string;
   description?: string;
-  assignedTo: string; // User ID (child)
-  createdBy: string; // User ID (parent)
-  dueDate?: string; // ISO string
-  dueTime?: string; // ISO string or specific time string like '14:00'
-  status: TaskStatus;
+  createdBy: string;
   type: TaskType;
   frequency: TaskFrequency;
-  points?: number; // Optional reward points
+  points: number;
+  timeWindow?: {
+    start: string;
+    end: string;
+  };
+  timeLimit?: number;
+  isResponsibility: boolean;
+  isSchool: boolean;
+  recurrenceDays?: number[];
+  shift?: 'morning' | 'afternoon' | 'night' | 'no-time';
+  categoryId?: string;
+}
+
+// 3-Table Architecture Interfaces
+
+// 1. Template (Defined above as TaskTemplate)
+
+// 2. Schedule (The Master Assignment)
+export interface TaskSchedule {
+  id: string;
+  templateId: string; // Link to Template
+  assignedTo: string; // Child ID
+  createdBy: string;
+
+  // Copied from Template but overrideable
+  title: string;
+  description?: string;
+  type: TaskType;
+  frequency: TaskFrequency;
+  points: number;
+  isResponsibility: boolean;
+  isSchool: boolean;
+  recurrenceDays?: number[]; // [1, 3, 5] for Mon,Wed,Fri
+  timeWindow?: {
+    start: string;
+    end: string;
+  };
+  shift?: 'morning' | 'afternoon' | 'night' | 'no-time';
+  categoryId?: string;
+
+  active: boolean; // Easier to pause assignments without deleting
+  createdAt: string;
+}
+
+// 3. Task (The Daily Instance)
+export interface Task {
+  id: string;
+  scheduleId?: string; // Link to Schedule (if recurring)
+  templateId?: string; // Link to Template (if one-off)
+
+  assignedTo: string;
+  title: string;
+  description?: string;
+  points: number;
+  status: TaskStatus;
+
+  dueDate: string; // YYYY-MM-DD
+  dueTime?: string;
+
+  // Metadata
+  type: TaskType;
+  frequency: TaskFrequency;
+  isResponsibility?: boolean;
+  isSchool?: boolean;
+  categoryId?: string;
+  shift?: 'morning' | 'afternoon' | 'night' | 'no-time';
+
+  // Execution constraints
+  timeWindow?: {
+    start: string;
+    end: string;
+  };
+  timeLimit?: number;
+
+  // Execution Data
   completedAt?: string;
   verifiedAt?: string;
-  reminder?: boolean;
-  timeWindow?: {
-    start: string; // Format "HH:mm"
-    end: string;   // Format "HH:mm"
-  };
   evidenceUrl?: string;
-  isBonus?: boolean;
+
+  // Legacy fields support (optional during migration)
+  originalTaskId?: string;
+}
+
+export interface TaskContextType {
+  updateGlobalSettings: (settings: Partial<GlobalSettings>) => Promise<void>;
+  getLocalDateString: (date?: Date) => string;
+  refreshTasks: () => Promise<void>;
+  language: Language;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  icon: string;
+  color?: string;
+  order: number;
 }
 
 export interface Reward {
@@ -58,4 +157,19 @@ export interface Redemption {
   status: 'pending' | 'approved' | 'rejected'; // 'approved' means points are deducted and reward given
   requestDate: string; // ISO
   redeemedDate?: string; // ISO
+}
+export interface NonSchoolDay {
+  date: string; // YYYY-MM-DD
+  description?: string;
+}
+
+export type Language = 'es' | 'en' | 'fr' | 'pt' | 'it';
+
+export interface GlobalSettings {
+  id: string; // 'general'
+  isVacationMode: boolean;
+  nonSchoolDays?: NonSchoolDay[];
+  timezone?: string; // e.g. 'America/Chicago'
+  language?: Language;
+  debugDate?: string | null; // YYYY-MM-DD format for testing, null = use system date
 }

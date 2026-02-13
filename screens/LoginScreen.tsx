@@ -2,109 +2,93 @@ import React, { useState } from 'react';
 import { View, Text, SafeAreaView, TextInput, ScrollView, Alert, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { useTaskContext } from '../context/TaskContext';
 import { Button } from '../components/ui/Button';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { registerForPushNotificationsAsync } from '../utils/notifications';
 
 // Static asset import for better web compatibility
-const taskLogo = require('../assets/task_logo.jpg');
+const taskLogo = require('../assets/task_logo_final.png'); // eslint-disable-line @typescript-eslint/no-require-imports
 
 export default function LoginScreen() {
-    const { login } = useTaskContext();
+    const { login, users, updateUser, t } = useTaskContext();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
 
-    const handleLogin = () => {
+    const handleLogin = async () => {
         if (!username || !password) {
             if (Platform.OS === 'web') {
-                window.alert('Por favor ingresa usuario y contraseña');
+                window.alert(t('login.error_missing_creds'));
             } else {
-                Alert.alert('Error', 'Por favor ingresa usuario y contraseña');
+                Alert.alert(t('login.error_title'), t('login.error_missing_creds'));
             }
             return;
         }
 
         const success = login(username, password);
-        if (!success) {
+        if (success) {
+            // Register for Push Notifications
+            const token = await registerForPushNotificationsAsync();
+            if (token) {
+                const user = users.find(u => u.username === username);
+                if (user) {
+                    await updateUser(user.id, { pushToken: token });
+                }
+            }
+        } else {
             if (Platform.OS === 'web') {
-                window.alert('Credenciales incorrectas');
+                window.alert(t('login.error_invalid_creds'));
             } else {
-                Alert.alert('Error', 'Credenciales incorrectas');
+                Alert.alert(t('login.error_title'), t('login.error_invalid_creds'));
             }
         }
     };
 
     return (
         <SafeAreaView className="flex-1 bg-brand-cream dark:bg-brand-dark">
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                className="flex-1"
-            >
-                <ScrollView
-                    contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}
-                    showsVerticalScrollIndicator={false}
-                >
-                    <Animated.View
-                        entering={FadeInUp.delay(200).duration(1000).springify()}
-                        className="items-center mb-8"
-                    >
-                        <View className="shadow-2xl shadow-brand-primary/40 bg-white rounded-[3rem] p-1">
-                            <Image
-                                source={taskLogo}
-                                style={{ width: 140, height: 140, borderRadius: 40 }}
-                                resizeMode="cover"
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+                <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
+                    <View className="items-center mb-12">
+                        <Image
+                            source={taskLogo}
+                            style={{ width: 180, height: 180, marginBottom: 24 }}
+                            resizeMode="contain"
+                        />
+                        <Text className="text-3xl font-bold text-brand-text-primary dark:text-brand-text-light text-center">
+                            {t('login.app_title')}
+                        </Text>
+                        <Text className="text-brand-text-secondary dark:text-brand-text-muted mt-2 text-center">
+                            {t('login.subtitle')}
+                        </Text>
+                    </View>
+
+                    <View className="gap-4">
+                        <View>
+                            <Text className="text-brand-text-secondary font-medium mb-1">{t('login.username_label')}</Text>
+                            <TextInput
+                                className="bg-white p-4 rounded-xl border border-gray-200 text-lg"
+                                placeholder={t('login.username_placeholder')}
+                                value={username}
+                                onChangeText={setUsername}
+                                autoCapitalize="none"
                             />
                         </View>
-                    </Animated.View>
 
-                    <Animated.View
-                        entering={FadeInDown.delay(400).duration(1000).springify()}
-                        className="bg-white/95 dark:bg-zinc-800/95 p-8 rounded-[2rem] shadow-xl border border-white/20"
-                    >
-                        <View className="mb-8">
-                            <Text className="text-3xl font-extrabold text-brand-primary text-center mb-2">
-                                Control de Tareas
-                            </Text>
-                            <Text className="text-brand-text-secondary dark:text-brand-text-muted text-center text-base">
-                                ¡Bienvenido de nuevo! 👋
-                            </Text>
-                        </View>
-
-                        <View className="gap-5">
-                            <View>
-                                <Text className="text-sm font-bold text-brand-text-primary dark:text-brand-text-light ml-1 mb-2 uppercase tracking-wide opacity-80">
-                                    Usuario
-                                </Text>
-                                <TextInput
-                                    className="bg-gray-50 dark:bg-zinc-900/50 p-4 rounded-2xl border border-gray-200 dark:border-zinc-700 text-lg text-brand-text-primary dark:text-white"
-                                    placeholder="Ej. papa, hijo1"
-                                    placeholderTextColor="#9CA3AF"
-                                    value={username}
-                                    onChangeText={setUsername}
-                                    autoCapitalize="none"
-                                />
-                            </View>
-
-                            <View>
-                                <Text className="text-sm font-bold text-brand-text-primary dark:text-brand-text-light ml-1 mb-2 uppercase tracking-wide opacity-80">
-                                    Contraseña
-                                </Text>
-                                <TextInput
-                                    className="bg-gray-50 dark:bg-zinc-900/50 p-4 rounded-2xl border border-gray-200 dark:border-zinc-700 text-lg text-brand-text-primary dark:text-white"
-                                    placeholder="••••••"
-                                    placeholderTextColor="#9CA3AF"
-                                    value={password}
-                                    onChangeText={setPassword}
-                                    secureTextEntry
-                                />
-                            </View>
-
-                            <Button
-                                title="Iniciar Sesión"
-                                onPress={handleLogin}
-                                className="mt-4 shadow-lg shadow-brand-primary/30 py-4"
-                                size="lg"
+                        <View>
+                            <Text className="text-brand-text-secondary font-medium mb-1">{t('login.password_label')}</Text>
+                            <TextInput
+                                className="bg-white p-4 rounded-xl border border-gray-200 text-lg"
+                                placeholder={t('login.password_placeholder')}
+                                value={password}
+                                onChangeText={setPassword}
+                                secureTextEntry
                             />
                         </View>
-                    </Animated.View>
+
+                        <Button
+                            title="Iniciar Sesión"
+                            onPress={handleLogin}
+                            className="mt-4 shadow-lg shadow-brand-primary/30 py-4"
+                            size="lg"
+                        />
+                    </View>
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>

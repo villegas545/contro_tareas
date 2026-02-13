@@ -1,146 +1,113 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Platform, Alert } from 'react-native';
+import { View, Text, Platform, Alert, ScrollView, Modal } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useTaskContext } from '../../context/TaskContext';
 import { Button } from '../ui/Button';
 
 export const FamilyTab = () => {
-    const { users, addUser, updateUser, deleteUser } = useTaskContext();
+    const { users, deleteUser, t } = useTaskContext();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const navigation = useNavigation<any>();
     const children = users.filter(u => u.role === 'child');
+    const parents = users.filter(u => u.role !== 'child');
 
-    const [newChildName, setNewChildName] = useState('');
-    const [newChildUsername, setNewChildUsername] = useState('');
-    const [newChildPassword, setNewChildPassword] = useState('');
-    const [editingChildId, setEditingChildId] = useState<string | null>(null);
-
-    const handleAddUser = () => {
-        if (!newChildName || !newChildUsername || (!newChildPassword && !editingChildId)) {
-            if (Platform.OS === 'web') window.alert("Todos los campos obligatorios (contraseña opcional solo al editar)");
-            else Alert.alert("Error", "Todos los campos obligatorios");
-            return;
-        }
-
-        if (!editingChildId) {
-            const usernameExists = users.some(u => u.username === newChildUsername && u.id !== editingChildId);
-            if (usernameExists) {
-                if (Platform.OS === 'web') window.alert("Este nombre de usuario ya existe");
-                else Alert.alert("Error", "Este nombre de usuario ya existe");
-                return;
-            }
-
-            addUser({
-                name: newChildName,
-                username: newChildUsername,
-                password: newChildPassword,
-                role: 'child',
-                avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + newChildUsername
-            });
-            if (Platform.OS === 'web') window.alert("Hijo agregado correctamente");
-            else Alert.alert("Éxito", "Hijo agregado correctamente");
-        } else {
-            // Update
-            updateUser(editingChildId, {
-                name: newChildName,
-                username: newChildUsername,
-                ...(newChildPassword ? { password: newChildPassword } : {})
-            });
-            setEditingChildId(null);
-            if (Platform.OS === 'web') window.alert("Información actualizada");
-            else Alert.alert("Éxito", "Información actualizada");
-        }
-
-        setNewChildName('');
-        setNewChildUsername('');
-        setNewChildPassword('');
-    };
+    const [confirmationAction, setConfirmationAction] = useState<{ type: 'delete', userId: string } | null>(null);
 
     const confirmDeleteUser = (userId: string) => {
-        if (Platform.OS === 'web') {
-            if (window.confirm("¿Estás seguro de eliminar a este usuario? Se perderá su historial.")) {
-                deleteUser(userId);
-            }
-        } else {
-            Alert.alert(
-                "Confirmar Eliminación",
-                "¿Estás seguro de eliminar a este usuario? Se perderá su historial.",
-                [
-                    { text: "Cancelar", style: "cancel" },
-                    { text: "Eliminar", style: 'destructive', onPress: () => deleteUser(userId) }
-                ]
-            );
-        }
+        setConfirmationAction({ type: 'delete', userId });
     };
 
-    const startEditingUser = (user: any) => {
-        setEditingChildId(user.id);
-        setNewChildName(user.name);
-        setNewChildUsername(user.username);
-        setNewChildPassword('');
-    };
-
-    const cancelEditingUser = () => {
-        setEditingChildId(null);
-        setNewChildName('');
-        setNewChildUsername('');
-        setNewChildPassword('');
-    };
+    const renderUserList = (list: typeof users, title: string, emptyMsg: string) => (
+        <View className="mb-6">
+            <Text className="text-lg font-bold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">{title}</Text>
+            {list.length === 0 ? (
+                <View className="py-4 items-center bg-gray-50 rounded-xl border-dashed border border-gray-200">
+                    <Text className="text-gray-400 italic">{emptyMsg}</Text>
+                </View>
+            ) : (
+                list.map(item => (
+                    <View key={item.id} className="bg-white dark:bg-gray-800 p-4 rounded-xl mb-3 flex-row justify-between items-center shadow-sm">
+                        <View className="flex-row items-center gap-3">
+                            <View style={{ backgroundColor: item.color || '#4338ca' }} className="w-10 h-10 rounded-full items-center justify-center">
+                                <Text className="text-white font-bold text-lg">{item.name.charAt(0)}</Text>
+                            </View>
+                            <View>
+                                <Text className="text-lg font-bold text-gray-800 dark:text-gray-100">{item.name}</Text>
+                                <Text className="text-gray-500 dark:text-gray-400 text-sm">@{item.username}</Text>
+                            </View>
+                        </View>
+                        <View className="flex-row gap-2">
+                            <Button
+                                title={t('common.edit')}
+                                variant="outline"
+                                size="sm"
+                                onPress={() => navigation.navigate('AddFamilyMember', { userToEdit: item })}
+                            />
+                            <Button
+                                title={t('common.delete')}
+                                variant="outline"
+                                size="sm"
+                                onPress={() => confirmDeleteUser(item.id)}
+                                className="border-rose-200"
+                                textClassName="text-rose-600"
+                            />
+                        </View>
+                    </View>
+                ))
+            )}
+        </View>
+    );
 
     return (
-        <View className="flex-1 p-6 pb-24">
-            <View className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm mb-6">
-                <Text className="text-lg font-bold mb-4 text-brand-text-primary dark:text-brand-text-light">{editingChildId ? "Editar Información del Hijo" : "Agregar Nuevo Hijo"}</Text>
-                <TextInput
-                    value={newChildName}
-                    onChangeText={setNewChildName}
-                    placeholder="Nombre del hijo"
-                    className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-3 text-base"
+        <ScrollView className="flex-1" contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
+            <View className="flex-row justify-between items-center mb-6">
+                <Text className="text-xl font-bold text-gray-800 dark:text-white">{t('family.title_full')}</Text>
+                <Button
+                    title={t('family.add_member')}
+                    onPress={() => navigation.navigate('AddFamilyMember')}
+                    size="sm"
                 />
-                <TextInput
-                    value={newChildUsername}
-                    onChangeText={setNewChildUsername}
-                    placeholder="Nombre de usuario (Login)"
-                    autoCapitalize="none"
-                    className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-3 text-base"
-                />
-                <TextInput
-                    value={newChildPassword}
-                    onChangeText={setNewChildPassword}
-                    placeholder={editingChildId ? "Nueva Contraseña (opcional)" : "Contraseña"}
-                    secureTextEntry
-                    className="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-3 text-base"
-                />
-                <View className="flex-row gap-2">
-                    <Button title={editingChildId ? "Actualizar Hijo" : "Agregar Hijo"} onPress={handleAddUser} className="flex-1" />
-                    {editingChildId && (
-                        <Button title="Cancelar" variant="outline" onPress={cancelEditingUser} className="flex-1" />
-                    )}
-                </View>
             </View>
 
-            <Text className="text-lg font-bold mb-4 text-brand-text-primary dark:text-brand-text-light">Lista de Hijos</Text>
-            {children.map(item => (
-                <View key={item.id} className="bg-white dark:bg-gray-800 p-4 rounded-xl mb-3 flex-row justify-between items-center shadow-sm">
-                    <View>
-                        <Text className="text-lg font-bold text-gray-800 dark:text-gray-100">{item.name}</Text>
-                        <Text className="text-gray-500 dark:text-gray-400 text-sm">@{item.username}</Text>
-                    </View>
-                    <View className="flex-row gap-2">
-                        <Button
-                            title="Editar"
-                            variant="outline"
-                            size="sm"
-                            onPress={() => startEditingUser(item)}
-                        />
-                        <Button
-                            title="Eliminar"
-                            variant="outline"
-                            size="sm"
-                            onPress={() => confirmDeleteUser(item.id)}
-                            className="border-rose-200"
-                            textClassName="text-rose-600"
-                        />
+            {renderUserList(parents, t('family.parents_title'), t('family.no_parents'))}
+
+            {renderUserList(children, t('family.children_title'), t('family.no_children'))}
+
+            {/* Confirmation Modal */}
+            <Modal
+                visible={!!confirmationAction}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setConfirmationAction(null)}
+            >
+                <View className="flex-1 bg-black/50 justify-center items-center p-6">
+                    <View className="bg-white p-6 rounded-2xl w-full max-w-sm">
+                        <Text className="text-xl font-bold mb-4 text-center">
+                            {t('family.confirm_delete_title')}
+                        </Text>
+                        <Text className="text-gray-600 text-center mb-6">
+                            {t('family.confirm_delete_msg')}
+                        </Text>
+                        <View className="flex-col gap-3">
+                            <Button
+                                title={t('common.delete')}
+                                onPress={async () => {
+                                    if (confirmationAction) {
+                                        await deleteUser(confirmationAction.userId);
+                                        setConfirmationAction(null);
+                                    }
+                                }}
+                                className="bg-rose-600"
+                            />
+                            <Button
+                                title={t('common.cancel')}
+                                variant="outline"
+                                onPress={() => setConfirmationAction(null)}
+                            />
+                        </View>
                     </View>
                 </View>
-            ))}
-        </View>
+            </Modal>
+        </ScrollView>
     );
 };
