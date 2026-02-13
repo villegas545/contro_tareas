@@ -481,6 +481,13 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         resetSystemData: systemHook.resetSystemData,
     };
 
+    // Automatically check for recurring tasks when a parent is logged in
+    useEffect(() => {
+        if (currentUser?.role === 'parent' && tasks.length > 0) {
+            checkRecurringTasks();
+        }
+    }, [currentUser, tasks.length]); // Depend on user and tasks existence
+
     return (
         <TaskContext.Provider value={value}>
             {children}

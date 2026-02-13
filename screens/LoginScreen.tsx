@@ -82,9 +82,12 @@ export default function LoginScreen() {
                             />
                         </View>
 
-                        <Button title="Entrar" onPress={handleLogin} className="mt-4" />
-
-
+                        <Button
+                            title="Iniciar Sesión"
+                            onPress={handleLogin}
+                            className="mt-4 shadow-lg shadow-brand-primary/30 py-4"
+                            size="lg"
+                        />
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
