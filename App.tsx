@@ -20,6 +20,7 @@ import { ManageCategoriesScreen } from './screens/ManageCategoriesScreen';
 import { ManageJustificationsScreen } from './screens/ManageJustificationsScreen';
 import { StatusBar } from 'expo-status-bar';
 import { GlobalLoadingOverlay } from './components/GlobalLoadingOverlay';
+import { Toast } from './components/ui/Toast';
 
 const Stack = createStackNavigator();
 
@@ -56,7 +57,7 @@ import { useColorScheme } from 'nativewind';
 
 // Inner App Content that has access to TaskContext
 const AppContent = () => {
-  const { isGlobalLoading, globalLoadingMessage } = useTaskContext();
+  const { isGlobalLoading, globalLoadingMessage, toastVisible, toastMessage, toastType, dismissToast } = useTaskContext();
 
   return (
     <>
@@ -70,6 +71,12 @@ const AppContent = () => {
             </NavigationContainer>
           </SafeAreaView>
         </SafeAreaProvider>
+        <Toast
+          visible={toastVisible}
+          message={toastMessage}
+          type={toastType}
+          onDismiss={dismissToast}
+        />
       </View>
       <GlobalLoadingOverlay visible={isGlobalLoading} message={globalLoadingMessage} />
     </>

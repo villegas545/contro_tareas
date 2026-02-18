@@ -5,6 +5,8 @@ import { useTaskContext } from '../context/TaskContext';
 import { Button } from './ui/Button';
 import { Task } from '../types';
 import { AdvancedFilterControls } from './ui/AdvancedFilterControls';
+import { writeBatch, doc } from 'firebase/firestore';
+import { db } from '../firebaseConfig';
 
 interface ScheduleModalProps {
     visible: boolean;
@@ -12,7 +14,7 @@ interface ScheduleModalProps {
 }
 
 export const ScheduleModal = ({ visible, onClose }: ScheduleModalProps) => {
-    const { users, tasks, categories, deleteTask, t, getCurrentDate } = useTaskContext();
+    const { users, tasks, schedules, categories, deleteTask, t, getCurrentDate, showToast } = useTaskContext();
     const children = users.filter((u: any) => u.role === 'child');
     const [selectedChildId, setSelectedChildId] = useState<string | null>(children.length > 0 ? children[0].id : null);
 
@@ -175,30 +177,66 @@ export const ScheduleModal = ({ visible, onClose }: ScheduleModalProps) => {
     }, [scheduleData, dailyCompareData, viewMode]);
 
     const handleTaskPress = (task: Task, day: number) => {
+        console.log('[ScheduleModal] Task pressed:', { id: task.id, title: task.title, frequency: task.frequency, isResponsibility: task.isResponsibility, assignedTo: task.assignedTo, scheduleId: task.scheduleId });
         setTaskToManage({ task, day });
     };
 
     const handleDeleteTask = async () => {
+        console.log('[ScheduleModal] handleDeleteTask called, taskToManage:', taskToManage ? { id: taskToManage.task.id, title: taskToManage.task.title, scheduleId: taskToManage.task.scheduleId } : 'null');
         if (!taskToManage) return;
         const { task } = taskToManage;
 
-        // Each task is now an individual instance with its own dueDate
-        // Simply delete the task
-        Alert.alert(
-            t('common.delete'),
-            t('task.delete_confirm'),
-            [
-                {
-                    text: t('common.delete'),
-                    onPress: async () => {
-                        await deleteTask(task.id);
-                        setTaskToManage(null);
+        const hasSchedule = !!task.scheduleId;
+        const confirmMsg = hasSchedule
+            ? `${t('task.delete_confirm')}\n\nEsta tarea tiene un horario recurrente. Se eliminará el horario y todas las tareas pendientes generadas.`
+            : t('task.delete_confirm');
+
+        const doDelete = async () => {
+            if (hasSchedule && task.scheduleId) {
+                console.log('[ScheduleModal] Deleting schedule:', task.scheduleId);
+                // Delete all pending/expired tasks from this schedule (completed/verified are kept as history)
+                const linkedTasks = tasks.filter(t => t.scheduleId === task.scheduleId && (t.status === 'pending' || t.status === 'expired'));
+                console.log(`[ScheduleModal] Found ${linkedTasks.length} pending/expired tasks from schedule ${task.scheduleId}`);
+
+                // Use a single batch for all deletions
+                const batch = writeBatch(db);
+                for (const lt of linkedTasks) {
+                    batch.delete(doc(db, 'tasks', lt.id));
+                }
+                batch.delete(doc(db, 'schedules', task.scheduleId));
+                await batch.commit();
+
+                showToast(`Horario eliminado (${linkedTasks.length} tareas removidas)`, 'success');
+            } else {
+                // No schedule, just delete this individual task
+                await deleteTask(task.id);
+            }
+            setTaskToManage(null);
+        };
+
+        if (Platform.OS === 'web') {
+            const confirmed = window.confirm(confirmMsg);
+            if (confirmed) {
+                console.log('[ScheduleModal] Web confirm accepted');
+                await doDelete();
+            }
+        } else {
+            Alert.alert(
+                t('common.delete'),
+                confirmMsg,
+                [
+                    {
+                        text: t('common.delete'),
+                        onPress: async () => {
+                            console.log('[ScheduleModal] Alert confirmed');
+                            await doDelete();
+                        },
+                        style: 'destructive'
                     },
-                    style: 'destructive'
-                },
-                { text: t('common.cancel'), style: "cancel" }
-            ]
-        );
+                    { text: t('common.cancel'), style: "cancel" }
+                ]
+            );
+        }
     };
 
     const handlePrint = async () => {

@@ -2,7 +2,7 @@
  * TaskContext - Refactored
  * Uses modular hooks for better maintainability
  */
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Task, User, TaskHistory, Reward, Redemption, GlobalSettings, Category, TaskTemplate, JustificationReason, Language, TaskSchedule, WalletTransaction } from '../types';
 import { translations } from '../utils/translations';
@@ -11,6 +11,7 @@ import { db } from '../firebaseConfig';
 import { sendPushNotification, scheduleRemindersForTasks } from '../utils/notifications';
 import { USERS, TASKS } from '../data/mockData';
 import { firebaseLogger } from '../utils/firebaseLogger';
+import type { ToastType } from '../components/ui/Toast';
 
 // Import hooks
 import { useAuth } from '../hooks/useAuth';
@@ -96,6 +97,13 @@ interface TaskContextType {
     globalLoadingMessage: string;
     setGlobalLoading: (loading: boolean, message?: string) => void;
 
+    // Toast Notifications
+    toastVisible: boolean;
+    toastMessage: string;
+    toastType: ToastType;
+    dismissToast: () => void;
+    showToast: (message: string, type?: ToastType) => void;
+
     // System Reset
     resetSystemData: () => Promise<boolean>;
 }
@@ -125,15 +133,56 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
     const [isGlobalLoading, setIsGlobalLoading] = useState(false);
     const [globalLoadingMessage, setGlobalLoadingMessage] = useState('');
 
+    // Toast State
+    const [toastVisible, setToastVisible] = useState(false);
+    const [toastMessage, setToastMessage] = useState('');
+    const [toastType, setToastType] = useState<ToastType>('success');
+
+    const showToast = useCallback((message: string, type: ToastType = 'success') => {
+        setToastMessage(message);
+        setToastType(type);
+        setToastVisible(true);
+    }, []);
+
+    const dismissToast = useCallback(() => {
+        setToastVisible(false);
+    }, []);
+
     const setGlobalLoading = (loading: boolean, message?: string) => {
         setIsGlobalLoading(loading);
         setGlobalLoadingMessage(message || 'Procesando...');
     };
 
-    const withLoading = async <T,>(operation: () => Promise<T>, message?: string): Promise<T> => {
-        setGlobalLoading(true, message || 'Procesando...');
+    /**
+     * withLoading - Firebase middleware
+     * Wraps every Firebase operation with:
+     * 1. 🔄 Loading spinner
+     * 2. 📋 Logging via firebaseLogger
+     * 3. ✅ Success toast
+     * 4. ❌ Error toast
+     */
+    const withLoading = async <T,>(operation: () => Promise<T>, message?: string, options?: { silent?: boolean; successMsg?: string }): Promise<T> => {
+        const opMessage = message || 'Procesando...';
+        const startTime = Date.now();
+        setGlobalLoading(true, opMessage);
+        firebaseLogger.logOperation('START', 'operation', undefined, { message: opMessage });
+
         try {
-            return await operation();
+            const result = await operation();
+            const duration = Date.now() - startTime;
+            firebaseLogger.logOperation('COMPLETE', 'operation', undefined, { message: opMessage }, 'success', undefined, duration);
+
+            if (!options?.silent) {
+                showToast(options?.successMsg || opMessage.replace('...', '') + ' ✓', 'success');
+            }
+            return result;
+        } catch (error: any) {
+            const duration = Date.now() - startTime;
+            const errorMsg = error?.message || 'Error desconocido';
+            firebaseLogger.logOperation('FAIL', 'operation', undefined, { message: opMessage }, 'error', errorMsg, duration);
+            console.error(`[Firebase Middleware] ❌ ${opMessage}:`, error);
+            showToast(`Error: ${errorMsg}`, 'error');
+            throw error;
         } finally {
             setGlobalLoading(false);
         }
@@ -478,6 +527,11 @@ export const TaskProvider = ({ children }: { children: React.ReactNode }) => {
         isGlobalLoading,
         globalLoadingMessage,
         setGlobalLoading,
+        toastVisible,
+        toastMessage,
+        toastType,
+        dismissToast,
+        showToast,
         resetSystemData: systemHook.resetSystemData,
     };
 

@@ -41,7 +41,7 @@ export interface SharedState {
 
     // Loading State
     setGlobalLoading: (loading: boolean, message?: string) => void;
-    withLoading: <T>(operation: () => Promise<T>, message?: string) => Promise<T>;
+    withLoading: <T>(operation: () => Promise<T>, message?: string, options?: { silent?: boolean; successMsg?: string }) => Promise<T>;
 
     // Date helpers
     debugDate: string | null;
