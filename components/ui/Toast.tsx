@@ -28,14 +28,14 @@ export const Toast: React.FC<ToastProps> = ({ visible, message, type, onDismiss,
             Animated.parallel([
                 Animated.spring(translateY, {
                     toValue: 0,
-                    useNativeDriver: true,
+                    useNativeDriver: Platform.OS !== 'web',
                     tension: 80,
                     friction: 10,
                 }),
                 Animated.timing(opacity, {
                     toValue: 1,
                     duration: 200,
-                    useNativeDriver: true,
+                    useNativeDriver: Platform.OS !== 'web',
                 }),
             ]).start();
 
@@ -56,12 +56,12 @@ export const Toast: React.FC<ToastProps> = ({ visible, message, type, onDismiss,
             Animated.timing(translateY, {
                 toValue: -100,
                 duration: 250,
-                useNativeDriver: true,
+                useNativeDriver: Platform.OS !== 'web',
             }),
             Animated.timing(opacity, {
                 toValue: 0,
                 duration: 250,
-                useNativeDriver: true,
+                useNativeDriver: Platform.OS !== 'web',
             }),
         ]).start(() => {
             onDismiss();

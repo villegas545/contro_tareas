@@ -313,14 +313,33 @@ export const ScheduleModal = ({ visible, onClose }: ScheduleModalProps) => {
             `;
 
             try {
-                await Print.printAsync({ html });
+                if (Platform.OS === 'web') {
+                    // Web: open in a new window and trigger native print dialog
+                    const printWindow = window.open('', '_blank');
+                    if (printWindow) {
+                        printWindow.document.write(html);
+                        printWindow.document.close();
+                        printWindow.focus();
+                        setTimeout(() => {
+                            printWindow.print();
+                        }, 500);
+                    } else {
+                        showToast('No se pudo abrir la ventana de impresión. Verifica que no estén bloqueados los pop-ups.', 'error');
+                    }
+                } else {
+                    await Print.printAsync({ html });
+                }
             } catch (e) {
                 console.error("Print Error:", e);
-                Alert.alert(t('common.error'), t('schedule.print_error'));
+                showToast('Error al imprimir', 'error');
             }
         } else {
-            // To be implemented or just alert
-            Alert.alert("Info", "La impresión en modo comparación aún no está disponible (usa la vista semanal).");
+            // Compare mode - not yet implemented
+            if (Platform.OS === 'web') {
+                showToast('La impresión en modo comparación aún no está disponible (usa la vista semanal).', 'info');
+            } else {
+                Alert.alert("Info", "La impresión en modo comparación aún no está disponible (usa la vista semanal).");
+            }
             return;
         }
     };
